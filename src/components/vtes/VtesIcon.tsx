@@ -186,7 +186,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
         url = `${baseUrl}/icon/${filename}.svg`;
     }
 
-    const pxSize = size === 'sm' ? 16 : size === 'md' ? 24 : 32;
+    const pxSize = size === 'sm' ? 20 : size === 'md' ? 28 : 36;
 
     if (error) {
         return (
@@ -200,6 +200,9 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
         );
     }
 
+    // High contrast filter for dark mode: Force black then invert to white.
+    const filterClass = (type === 'discipline' || type === 'clan') ? 'brightness-0 invert' : '';
+
     return (
         <div
             className={`relative inline-block select-none ${className}`}
@@ -211,7 +214,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
                 src={url}
                 alt={name}
                 referrerPolicy="no-referrer"
-                className={`w-full h-full object-contain drop-shadow-sm ${type === 'discipline' || type === 'clan' ? 'invert' : ''}`}
+                className={`w-full h-full object-contain drop-shadow-sm ${filterClass}`}
                 onError={() => setError(true)}
             />
         </div>
