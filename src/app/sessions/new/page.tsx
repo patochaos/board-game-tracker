@@ -5,7 +5,7 @@ import { Card, Button, Input } from '@/components/ui';
 import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -43,10 +43,7 @@ export default function NewSessionPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createClient();
 
   useEffect(() => {
     const init = async () => {
@@ -317,11 +314,10 @@ export default function NewSessionPage() {
                     key={game.id}
                     type="button"
                     onClick={() => setSelectedGameId(game.id)}
-                    className={`p-3 rounded-xl border transition-all text-left ${
-                      selectedGameId === game.id
+                    className={`p-3 rounded-xl border transition-all text-left ${selectedGameId === game.id
                         ? 'border-emerald-500 bg-emerald-500/10'
                         : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       {game.thumbnail_url ? (
@@ -386,11 +382,10 @@ export default function NewSessionPage() {
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border ${
-                    player.isWinner
+                  className={`flex items-center gap-3 p-3 rounded-xl border ${player.isWinner
                       ? 'border-yellow-500/50 bg-yellow-500/10'
                       : 'border-slate-700 bg-slate-800/30'
-                  }`}
+                    }`}
                 >
                   <div className="flex-1">
                     {player.isCurrentUser ? (
@@ -418,11 +413,10 @@ export default function NewSessionPage() {
                   <button
                     type="button"
                     onClick={() => toggleWinner(player.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      player.isWinner
+                    className={`p-2 rounded-lg transition-colors ${player.isWinner
                         ? 'bg-yellow-500 text-slate-900'
                         : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
-                    }`}
+                      }`}
                     title={player.isWinner ? 'Winner!' : 'Mark as winner'}
                   >
                     <Trophy className="h-4 w-4" />
