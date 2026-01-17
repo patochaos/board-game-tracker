@@ -7,7 +7,13 @@
       "WebFetch(domain:boardgamegeek.com)",
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
-      "Bash(timeout 15 npm run dev:*)"
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: Add force-dynamic to pages using Supabase client\n\nPrevents Next.js prerender errors on Vercel by adding\n`export const dynamic = ''force-dynamic''` to all pages\nthat use the Supabase browser client.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(npx playwright test:*)"
     ]
   }
 }

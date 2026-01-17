@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Image from 'next/image';
 import { format, subDays, startOfWeek, eachWeekOfInterval } from 'date-fns';
+import { SessionWithDetails, SessionPlayerWithProfile } from '@/types';
 
 interface PlayerStats {
   user_id: string;
@@ -187,10 +188,10 @@ export default function StatsPage() {
         if (user) {
           const gameMap = new Map<string, { name: string; plays: number; wins: number }>();
 
-          sessions.forEach((session: any) => {
+          (sessions as unknown as SessionWithDetails[]).forEach((session) => {
             const gameName = session.game?.name || 'Unknown';
             const gameId = session.game_id;
-            const myPlay = session.session_players?.find((sp: any) => sp.user_id === user.id);
+            const myPlay = session.session_players?.find((sp) => sp.user_id === user.id);
 
             if (myPlay) {
               const existing = gameMap.get(gameId) || { name: gameName, plays: 0, wins: 0 };
@@ -261,11 +262,11 @@ export default function StatsPage() {
           // Calculate Nemesis (The player who beats you the most)
           const rivalMap = new Map<string, { name: string, wins: number, games: number }>();
 
-          sessions.forEach((session: any) => {
-            const myPlay = session.session_players.find((p: any) => p.user_id === user.id);
+          (sessions as unknown as SessionWithDetails[]).forEach((session) => {
+            const myPlay = session.session_players.find((p) => p.user_id === user.id);
             // Only count games where I played AND I lost
             if (myPlay && !myPlay.is_winner) {
-              const winner = session.session_players.find((p: any) => p.is_winner);
+              const winner = session.session_players.find((p) => p.is_winner);
               if (winner && winner.user_id !== user.id) { // Ensure winner is not me (redundant check but safe)
                 const rivalId = winner.user_id;
                 const rivalName = winner.profile?.display_name || winner.profile?.username || 'Unknown';
@@ -278,7 +279,7 @@ export default function StatsPage() {
 
             // Track total games together just for context (optional)
             if (myPlay) {
-              session.session_players.forEach((p: any) => {
+              session.session_players.forEach((p) => {
                 if (p.user_id !== user.id) {
                   const rivalId = p.user_id;
                   const rivalName = p.profile?.display_name || p.profile?.username || 'Unknown';

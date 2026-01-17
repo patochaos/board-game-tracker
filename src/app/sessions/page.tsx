@@ -17,6 +17,13 @@ interface Game {
   thumbnail_url: string | null;
 }
 
+interface GuestPlayer {
+  id: string;
+  name: string;
+  score: number | null;
+  is_winner: boolean;
+}
+
 interface SessionWithDetails {
   id: string;
   played_at: string;
@@ -34,6 +41,7 @@ interface SessionWithDetails {
       username: string;
     };
   }[];
+  guest_players: GuestPlayer[];
   isNewToGroup?: boolean;
 }
 
@@ -72,6 +80,12 @@ export default function SessionsPage() {
             is_winner,
             user_id,
             profile:profiles(display_name, username)
+          ),
+          guest_players(
+            id,
+            name,
+            score,
+            is_winner
           )
         `)
         .order('played_at', { ascending: false });
@@ -318,9 +332,9 @@ export default function SessionsPage() {
                       </div>
 
                       {/* Players */}
-                      {session.session_players && session.session_players.length > 0 && (
+                      {(session.session_players?.length > 0 || session.guest_players?.length > 0) && (
                         <div className="flex flex-wrap items-center gap-2 mt-3">
-                          {session.session_players.map((sp) => (
+                          {session.session_players?.map((sp) => (
                             <div
                               key={sp.id}
                               className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${sp.is_winner
@@ -332,6 +346,21 @@ export default function SessionsPage() {
                               <span>{sp.profile?.display_name || sp.profile?.username}</span>
                               {sp.score !== null && (
                                 <span className="text-slate-500">({sp.score})</span>
+                              )}
+                            </div>
+                          ))}
+                          {session.guest_players?.map((gp) => (
+                            <div
+                              key={gp.id}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${gp.is_winner
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-slate-800 text-slate-300'
+                                }`}
+                            >
+                              {gp.is_winner && <Trophy className="h-3 w-3" />}
+                              <span>{gp.name}</span>
+                              {gp.score !== null && (
+                                <span className="text-slate-500">({gp.score})</span>
                               )}
                             </div>
                           ))}

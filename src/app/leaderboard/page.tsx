@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { Trophy, Medal, Star, LayoutList, Calendar } from 'lucide-react';
 import Image from 'next/image';
+import { LeaderboardRow } from '@/types';
 
 interface PlayerStat {
     userId: string;
@@ -67,7 +68,7 @@ export default function LeaderboardPage() {
             // Aggregation Logic
             const playerMap = new Map<string, PlayerStat>();
 
-            data.forEach((row: any) => {
+            (data as unknown as LeaderboardRow[]).forEach((row) => {
                 const userId = row.user_id;
                 const profile = row.profiles; // Single object or array depending on relation? Usually object for One-to-One
                 // Note: supabase-js returns array if multiple, object if single. profiles is joined on ID, so unique.
@@ -81,7 +82,7 @@ export default function LeaderboardPage() {
                 const playedAt = row.sessions?.played_at;
 
                 // Skip if date filter applies
-                if (filter === 'month') {
+                if (filter === 'month' && playedAt) {
                     const firstOfMonth = new Date();
                     firstOfMonth.setDate(1);
                     firstOfMonth.setHours(0, 0, 0, 0);
@@ -97,14 +98,14 @@ export default function LeaderboardPage() {
                         plays: 0,
                         wins: 0,
                         winRate: 0,
-                        lastPlayed: playedAt
+                        lastPlayed: playedAt || ''
                     });
                 }
 
                 const stat = playerMap.get(userId)!;
                 stat.plays += 1;
                 if (isWinner) stat.wins += 1;
-                if (playedAt > stat.lastPlayed) stat.lastPlayed = playedAt;
+                if (playedAt && playedAt > stat.lastPlayed) stat.lastPlayed = playedAt;
             });
 
             // Calculate Win Rates & Sort

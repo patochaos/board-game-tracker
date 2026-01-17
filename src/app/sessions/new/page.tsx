@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { SessionExpansionQuery } from '@/types';
 
 interface Game {
   id: string;
@@ -140,7 +141,7 @@ export default function NewSessionPage() {
           .single();
 
         if (lastSession && lastSession.session_expansions) {
-          const prevExpansions = lastSession.session_expansions.map((se: any) => se.expansion_id);
+          const prevExpansions = (lastSession.session_expansions as SessionExpansionQuery[]).map((se) => se.expansion_id);
           setSelectedExpansions(prevExpansions);
         } else {
           setSelectedExpansions([]);
@@ -315,21 +316,23 @@ export default function NewSessionPage() {
         }
       }
 
-      // Store guest players info in session notes (temporary solution)
+      // Insert guest players into the guest_players table
       const guestPlayers = validPlayers.filter(p => !p.isCurrentUser && p.name.trim());
       if (guestPlayers.length > 0) {
-        const guestInfo = guestPlayers.map(p =>
-          `${p.name}${p.score ? `: ${p.score}pts` : ''}${p.isWinner ? ' (Winner)' : ''}`
-        ).join(', ');
+        const guestInserts = guestPlayers.map(p => ({
+          session_id: session.id,
+          name: p.name.trim(),
+          score: p.score ? parseInt(p.score) : null,
+          is_winner: p.isWinner,
+        }));
 
-        const updatedNotes = notes
-          ? `${notes}\n\nOther players: ${guestInfo}`
-          : `Other players: ${guestInfo}`;
+        const { error: guestError } = await supabase
+          .from('guest_players')
+          .insert(guestInserts);
 
-        await supabase
-          .from('sessions')
-          .update({ notes: updatedNotes })
-          .eq('id', session.id);
+        if (guestError) {
+          console.error('Error adding guest players:', guestError);
+        }
       }
 
       // Save expansions

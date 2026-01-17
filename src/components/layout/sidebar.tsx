@@ -9,24 +9,32 @@ import {
   Dice5,
   CalendarDays,
   Users,
-  BarChart3,
   Settings,
   Menu,
   X,
   LogOut,
   ChevronLeft,
-  Trophy
+  Trophy,
+  Swords,
+  Search,
+  Plus
 } from 'lucide-react';
-import { Button } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-const navItems = [
+const boardGameNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Games', href: '/games', icon: Dice5 },
   { label: 'Sessions', href: '/sessions', icon: CalendarDays },
   { label: 'Players', href: '/players', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+];
+
+const vtesNavItems = [
+  { label: 'Dashboard', href: '/vtes', icon: Swords },
+  { label: 'Search Cards', href: '/vtes/cards', icon: Search },
+  { label: 'Log Session', href: '/vtes/sessions/new', icon: Plus },
+  { label: 'Sessions', href: '/vtes/sessions', icon: CalendarDays }, // Future list
 ];
 
 const bottomItems = [
@@ -45,13 +53,37 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
 
+  const isVtes = pathname?.startsWith('/vtes');
+  const navItems = isVtes ? vtesNavItems : boardGameNavItems;
+
+  // Theme configuration
+  const theme = isVtes ? {
+    iconBg: 'bg-gradient-to-br from-red-600 to-rose-900',
+    iconColor: 'text-red-100',
+    activeBg: 'bg-red-900/20',
+    activeText: 'text-red-400',
+    activeShadow: 'shadow-red-500/10',
+    hoverBg: 'hover:bg-red-900/10',
+    hoverText: 'hover:text-red-200',
+    appName: 'VTES Tracker'
+  } : {
+    iconBg: 'bg-gradient-to-br from-wood-500 to-wood-600',
+    iconColor: 'text-white',
+    activeBg: 'bg-wood-500/20',
+    activeText: 'text-wood-400',
+    activeShadow: 'shadow-wood-500/10',
+    hoverBg: 'hover:bg-slate-800/50',
+    hoverText: 'hover:text-slate-100',
+    appName: 'Game Night'
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
   };
 
   const NavLink = ({ item, mobile = false }: { item: typeof navItems[0], mobile?: boolean }) => {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+    const isActive = pathname === item.href || (item.href !== '/vtes' && pathname.startsWith(item.href + '/'));
     const Icon = item.icon;
 
     return (
@@ -61,12 +93,12 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200',
           isActive
-            ? 'bg-wood-500/20 text-wood-400 shadow-lg shadow-wood-500/10'
-            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50',
+            ? cn(theme.activeBg, theme.activeText, 'shadow-lg', theme.activeShadow)
+            : cn('text-slate-400', theme.hoverText, theme.hoverBg),
           isCollapsed && !mobile && 'justify-center px-2'
         )}
       >
-        <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-wood-400')} />
+        <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && theme.activeText)} />
         {(!isCollapsed || mobile) && <span>{item.label}</span>}
       </Link>
     );
@@ -99,11 +131,11 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       >
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center justify-between mb-8">
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow">
-                <Dice5 className="h-6 w-6 text-white" />
+            <Link href={isVtes ? "/vtes" : "/dashboard"} className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
+                {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
               </div>
-              <span className="text-lg font-bold text-slate-100">Game Night</span>
+              <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
             </Link>
             <button onClick={() => setIsMobileOpen(false)}>
               <X className="h-5 w-5 text-slate-400" />
@@ -117,6 +149,13 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
           </nav>
 
           <div className="pt-4 border-t border-slate-800 space-y-1">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 w-full transition-all duration-200"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              <span>Switch App</span>
+            </Link>
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} mobile />
             ))}
@@ -144,12 +183,12 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
             'flex items-center mb-8',
             isCollapsed ? 'justify-center' : 'gap-3'
           )}>
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow">
-                <Dice5 className="h-6 w-6 text-white" />
+            <Link href={isVtes ? "/vtes" : "/dashboard"} className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
+                {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
               </div>
               {!isCollapsed && (
-                <span className="text-lg font-bold text-slate-100">Game Night</span>
+                <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
               )}
             </Link>
           </div>
@@ -163,6 +202,18 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
 
           {/* Bottom Nav */}
           <div className="pt-4 border-t border-slate-800 space-y-1">
+            <Link
+              href="/"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 w-full transition-all duration-200',
+                isCollapsed && 'justify-center px-2'
+              )}
+              title="Switch App"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              {!isCollapsed && <span>Switch App</span>}
+            </Link>
+
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}

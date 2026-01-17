@@ -48,6 +48,7 @@ export interface Session {
   created_at: string;
   game?: Game;
   session_players?: SessionPlayer[];
+  guest_players?: GuestPlayer[];
 }
 
 export interface SessionPlayer {
@@ -113,6 +114,86 @@ export interface GroupStats {
   mostPlayedGame: Game | null;
   topPlayer: Profile | null;
   groupHIndex: number;
+}
+
+// Query result types (for Supabase joins)
+export interface SessionPlayerWithProfile {
+  id: string;
+  user_id: string;
+  score: number | null;
+  is_winner: boolean;
+  profile: {
+    display_name: string | null;
+    username: string;
+  } | null;
+}
+
+export interface SessionWithDetails {
+  id: string;
+  played_at: string;
+  duration_minutes: number | null;
+  game_id: string;
+  game: {
+    id: string;
+    name: string;
+  } | null;
+  session_players: SessionPlayerWithProfile[];
+}
+
+export interface PreviousSessionQuery {
+  session_players: {
+    user_id: string;
+  }[];
+}
+
+export interface LeaderboardRow {
+  is_winner: boolean;
+  user_id: string;
+  profiles: {
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  sessions: {
+    played_at: string;
+  } | null;
+}
+
+export interface SessionExpansionQuery {
+  expansion_id: string;
+}
+
+// BGG XML API types
+export interface BGGXMLItem {
+  '@_objectid': string;
+  name?: { '#text'?: string } | string;
+  yearpublished?: string;
+  image?: string;
+  thumbnail?: string;
+  numplays?: string;
+  status?: {
+    '@_own'?: string;
+  };
+  stats?: {
+    '@_minplayers'?: string;
+    '@_maxplayers'?: string;
+    '@_playingtime'?: string;
+    rating?: {
+      average?: {
+        '@_value'?: string;
+      };
+    };
+  };
+}
+
+// Guest players (for future use)
+export interface GuestPlayer {
+  id: string;
+  session_id: string;
+  name: string;
+  score: number | null;
+  is_winner: boolean;
+  created_at: string;
 }
 
 // UI types

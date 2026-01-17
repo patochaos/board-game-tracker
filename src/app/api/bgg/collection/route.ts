@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { XMLParser } from 'fast-xml-parser';
+import { BGGXMLItem } from '@/types';
 
 // BGG now requires authorization tokens (as of 2025)
 // Register at: https://boardgamegeek.com/applications
@@ -78,9 +79,9 @@ export async function GET(request: NextRequest) {
       ? result.items.item
       : [result.items.item];
 
-    const games = items.map((item: any) => ({
+    const games = items.map((item: BGGXMLItem) => ({
       id: parseInt(item['@_objectid']),
-      name: item.name?.['#text'] || item.name || 'Unknown',
+      name: typeof item.name === 'object' ? item.name?.['#text'] : item.name || 'Unknown',
       yearPublished: item.yearpublished ? parseInt(item.yearpublished) : null,
       image: item.image || null,
       thumbnail: item.thumbnail || null,

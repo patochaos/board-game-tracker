@@ -113,9 +113,9 @@ export default function GameDetailPage() {
           let bestScore: number | null = null;
           let totalTime = 0;
 
-          sessionsData.forEach((session: any) => {
+          (sessionsData as unknown as SessionWithPlayers[]).forEach((session) => {
             const myPlay = session.session_players?.find(
-              (sp: any) => sp.user_id === user.id
+              (sp) => sp.user_id === user.id
             );
 
             if (myPlay) {

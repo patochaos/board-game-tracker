@@ -11,6 +11,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { PreviousSessionQuery } from '@/types';
 
 interface Game {
   id: string;
@@ -30,6 +31,13 @@ interface SessionPlayer {
   isNewToMe?: boolean;
 }
 
+interface GuestPlayer {
+  id: string;
+  name: string;
+  score: number | null;
+  is_winner: boolean;
+}
+
 interface Session {
   id: string;
   played_at: string;
@@ -39,6 +47,7 @@ interface Session {
   created_by: string;
   game: Game;
   session_players: SessionPlayer[];
+  guest_players: GuestPlayer[];
   session_expansions: {
     expansion: {
       id: string;
@@ -95,6 +104,12 @@ export default function SessionDetailPage() {
             is_winner,
             profile:profiles(display_name, username)
           ),
+          guest_players(
+            id,
+            name,
+            score,
+            is_winner
+          ),
           session_expansions(
             expansion:games(id, name, thumbnail_url)
           )
@@ -119,8 +134,8 @@ export default function SessionDetailPage() {
           .lt('played_at', sessionData.played_at); // Strictly before this session
 
         const priorPlayers = new Set<string>();
-        previousSessions?.forEach((s: any) => {
-          s.session_players.forEach((sp: any) => priorPlayers.add(sp.user_id));
+        (previousSessions as PreviousSessionQuery[] | null)?.forEach((s) => {
+          s.session_players.forEach((sp) => priorPlayers.add(sp.user_id));
         });
 
         sessionData.session_players = sessionData.session_players.map(sp => ({
@@ -459,6 +474,7 @@ export default function SessionDetailPage() {
             Players
           </h3>
           <div className="space-y-3">
+            {/* Registered Players */}
             {session.session_players.map((sp) => {
               const editPlayer = editPlayers.find(p => p.id === sp.id);
               const isWinner = editing ? editPlayer?.isWinner : sp.is_winner;
@@ -511,6 +527,27 @@ export default function SessionDetailPage() {
                 </div>
               );
             })}
+            {/* Guest Players */}
+            {session.guest_players && session.guest_players.map((gp) => (
+              <div
+                key={gp.id}
+                className={`flex items-center justify-between p-3 rounded-xl ${gp.is_winner
+                  ? 'bg-yellow-500/10 border border-yellow-500/30'
+                  : 'bg-slate-800/50'
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  {gp.is_winner && <Trophy className="h-5 w-5 text-yellow-400" />}
+                  <span className="font-medium text-slate-200">{gp.name}</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400 border border-slate-600">
+                    GUEST
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {gp.score !== null && <span className="text-slate-400">{gp.score} pts</span>}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
