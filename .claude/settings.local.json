@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "WebSearch",
+      "WebFetch(domain:boardgamegeek.com)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 15 npm run dev:*)"
+    ]
+  }
+}

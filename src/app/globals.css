@@ -1,0 +1,207 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body: 'Space Grotesk', system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-slate-700;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-100 font-body antialiased;
+    background-image: 
+      radial-gradient(ellipse at top, rgba(217, 139, 43, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(22, 163, 45, 0.03) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-600;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800/50;
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl p-6 shadow-card transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply shadow-card-hover border-slate-700/50;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium 
+           transition-all duration-200 focus:outline-none focus:ring-2 
+           focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 
+           disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-wood-500 to-wood-600 text-white 
+           hover:from-wood-400 hover:to-wood-500 focus:ring-wood-500
+           shadow-lg shadow-wood-500/20 hover:shadow-wood-500/40;
+  }
+
+  .btn-secondary {
+    @apply btn bg-slate-800 text-slate-100 hover:bg-slate-700 
+           focus:ring-slate-500 border border-slate-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-slate-400 hover:text-slate-100 hover:bg-slate-800/50;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  .input {
+    @apply w-full rounded-xl bg-slate-800/50 border border-slate-700 px-4 py-3
+           text-slate-100 placeholder:text-slate-500 
+           focus:outline-none focus:ring-2 focus:ring-wood-500/50 focus:border-wood-500
+           transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-300 mb-2;
+  }
+
+  .card-game {
+    @apply relative overflow-hidden rounded-2xl bg-slate-900/60 border border-slate-800
+           transition-all duration-300 hover:border-wood-500/50 hover:shadow-glow
+           cursor-pointer;
+  }
+
+  .stat-card {
+    @apply glass-card relative overflow-hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-wood-500/5 to-transparent 
+           opacity-0 transition-opacity duration-300;
+  }
+
+  .stat-card:hover::before {
+    @apply opacity-100;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-gold {
+    @apply badge bg-wood-500/20 text-wood-400 border border-wood-500/30;
+  }
+
+  .badge-green {
+    @apply badge bg-felt-500/20 text-felt-400 border border-felt-500/30;
+  }
+
+  .badge-slate {
+    @apply badge bg-slate-700/50 text-slate-300 border border-slate-600/50;
+  }
+
+  /* Animated underline for links */
+  .link-underline {
+    @apply relative;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-wood-500 transition-all duration-300;
+  }
+
+  .link-underline:hover::after {
+    @apply w-full;
+  }
+
+  /* Dice icon animation */
+  .dice-icon {
+    @apply transition-transform duration-300;
+  }
+
+  .dice-icon:hover {
+    animation: diceRoll 0.6s ease-out;
+  }
+
+  /* Winner crown effect */
+  .winner-glow {
+    @apply relative;
+  }
+
+  .winner-glow::before {
+    content: '👑';
+    @apply absolute -top-3 left-1/2 -translate-x-1/2 text-lg 
+           animate-bounce opacity-0 transition-opacity duration-300;
+  }
+
+  .winner-glow:hover::before {
+    @apply opacity-100;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-wood-400 to-wood-600 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-green {
+    @apply bg-gradient-to-r from-felt-400 to-felt-600 bg-clip-text text-transparent;
+  }
+
+  /* Stagger animation delays for lists */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+
+  /* Noise texture overlay */
+  .noise-overlay {
+    @apply relative;
+  }
+
+  .noise-overlay::before {
+    content: '';
+    @apply absolute inset-0 opacity-[0.015] pointer-events-none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+}
