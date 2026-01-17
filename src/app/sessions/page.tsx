@@ -32,6 +32,7 @@ interface SessionWithDetails {
       username: string;
     };
   }[];
+  isNewToGroup?: boolean;
 }
 
 export default function SessionsPage() {
@@ -79,11 +80,32 @@ export default function SessionsPage() {
 
       if (sessionsData) {
         const typedSessions = sessionsData as unknown as SessionWithDetails[];
-        setAllSessions(typedSessions);
-        setSessions(typedSessions);
+
+        // Calculate "New to Group" status
+        // 1. Sort by date ascending to process history chronologically
+        const chronological = [...typedSessions].sort((a, b) =>
+          new Date(a.played_at).getTime() - new Date(b.played_at).getTime()
+        );
+
+        const seenGameIds = new Set<string>();
+        const sessionsWithBadges = chronological.map(session => {
+          const isNew = !seenGameIds.has(session.game?.id);
+          if (session.game?.id) {
+            seenGameIds.add(session.game.id);
+          }
+          return { ...session, isNewToGroup: isNew };
+        });
+
+        // 2. Sort back to descending for display
+        const displaySessions = sessionsWithBadges.sort((a, b) =>
+          new Date(b.played_at).getTime() - new Date(a.played_at).getTime()
+        );
+
+        setAllSessions(displaySessions);
+        setSessions(displaySessions);
 
         // Extract unique games for filter
-        const uniqueGames = typedSessions
+        const uniqueGames = displaySessions
           .map(s => s.game)
           .filter((g, i, arr) => g && arr.findIndex(x => x?.id === g?.id) === i) as Game[];
         setGames(uniqueGames);
@@ -273,6 +295,11 @@ export default function SessionsPage() {
                           <h3 className="font-semibold text-slate-100">
                             {session.game?.name || 'Unknown Game'}
                           </h3>
+                          {session.isNewToGroup && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              New to Group!
+                            </span>
+                          )}
                           <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
                             <span className="flex items-center gap-1">
                               <CalendarDays className="h-3.5 w-3.5" />
@@ -294,11 +321,10 @@ export default function SessionsPage() {
                           {session.session_players.map((sp) => (
                             <div
                               key={sp.id}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${
-                                sp.is_winner
-                                  ? 'bg-yellow-500/20 text-yellow-400'
-                                  : 'bg-slate-800 text-slate-300'
-                              }`}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${sp.is_winner
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-slate-800 text-slate-300'
+                                }`}
                             >
                               {sp.is_winner && <Trophy className="h-3 w-3" />}
                               <span>{sp.profile?.display_name || sp.profile?.username}</span>

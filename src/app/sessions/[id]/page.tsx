@@ -25,6 +25,7 @@ interface SessionPlayer {
     display_name: string | null;
     username: string;
   };
+  isNewToMe?: boolean;
 }
 
 interface Session {
@@ -93,6 +94,26 @@ export default function SessionDetailPage() {
       }
 
       const sessionData = data as unknown as Session;
+      // Calculate "New to Me" for each player
+      if (sessionData.game?.id) {
+        // Fetch ALL previous sessions for this game
+        const { data: previousSessions } = await supabase
+          .from('sessions')
+          .select('session_players(user_id)')
+          .eq('game_id', sessionData.game.id)
+          .lt('played_at', sessionData.played_at); // Strictly before this session
+
+        const priorPlayers = new Set<string>();
+        previousSessions?.forEach((s: any) => {
+          s.session_players.forEach((sp: any) => priorPlayers.add(sp.user_id));
+        });
+
+        sessionData.session_players = sessionData.session_players.map(sp => ({
+          ...sp,
+          isNewToMe: !priorPlayers.has(sp.user_id)
+        }));
+      }
+
       setSession(sessionData);
 
       // Initialize edit form
@@ -379,17 +400,21 @@ export default function SessionDetailPage() {
               return (
                 <div
                   key={sp.id}
-                  className={`flex items-center justify-between p-3 rounded-xl ${
-                    isWinner
+                  className={`flex items-center justify-between p-3 rounded-xl ${isWinner
                       ? 'bg-yellow-500/10 border border-yellow-500/30'
                       : 'bg-slate-800/50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     {isWinner && <Trophy className="h-5 w-5 text-yellow-400" />}
                     <span className="font-medium text-slate-200">
                       {sp.profile?.display_name || sp.profile?.username}
                     </span>
+                    {!editing && sp.isNewToMe && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                        NEW
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     {editing ? (
@@ -404,11 +429,10 @@ export default function SessionDetailPage() {
                         <button
                           type="button"
                           onClick={() => togglePlayerWinner(sp.id)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            editPlayer?.isWinner
+                          className={`p-2 rounded-lg transition-colors ${editPlayer?.isWinner
                               ? 'bg-yellow-500 text-slate-900'
                               : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
-                          }`}
+                            }`}
                         >
                           <Trophy className="h-4 w-4" />
                         </button>
