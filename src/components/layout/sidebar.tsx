@@ -4,17 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
-  LayoutDashboard, 
-  Dice5, 
-  CalendarDays, 
-  Users, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Dice5,
+  CalendarDays,
+  Users,
+  BarChart3,
   Settings,
   Menu,
   X,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Trophy
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
@@ -25,7 +26,7 @@ const navItems = [
   { label: 'Games', href: '/games', icon: Dice5 },
   { label: 'Sessions', href: '/sessions', icon: CalendarDays },
   { label: 'Players', href: '/players', icon: Users },
-  { label: 'Stats', href: '/stats', icon: BarChart3 },
+  { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
 ];
 
 const bottomItems = [
@@ -59,8 +60,8 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
         onClick={() => mobile && setIsMobileOpen(false)}
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200',
-          isActive 
-            ? 'bg-wood-500/20 text-wood-400 shadow-lg shadow-wood-500/10' 
+          isActive
+            ? 'bg-wood-500/20 text-wood-400 shadow-lg shadow-wood-500/10'
             : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50',
           isCollapsed && !mobile && 'justify-center px-2'
         )}
@@ -83,7 +84,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
 
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
