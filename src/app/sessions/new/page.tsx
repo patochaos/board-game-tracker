@@ -40,6 +40,10 @@ export default function NewSessionPage() {
   const [notes, setNotes] = useState('');
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
 
+  // Expansion state
+  const [availableExpansions, setAvailableExpansions] = useState<Game[]>([]);
+  const [selectedExpansions, setSelectedExpansions] = useState<string[]>([]);
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
 
@@ -79,6 +83,7 @@ export default function NewSessionPage() {
       const { data: gamesData } = await supabase
         .from('games')
         .select('id, name, thumbnail_url, min_players, max_players')
+        .neq('type', 'expansion')
         .order('name');
 
       if (gamesData) {
@@ -90,6 +95,69 @@ export default function NewSessionPage() {
 
     init();
   }, []);
+
+  // Fetch expansions and defaults when game selected
+  useEffect(() => {
+    const fetchExpansions = async () => {
+      if (!selectedGameId) {
+        setAvailableExpansions([]);
+        setSelectedExpansions([]);
+        return;
+      }
+
+      const selectedGame = games.find(g => g.id === selectedGameId);
+      if (!selectedGame) return;
+
+      // 1. Find expansions (name matching)
+      // "Root" -> "Root: The Riverfolk", "Root: Underworld"
+      const { data: expansions } = await supabase
+        .from('games')
+        .select('*')
+        .eq('type', 'expansion')
+        .ilike('name', `${selectedGame.name}%`)
+        .order('name');
+
+      if (expansions && expansions.length > 0) {
+        setAvailableExpansions(expansions);
+
+        // 2. Find last used expansions for this game
+        // We get the most recent session for this game created by the user
+        const { data: lastSession } = await supabase
+          .from('sessions')
+          .select(`
+            id,
+            session_expansions (
+              expansion_id
+            )
+          `)
+          .eq('game_id', selectedGameId)
+          .eq('created_by', currentUserId)
+          .order('played_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (lastSession && lastSession.session_expansions) {
+          const prevExpansions = lastSession.session_expansions.map((se: any) => se.expansion_id);
+          setSelectedExpansions(prevExpansions);
+        } else {
+          setSelectedExpansions([]);
+        }
+      } else {
+        setAvailableExpansions([]);
+        setSelectedExpansions([]);
+      }
+    };
+
+    fetchExpansions();
+  }, [selectedGameId, games]);
+
+  const toggleExpansion = (id: string) => {
+    setSelectedExpansions(prev =>
+      prev.includes(id)
+        ? prev.filter(e => e !== id)
+        : [...prev, id]
+    );
+  };
 
   const addPlayer = () => {
     setPlayers([...players, {
@@ -260,6 +328,20 @@ export default function NewSessionPage() {
           .eq('id', session.id);
       }
 
+      // Save expansions
+      if (selectedExpansions.length > 0) {
+        const expansionInserts = selectedExpansions.map(expId => ({
+          session_id: session.id,
+          expansion_id: expId
+        }));
+
+        const { error: expError } = await supabase
+          .from('session_expansions')
+          .insert(expansionInserts);
+
+        if (expError) console.error('Error saving expansions:', expError);
+      }
+
       router.push('/sessions');
     } catch (err) {
       console.error('Save error:', err);
@@ -315,8 +397,8 @@ export default function NewSessionPage() {
                     type="button"
                     onClick={() => setSelectedGameId(game.id)}
                     className={`p-3 rounded-xl border transition-all text-left ${selectedGameId === game.id
-                        ? 'border-emerald-500 bg-emerald-500/10'
-                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                      ? 'border-emerald-500 bg-emerald-500/10'
+                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
                       }`}
                   >
                     <div className="flex items-center gap-3">
@@ -342,6 +424,53 @@ export default function NewSessionPage() {
               </div>
             )}
           </Card>
+
+          {/* Expansions */}
+          {availableExpansions.length > 0 && (
+            <Card variant="glass">
+              <h2 className="text-lg font-semibold text-slate-100 mb-4">Expansions used ({selectedExpansions.length})</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {availableExpansions.map((exp) => (
+                  <label
+                    key={exp.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedExpansions.includes(exp.id)
+                      ? 'border-emerald-500 bg-emerald-500/10'
+                      : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                      }`}
+                  >
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedExpansions.includes(exp.id)
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'border-slate-500'
+                      }`}>
+                      {selectedExpansions.includes(exp.id) && (
+                        <Trophy className="h-3 w-3 text-white" />
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={selectedExpansions.includes(exp.id)}
+                      onChange={() => toggleExpansion(exp.id)}
+                    />
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {exp.thumbnail_url && (
+                        <div className="relative w-8 h-8 rounded bg-slate-700 flex-shrink-0">
+                          <Image
+                            src={exp.thumbnail_url}
+                            alt={exp.name}
+                            fill
+                            className="object-cover rounded"
+                            unoptimized
+                          />
+                        </div>
+                      )}
+                      <span className="text-sm text-slate-200 truncate">{exp.name}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Date & Duration */}
           <Card variant="glass">
@@ -383,8 +512,8 @@ export default function NewSessionPage() {
                 <div
                   key={player.id}
                   className={`flex items-center gap-3 p-3 rounded-xl border ${player.isWinner
-                      ? 'border-yellow-500/50 bg-yellow-500/10'
-                      : 'border-slate-700 bg-slate-800/30'
+                    ? 'border-yellow-500/50 bg-yellow-500/10'
+                    : 'border-slate-700 bg-slate-800/30'
                     }`}
                 >
                   <div className="flex-1">
@@ -414,8 +543,8 @@ export default function NewSessionPage() {
                     type="button"
                     onClick={() => toggleWinner(player.id)}
                     className={`p-2 rounded-lg transition-colors ${player.isWinner
-                        ? 'bg-yellow-500 text-slate-900'
-                        : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
+                      ? 'bg-yellow-500 text-slate-900'
+                      : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
                       }`}
                     title={player.isWinner ? 'Winner!' : 'Mark as winner'}
                   >

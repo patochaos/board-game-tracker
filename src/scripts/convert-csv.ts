@@ -96,11 +96,13 @@ function processCSV() {
         const playingTime = game['playingtime'];
         const avgRating = game['average'];
 
+        const itemType = game['itemtype'] === 'expansion' ? 'expansion' : 'standalone';
+
         // CSV from BGG export often misses images. We will set them to NULL.
         // If the objectid is missing, skip
         if (!bggId) continue;
 
-        const insert = `INSERT INTO public.games (bgg_id, name, year_published, image_url, thumbnail_url, min_players, max_players, playing_time, bgg_rating)
+        const insert = `INSERT INTO public.games (bgg_id, name, year_published, image_url, thumbnail_url, min_players, max_players, playing_time, bgg_rating, type)
 VALUES (
   ${bggId},
   ${escapeSql(name)},
@@ -110,9 +112,10 @@ VALUES (
   ${minPlayers ? parseInt(minPlayers) : 'NULL'},
   ${maxPlayers ? parseInt(maxPlayers) : 'NULL'},
   ${playingTime ? parseInt(playingTime) : 'NULL'},
-  ${avgRating ? parseFloat(avgRating) : 'NULL'}
+  ${avgRating ? parseFloat(avgRating) : 'NULL'},
+  '${itemType}'
 )
-ON CONFLICT (bgg_id) DO NOTHING;\n`;
+ON CONFLICT (bgg_id) DO UPDATE SET type = '${itemType}';\n`;
 
         sql += insert;
     }

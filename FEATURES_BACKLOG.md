@@ -2,14 +2,20 @@
 
 Based on research from "BG Stats" and tailored for a private group (~10 players).
 
+## ✅ Core Rules & Use Cases
+- **Session Ownership:** Only the user who created a session can **Edit** or **Delete** it.
+    - *Status:* Implemented (Enforced via RLS Policies & UI).
+- **Group Privacy:** Only members of a group can view its sessions.
+    - *Status:* Implemented (RLS).
+
 ## 🚀 Phase 1: Engagement (Must Haves)
 *Focus: Friendly rivalry and group activity.*
 
-- [ ] **Leaderboard Page**
+- [x] **Leaderboard Page**
     - **Most Wins:** Who has won the most games total?
     - **Best Win %:** Efficiency metric (requires min. 5 plays).
     - **Most Sessions:** Who shows up the most?
-- [ ] **"New to Me" / "New to Group" Badges**
+- [x] **"New to Me" / "New to Group" Badges**
     - Highlight when a game is played for the first time.
 - [ ] **H-Index**
     - The "Nerd Stat": You have an H-index of *N* if you have played *N* games at least *N* times.

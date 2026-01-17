@@ -36,6 +36,13 @@ interface Session {
   created_by: string;
   game: Game;
   session_players: SessionPlayer[];
+  session_expansions: {
+    expansion: {
+      id: string;
+      name: string;
+      thumbnail_url: string | null;
+    }
+  }[];
 }
 
 export default function SessionDetailPage() {
@@ -82,6 +89,9 @@ export default function SessionDetailPage() {
             score,
             is_winner,
             profile:profiles(display_name, username)
+          ),
+          session_expansions(
+            expansion:games(id, name, thumbnail_url)
           )
         `)
         .eq('id', sessionId)
@@ -385,6 +395,40 @@ export default function SessionDetailPage() {
           </div>
         </Card>
 
+        {/* Expansions */}
+        {
+          session.session_expansions && session.session_expansions.length > 0 && (
+            <Card variant="glass">
+              <h3 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-emerald-500" />
+                Expansions
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {session.session_expansions.map((se) => (
+                  <div key={se.expansion.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700">
+                    {se.expansion.thumbnail_url ? (
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                        <Image
+                          src={se.expansion.thumbnail_url}
+                          alt={se.expansion.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+                        <Dice5 className="h-5 w-5 text-slate-500" />
+                      </div>
+                    )}
+                    <span className="text-sm text-slate-200 font-medium">{se.expansion.name}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )
+        }
+
         {/* Players */}
         <Card variant="glass">
           <h3 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
@@ -401,8 +445,8 @@ export default function SessionDetailPage() {
                 <div
                   key={sp.id}
                   className={`flex items-center justify-between p-3 rounded-xl ${isWinner
-                      ? 'bg-yellow-500/10 border border-yellow-500/30'
-                      : 'bg-slate-800/50'
+                    ? 'bg-yellow-500/10 border border-yellow-500/30'
+                    : 'bg-slate-800/50'
                     }`}
                 >
                   <div className="flex items-center gap-3">
@@ -430,8 +474,8 @@ export default function SessionDetailPage() {
                           type="button"
                           onClick={() => togglePlayerWinner(sp.id)}
                           className={`p-2 rounded-lg transition-colors ${editPlayer?.isWinner
-                              ? 'bg-yellow-500 text-slate-900'
-                              : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
+                            ? 'bg-yellow-500 text-slate-900'
+                            : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
                             }`}
                         >
                           <Trophy className="h-4 w-4" />
@@ -448,23 +492,25 @@ export default function SessionDetailPage() {
         </Card>
 
         {/* Notes */}
-        {(session.notes || editing) && (
-          <Card variant="glass">
-            <h3 className="text-lg font-semibold text-slate-100 mb-4">Notes</h3>
-            {editing ? (
-              <textarea
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Add notes about this session..."
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-600 resize-none"
-              />
-            ) : (
-              <p className="text-slate-300 whitespace-pre-wrap">{session.notes}</p>
-            )}
-          </Card>
-        )}
-      </div>
-    </AppLayout>
+        {
+          (session.notes || editing) && (
+            <Card variant="glass">
+              <h3 className="text-lg font-semibold text-slate-100 mb-4">Notes</h3>
+              {editing ? (
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Add notes about this session..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-600 resize-none"
+                />
+              ) : (
+                <p className="text-slate-300 whitespace-pre-wrap">{session.notes}</p>
+              )}
+            </Card>
+          )
+        }
+      </div >
+    </AppLayout >
   );
 }

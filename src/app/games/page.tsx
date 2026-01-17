@@ -34,6 +34,7 @@ export default function GamesPage() {
     const { data, error } = await supabase
       .from('games')
       .select('*')
+      .neq('type', 'expansion')
       .order('name');
 
     if (!error && data) {
@@ -114,45 +115,45 @@ export default function GamesPage() {
               <Link key={game.id} href={`/games/${game.id}`}>
                 <Card variant="glass" className="overflow-hidden hover:border-emerald-500/50 transition-colors cursor-pointer h-full">
                   <div className="flex gap-4 p-4">
-                  {game.thumbnail_url ? (
-                    <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-800">
-                      <Image
-                        src={game.thumbnail_url}
-                        alt={game.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center">
-                      <Dice5 className="h-8 w-8 text-slate-600" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-100 truncate">{game.name}</h3>
-                    {game.year_published && (
-                      <p className="text-sm text-slate-400">{game.year_published}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                      {game.min_players && game.max_players && (
-                        <span>{game.min_players}-{game.max_players} players</span>
-                      )}
-                      {game.playing_time && (
-                        <span>~{game.playing_time} min</span>
-                      )}
-                    </div>
-                    {game.bgg_rating && (
-                      <div className="mt-2 flex items-center gap-1">
-                        <span className="text-xs text-emerald-400 font-medium">
-                          BGG: {game.bgg_rating.toFixed(1)}
-                        </span>
+                    {game.thumbnail_url ? (
+                      <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-800">
+                        <Image
+                          src={game.thumbnail_url}
+                          alt={game.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center">
+                        <Dice5 className="h-8 w-8 text-slate-600" />
                       </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-100 truncate">{game.name}</h3>
+                      {game.year_published && (
+                        <p className="text-sm text-slate-400">{game.year_published}</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                        {game.min_players && game.max_players && (
+                          <span>{game.min_players}-{game.max_players} players</span>
+                        )}
+                        {game.playing_time && (
+                          <span>~{game.playing_time} min</span>
+                        )}
+                      </div>
+                      {game.bgg_rating && (
+                        <div className="mt-2 flex items-center gap-1">
+                          <span className="text-xs text-emerald-400 font-medium">
+                            BGG: {game.bgg_rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </Link>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
