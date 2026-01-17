@@ -76,6 +76,7 @@ export default function SessionDetailPage() {
   const [editLocation, setEditLocation] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editPlayers, setEditPlayers] = useState<{ id: string; score: string; isWinner: boolean }[]>([]);
+  const [editGuestPlayers, setEditGuestPlayers] = useState<{ id: string; score: string; isWinner: boolean }[]>([]);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -158,6 +159,13 @@ export default function SessionDetailPage() {
           isWinner: sp.is_winner,
         }))
       );
+      setEditGuestPlayers(
+        sessionData.guest_players?.map(gp => ({
+          id: gp.id,
+          score: gp.score?.toString() || '',
+          isWinner: gp.is_winner,
+        })) || []
+      );
 
       setLoading(false);
     };
@@ -196,6 +204,19 @@ export default function SessionDetailPage() {
         if (playerError) throw playerError;
       }
 
+      // Update guest players
+      for (const guest of editGuestPlayers) {
+        const { error: guestError } = await supabase
+          .from('guest_players')
+          .update({
+            score: guest.score ? parseInt(guest.score) : null,
+            is_winner: guest.isWinner,
+          })
+          .eq('id', guest.id);
+
+        if (guestError) throw guestError;
+      }
+
       // Refresh data
       const { data } = await supabase
         .from('sessions')
@@ -205,6 +226,7 @@ export default function SessionDetailPage() {
           duration_minutes,
           notes,
           created_by,
+          location,
           game:games(id, name, thumbnail_url),
           session_players(
             id,
@@ -212,6 +234,15 @@ export default function SessionDetailPage() {
             score,
             is_winner,
             profile:profiles(display_name, username)
+          ),
+          guest_players(
+            id,
+            name,
+            score,
+            is_winner
+          ),
+          session_expansions(
+             expansion:games(id, name, thumbnail_url)
           )
         `)
         .eq('id', sessionId)
@@ -257,9 +288,24 @@ export default function SessionDetailPage() {
     );
   };
 
+  const toggleGuestWinner = (guestId: string) => {
+    setEditGuestPlayers(
+      editGuestPlayers.map(p => ({
+        ...p,
+        isWinner: p.id === guestId ? !p.isWinner : p.isWinner,
+      }))
+    );
+  };
+
   const updatePlayerScore = (playerId: string, score: string) => {
     setEditPlayers(
       editPlayers.map(p => (p.id === playerId ? { ...p, score } : p))
+    );
+  };
+
+  const updateGuestScore = (guestId: string, score: string) => {
+    setEditGuestPlayers(
+      editGuestPlayers.map(p => (p.id === guestId ? { ...p, score } : p))
     );
   };
 
@@ -528,26 +574,54 @@ export default function SessionDetailPage() {
               );
             })}
             {/* Guest Players */}
-            {session.guest_players && session.guest_players.map((gp) => (
-              <div
-                key={gp.id}
-                className={`flex items-center justify-between p-3 rounded-xl ${gp.is_winner
-                  ? 'bg-yellow-500/10 border border-yellow-500/30'
-                  : 'bg-slate-800/50'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  {gp.is_winner && <Trophy className="h-5 w-5 text-yellow-400" />}
-                  <span className="font-medium text-slate-200">{gp.name}</span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400 border border-slate-600">
-                    GUEST
-                  </span>
+            {session.guest_players && session.guest_players.map((gp) => {
+              const editGuest = editGuestPlayers.find(g => g.id === gp.id);
+              const isWinner = editing ? editGuest?.isWinner : gp.is_winner;
+              const score = editing ? editGuest?.score : gp.score?.toString();
+
+              return (
+                <div
+                  key={gp.id}
+                  className={`flex items-center justify-between p-3 rounded-xl ${isWinner
+                    ? 'bg-yellow-500/10 border border-yellow-500/30'
+                    : 'bg-slate-800/50'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {isWinner && <Trophy className="h-5 w-5 text-yellow-400" />}
+                    <span className="font-medium text-slate-200">{gp.name}</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400 border border-slate-600">
+                      GUEST
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {editing ? (
+                      <>
+                        <input
+                          type="number"
+                          value={editGuest?.score || ''}
+                          onChange={(e) => updateGuestScore(gp.id, e.target.value)}
+                          placeholder="Score"
+                          className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200 text-center"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleGuestWinner(gp.id)}
+                          className={`p-2 rounded-lg transition-colors ${editGuest?.isWinner
+                            ? 'bg-yellow-500 text-slate-900'
+                            : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
+                            }`}
+                        >
+                          <Trophy className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      score && <span className="text-slate-400">{score} pts</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {gp.score !== null && <span className="text-slate-400">{gp.score} pts</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 

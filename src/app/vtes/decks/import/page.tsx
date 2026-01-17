@@ -26,7 +26,7 @@ export default function ImportDeckPage() {
 
     const supabase = createClient();
 
-    // Simple parser for "12x Name" or "12 Name" format
+    // Enhanced parser for various formats (Text, Lackey, etc.)
     const parseDeckList = async () => {
         setLoading(true);
         setError(null);
@@ -34,31 +34,45 @@ export default function ImportDeckPage() {
         try {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l);
             const cards: ParsedCard[] = [];
-            let currentSection: 'crypt' | 'library' = 'library'; // Default
-
-            // Check for heuristics to determine section
-            // Usually "Crypt:" or "Library:" headers exist
+            let currentSection: 'crypt' | 'library' = 'library'; // Default to library as Lackey often puts Crypt at bottom
 
             for (const line of lines) {
-                if (line.toLowerCase().includes('crypt')) {
+                const lower = line.toLowerCase();
+
+                // Section detection
+                if (lower.startsWith('crypt:')) {
                     currentSection = 'crypt';
                     continue;
                 }
-                if (line.toLowerCase().includes('library')) {
+                if (lower.startsWith('library:')) {
                     currentSection = 'library';
                     continue;
                 }
 
-                // Regex for "12x Name" or "12 Name"
-                const match = line.match(/^(\d+)[x\s]+(.+)$/);
-                if (match) {
-                    const count = parseInt(match[1]);
-                    const name = match[2].trim();
+                // Parse Line
+                // 1. Try Tab separated (Lackey): "4	Name"
+                let count = 0;
+                let name = '';
 
-                    // Basic determination: Crypt cards usually have names, Library have types.
-                    // For now, relies on headers or generic fallback.
-                    // Ideally, we query KRCG API here to verify and categorize.
+                if (line.includes('\t')) {
+                    const parts = line.split('\t');
+                    const countPart = parts[0].trim();
+                    if (/^\d+$/.test(countPart)) {
+                        count = parseInt(countPart);
+                        name = parts.slice(1).join(' ').trim();
+                    }
+                }
 
+                // 2. Try Standard Text: "4x Name" or "4 Name"
+                if (!name) {
+                    const match = line.match(/^(\d+)[x\s]+(.+)$/);
+                    if (match) {
+                        count = parseInt(match[1]);
+                        name = match[2].trim();
+                    }
+                }
+
+                if (name && count > 0) {
                     cards.push({
                         count,
                         name,
@@ -68,16 +82,9 @@ export default function ImportDeckPage() {
             }
 
             if (cards.length === 0) {
-                throw new Error("No cards found. Please check the format (e.g., '4x Govern the Unaligned').");
+                throw new Error("No cards found. Please check the format (Lackey or Standard).");
             }
 
-            // Verify against KRCG API (Mock/Real)
-            // We'll do a batch check or just trust the input for now and fix types later?
-            // Better to check. Fetching matching cards from KRCG API.
-            // Doing this client-side 1-by-1 is slow. 
-            // Optimized approach: Call complete endpoint or search.
-
-            // For MVP: Just rely on parsing.
             setParsedCards(cards);
             setStep('preview');
 
