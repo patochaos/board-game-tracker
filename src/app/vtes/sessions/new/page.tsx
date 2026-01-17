@@ -34,6 +34,7 @@ export default function NewVTESSessionPage() {
     const [notes, setNotes] = useState('');
     const [players, setPlayers] = useState<PlayerEntry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [availableDecks, setAvailableDecks] = useState<{ id: string; name: string }[]>([]);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,6 +58,15 @@ export default function NewVTESSessionPage() {
                 .single();
 
             const userName = profile?.display_name || profile?.username || 'You';
+
+            // Fetch user's decks
+            const { data: decks } = await supabase
+                .from('decks')
+                .select('id, name')
+                .eq('user_id', user.id)
+                .order('name');
+
+            if (decks) setAvailableDecks(decks);
 
             // Initialize with 5 players (standard VTES table)
             const initialPlayers = Array.from({ length: 5 }).map((_, i) => ({
@@ -267,13 +277,38 @@ export default function NewVTESSessionPage() {
 
                                         {/* Deck */}
                                         <div className="md:col-span-4">
-                                            <label className="text-xs text-slate-500 mb-1 block">Deck Archetype</label>
-                                            <input
-                                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                placeholder="e.g. Malkavian Stealth Bleed"
-                                                value={player.deckName}
-                                                onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
-                                            />
+                                            <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
+                                            {availableDecks.length > 0 ? (
+                                                <div className="flex gap-2">
+                                                    <select
+                                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                        value={availableDecks.some(d => d.name === player.deckName) ? player.deckName : ''}
+                                                        onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                    >
+                                                        <option value="">-- Select Deck --</option>
+                                                        {availableDecks.map(d => (
+                                                            <option key={d.id} value={d.name}>{d.name}</option>
+                                                        ))}
+                                                        <option value="custom">-- Custom Name --</option>
+                                                    </select>
+                                                    {(!availableDecks.some(d => d.name === player.deckName) && player.deckName) || player.deckName === 'custom' ? (
+                                                        <input
+                                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                            placeholder="Custom Name"
+                                                            value={player.deckName === 'custom' ? '' : player.deckName}
+                                                            onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                            autoFocus
+                                                        />
+                                                    ) : null}
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                    placeholder="Deck Name"
+                                                    value={player.deckName}
+                                                    onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                />
+                                            )}
                                         </div>
 
                                         {/* VP */}
