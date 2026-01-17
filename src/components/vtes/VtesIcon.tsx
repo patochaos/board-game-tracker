@@ -211,7 +211,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
                 src={url}
                 alt={name}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-contain drop-shadow-sm"
+                className={`w-full h-full object-contain drop-shadow-sm ${type === 'discipline' || type === 'clan' ? 'invert' : ''}`}
                 onError={() => setError(true)}
             />
         </div>
