@@ -148,7 +148,7 @@ export default function ImportDeckPage() {
 
             if (cardsError) throw cardsError;
 
-            router.push('/vtes'); // Redirect to dashboard
+            router.push('/vtes/decks'); // Redirect to decks list
 
         } catch (err) {
             console.error(err);

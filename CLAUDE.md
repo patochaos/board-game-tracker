@@ -77,7 +77,11 @@ npm run build    # Build de producción
 npm run lint     # Linter
 npm run test     # Run unit tests (watch mode)
 npm run test:run # Run unit tests once
+npm run test:run # Run unit tests once
 npx playwright test  # Run E2E tests
+
+## Deployment Protocol
+ALWAYS run `npm run build` before pushing to main/deploying. This catches type errors that don't appear in dev mode.
 ```
 
 ## Variables de Entorno Requeridas

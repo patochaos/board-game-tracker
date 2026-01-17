@@ -34,24 +34,42 @@ export default function DecksPage() {
 
     useEffect(() => {
         const fetchDecks = async () => {
-            // Join decks with profiles to get creator name
-            const { data, error } = await supabase
+            // 1. Fetch Decks
+            const { data: decksData, error: decksError } = await supabase
                 .from('decks')
-                .select(`
-          id,
-          name,
-          created_at,
-          description,
-          user_id,
-          profile:profiles(display_name, username)
-        `)
+                .select('id, name, created_at, description, user_id')
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('Error fetching decks:', error);
-            } else {
-                setDecks(data as unknown as Deck[]);
+            if (decksError) {
+                console.error('Error fetching decks:', decksError);
+                setLoading(false);
+                return;
             }
+
+            // 2. Fetch Profiles for these decks
+            const userIds = Array.from(new Set(decksData.map(d => d.user_id)));
+            let profilesMap: Record<string, { display_name: string | null; username: string }> = {};
+
+            if (userIds.length > 0) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, username')
+                    .in('id', userIds);
+
+                if (profilesData) {
+                    profilesData.forEach(p => {
+                        profilesMap[p.id] = p;
+                    });
+                }
+            }
+
+            // 3. Merge
+            const joinedDecks: Deck[] = decksData.map(d => ({
+                ...d,
+                profile: profilesMap[d.user_id] || null
+            }));
+
+            setDecks(joinedDecks);
             setLoading(false);
         };
 
