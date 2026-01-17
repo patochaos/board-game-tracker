@@ -14,6 +14,9 @@ export interface VtesCard {
     text?: string;
     artists?: string[];
     sets?: { [key: string]: any }; // Set info
+    blood_cost?: string;
+    pool_cost?: string;
+    burn_option?: boolean;
 }
 
 export interface KrcgResponse {

@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
-import { ArrowLeft, Save, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, FileText, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -19,6 +19,7 @@ export default function ImportDeckPage() {
     const router = useRouter();
     const [text, setText] = useState('');
     const [deckName, setDeckName] = useState('');
+    const [isPrivate, setIsPrivate] = useState(false);
     const [parsedCards, setParsedCards] = useState<ParsedCard[]>([]);
     const [step, setStep] = useState<'input' | 'preview'>('input');
     const [loading, setLoading] = useState(false);
@@ -108,6 +109,7 @@ export default function ImportDeckPage() {
                     user_id: user.id,
                     name: deckName || 'Imported Deck',
                     description: 'Imported via text parser',
+                    is_public: !isPrivate
                 })
                 .select()
                 .single();
@@ -115,14 +117,7 @@ export default function ImportDeckPage() {
             if (deckError) throw deckError;
 
             // 2. Create Deck Cards
-            // Note: We are missing KRCG IDs here. In a real app we MUST fetch them.
-            // For this step, we will insert with a dummy ID (e.g. 0) or we need to fetch.
-            // Let's assume we skip ID for now or use a placeholder if the DB constraint logic allows (it requires Int).
-            // Constraint: `card_id integer NOT NULL`.
-            // We NEED to fetch IDs.
-
             // Quick fetch from KRCG for the cards
-            // This might be slow for large decks.
             const cardsWithIds = await Promise.all(parsedCards.map(async (card) => {
                 try {
                     const res = await fetch(`https://api.krcg.org/card/${encodeURIComponent(card.name)}`);
@@ -184,6 +179,21 @@ export default function ImportDeckPage() {
                                     value={deckName}
                                     onChange={(e) => setDeckName(e.target.value)}
                                 />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <div className={`w-10 h-6 rounded-full p-1 transition-colors ${isPrivate ? 'bg-red-600' : 'bg-slate-700'}`}>
+                                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isPrivate ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        className="hidden"
+                                        checked={isPrivate}
+                                        onChange={(e) => setIsPrivate(e.target.checked)}
+                                    />
+                                    <span className="text-slate-300 text-sm group-hover:text-slate-100 transition-colors">Mark as Private (Hidden contents)</span>
+                                </label>
                             </div>
 
                             <div>
