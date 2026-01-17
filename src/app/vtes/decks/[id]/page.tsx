@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
-import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet } from 'lucide-react';
+import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -162,6 +162,17 @@ export default function DeckDetailPage() {
                         // Logic to position it nicely, maybe center screen or offset
                     }}>
                         <img src={hoveredCardUrl} alt="Card Preview" className="w-[360px] rounded-xl shadow-2xl border-4 border-slate-900 bg-black" />
+                    </div>
+                )}
+
+                {/* Debugging / Empty State */}
+                {deck.deck_cards.length === 0 && (
+                    <div className="p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg text-amber-200 mb-6">
+                        <h3 className="font-bold flex items-center gap-2"><AlertCircle className="h-4 w-4" /> No Cards Found</h3>
+                        <p className="text-sm mt-1 opacity-80">
+                            This deck appears to have no cards. If you just imported it, the import might have failed,
+                            or you may not have permission to view the card list (Privacy Settings).
+                        </p>
                     </div>
                 )}
 

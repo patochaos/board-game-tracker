@@ -231,7 +231,20 @@ export default function ImportDeckPage() {
                     <Card variant="glass">
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-slate-100">{deckName || 'Untitled Deck'}</h2>
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-bold text-slate-100">{deckName || 'Untitled Deck'}</h2>
+                                    {isPrivate ? (
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-red-400 bg-red-950/40 px-2 py-0.5 rounded-full border border-red-900/50 w-fit">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            PRIVATE DECK
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-900/50 w-fit">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            PUBLIC DECK
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="text-slate-400 text-sm">
                                     {parsedCards.reduce((acc, c) => acc + c.count, 0)} Cards Found
                                 </div>
