@@ -46,44 +46,60 @@ export default function DeckDetailPage() {
 
     useEffect(() => {
         const fetchDeck = async () => {
-            // Get Current User First
-            const { data: { user } } = await supabase.auth.getUser();
+            console.log('Fetching deck...', params.id);
+            try {
+                // Get Current User First
+                const { data: { user } } = await supabase.auth.getUser();
 
-            const { data, error } = await supabase
-                .from('decks')
-                .select(`
-                    id, name, description, created_at, user_id, is_public,
-                    profile:profiles(display_name, username),
-                    deck_cards(card_id, quantity)
-                `)
-                .eq('id', params.id)
-                .single();
+                const { data, error } = await supabase
+                    .from('decks')
+                    .select(`
+                        id, name, description, created_at, user_id, is_public,
+                        profile:profiles(display_name, username),
+                        deck_cards(card_id, quantity)
+                    `)
+                    .eq('id', params.id)
+                    .single();
 
-            if (error || !data) {
-                console.error('Error:', error);
-                router.push('/vtes/decks');
-                return;
+                if (error) {
+                    console.error('Supabase Error:', error);
+                    // Don't redirect immediately to allow debugging
+                    // router.push('/vtes/decks');
+                    setLoading(false);
+                    return;
+                }
+
+                if (!data) {
+                    console.error('No deck found');
+                    setLoading(false);
+                    return;
+                }
+
+                console.log('Deck Data:', data);
+                const deckData = data as unknown as DeckData;
+                setDeck(deckData);
+
+                // Hydrate cards
+                const ids = deckData.deck_cards?.map(dc => dc.card_id) || [];
+                console.log('Card IDs to hydrate:', ids.length);
+
+                if (ids.length > 0) {
+                    const krcgCards = await getCardsByIds(ids);
+                    console.log('KRCG Fetched:', krcgCards.length);
+
+                    const cardMap = new Map<number, VtesCard>();
+                    krcgCards.forEach(c => cardMap.set(c.id, c));
+                    setHydratedCards(cardMap);
+                }
+
+                setLoading(false);
+            } catch (err) {
+                console.error('CRITICAL LOAD ERROR:', err);
+                setLoading(false);
             }
-
-            const deckData = data as unknown as DeckData;
-            setDeck(deckData);
-
-            // Privacy check removed to fix visibility issues
-            // if (!deckData.is_public && deckData.user_id !== user?.id) { ... }
-
-            // Hydrate cards
-            const ids = deckData.deck_cards.map(dc => dc.card_id);
-            if (ids.length > 0) {
-                const krcgCards = await getCardsByIds(ids);
-                const cardMap = new Map<number, VtesCard>();
-                krcgCards.forEach(c => cardMap.set(c.id, c));
-                setHydratedCards(cardMap);
-            }
-
-            setLoading(false);
         };
 
-        fetchDeck();
+        if (params.id) fetchDeck();
     }, [params.id]);
 
     if (loading || !deck) {
@@ -114,34 +130,36 @@ export default function DeckDetailPage() {
         );
     }
 
-    // Process Cards
+    if (!deck) return <div className='p-10 text-white'>Deck not found (Check Console)</div>;
+
+    // Process Cards - Safe Access
     const cryptCards: { q: number; card: VtesCard }[] = [];
     const libraryCards: { q: number; card: VtesCard }[] = [];
 
-    deck.deck_cards.forEach(dc => {
+    (deck.deck_cards || []).forEach(dc => {
         const card = hydratedCards.get(dc.card_id);
         if (card) {
-            const isCrypt = card.types.includes('Vampire') || card.types.includes('Imbued');
+            const isCrypt = card.types?.includes('Vampire') || card.types?.includes('Imbued');
             if (isCrypt) cryptCards.push({ q: dc.quantity, card });
             else libraryCards.push({ q: dc.quantity, card });
         }
     });
 
     // Sort Crypt
-    cryptCards.sort((a, b) => (b.card.capacity || 0) - (a.card.capacity || 0) || a.card.name.localeCompare(b.card.name));
+    cryptCards.sort((a, b) => (b.card.capacity || 0) - (a.card.capacity || 0) || (a.card.name || '').localeCompare(b.card.name || ''));
 
     // Group Library
     const libraryByType: { [type: string]: typeof libraryCards } = {};
     const typeOrder = ['Master', 'Action', 'Political Action', 'Action Modifier', 'Reaction', 'Combat', 'Equipment', 'Retainer', 'Ally', 'Event'];
 
     libraryCards.forEach(item => {
-        const type = item.card.types[0] || 'Other';
+        const type = item.card.types?.[0] || 'Other';
         if (!libraryByType[type]) libraryByType[type] = [];
         libraryByType[type].push(item);
     });
 
     // Sort Library
-    Object.values(libraryByType).forEach(list => list.sort((a, b) => a.card.name.localeCompare(b.card.name)));
+    Object.values(libraryByType).forEach(list => list.sort((a, b) => (a.card.name || '').localeCompare(b.card.name || '')));
 
     const totalCrypt = cryptCards.reduce((acc, c) => acc + c.q, 0);
     const totalLibrary = libraryCards.reduce((acc, c) => acc + c.q, 0);
