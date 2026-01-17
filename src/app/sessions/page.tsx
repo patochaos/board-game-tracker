@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState } from '@/components/ui';
 import { CalendarDays, Plus, Loader2, Trophy, Clock, Dice5, Filter, X } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Image from 'next/image';
@@ -46,6 +47,7 @@ interface SessionWithDetails {
 }
 
 export default function SessionsPage() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionWithDetails[]>([]);
   const [allSessions, setAllSessions] = useState<SessionWithDetails[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -281,10 +283,14 @@ export default function SessionsPage() {
         ) : (
           <div className="space-y-4">
             {sessions.map((session) => (
-              <Link key={session.id} href={`/sessions/${session.id}`} className="block">
+              <div
+                key={session.id}
+                onClick={() => router.push(`/sessions/${session.id}`)}
+                className="cursor-pointer block"
+              >
                 <Card
                   variant="glass"
-                  className="hover:border-emerald-500/50 transition-colors cursor-pointer"
+                  className="hover:border-emerald-500/50 transition-colors"
                 >
                   <div className="flex gap-4">
                     {/* Game Thumbnail */}
@@ -376,7 +382,7 @@ export default function SessionsPage() {
                     </div>
                   </div>
                 </Card>
-              </Link>
+              </div>
             ))}
           </div>
         )}

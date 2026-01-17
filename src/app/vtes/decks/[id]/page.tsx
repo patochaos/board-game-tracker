@@ -170,12 +170,18 @@ export default function DeckDetailPage() {
             <div className="max-w-7xl mx-auto space-y-6 relative">
                 {/* Hover Preview */}
                 {hoveredCardUrl && (
-                    <div className="fixed z-50 pointer-events-none hidden lg:block animate-in fade-in duration-100" style={{
+                    <div className="fixed z-[9999] pointer-events-none hidden lg:block animate-in fade-in duration-100" style={{
                         top: '50%',
                         right: '2%', // Align to right side
                         transform: 'translateY(-50%)', // Center vertically
+                        width: '360px', // Fixed width
+                        height: '503px', // Fixed height (~1.4 aspect ratio) to prevent shift
                     }}>
-                        <img src={hoveredCardUrl} alt="Card Preview" className="w-[360px] rounded-xl shadow-2xl border-4 border-slate-900 bg-black" />
+                        <img
+                            src={hoveredCardUrl}
+                            alt="Card Preview"
+                            className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                        />
                     </div>
                 )}
 
