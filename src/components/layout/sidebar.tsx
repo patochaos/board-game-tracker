@@ -17,7 +17,8 @@ import {
   Trophy,
   Swords,
   Search,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -32,9 +33,9 @@ const boardGameNavItems = [
 
 const vtesNavItems = [
   { label: 'Dashboard', href: '/vtes', icon: Swords },
+  { label: 'Import Deck', href: '/vtes/decks/import', icon: Plus },
+  { label: 'Log Session', href: '/vtes/sessions/new', icon: FileText },
   { label: 'Search Cards', href: '/vtes/cards', icon: Search },
-  { label: 'Log Session', href: '/vtes/sessions/new', icon: Plus },
-  { label: 'Sessions', href: '/vtes/sessions', icon: CalendarDays }, // Future list
 ];
 
 const bottomItems = [
