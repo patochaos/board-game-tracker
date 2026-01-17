@@ -17,8 +17,7 @@ Based on research from "BG Stats" and tailored for a private group (~10 players)
     - **Most Sessions:** Who shows up the most?
 - [x] **"New to Me" / "New to Group" Badges**
     - Highlight when a game is played for the first time.
-- [ ] **H-Index**
-    - The "Nerd Stat": You have an H-index of *N* if you have played *N* games at least *N* times.
+
 
 ## 🔮 Phase 2: Depth (Nice to Have)
 *Focus: Detailed insights and collection analytics.*

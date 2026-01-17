@@ -37,6 +37,7 @@ export default function NewSessionPage() {
   const [selectedGameId, setSelectedGameId] = useState<string>('');
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().split('T')[0]);
   const [durationMinutes, setDurationMinutes] = useState<string>('');
+  const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
 
@@ -282,6 +283,7 @@ export default function NewSessionPage() {
           game_id: selectedGameId,
           played_at: playedAt,
           duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
+          location: location || null,
           notes: notes || null,
           created_by: currentUserId,
         })
@@ -570,6 +572,30 @@ export default function NewSessionPage() {
             )}
           </Card>
 
+          {/* Location */}
+          <Card variant="glass">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">Location</h2>
+            <div className="space-y-4">
+              <Input
+                placeholder="Where did you play?"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                {players.filter(p => p.name.trim()).map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setLocation(`${p.name}'s Home`)}
+                    className="px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:border-emerald-500 hover:text-emerald-400 transition-colors"
+                  >
+                    {p.name}&apos;s Home
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Card>
+
           {/* Notes */}
           <Card variant="glass">
             <h2 className="text-lg font-semibold text-slate-100 mb-4">Notes</h2>
@@ -582,11 +608,13 @@ export default function NewSessionPage() {
             />
           </Card>
 
-          {error && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400">
-              {error}
-            </div>
-          )}
+          {
+            error && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400">
+                {error}
+              </div>
+            )
+          }
 
           {/* Submit */}
           <div className="flex gap-4">
@@ -604,8 +632,8 @@ export default function NewSessionPage() {
               {saving ? 'Saving...' : 'Log Session'}
             </Button>
           </div>
-        </form>
-      </div>
-    </AppLayout>
+        </form >
+      </div >
+    </AppLayout >
   );
 }

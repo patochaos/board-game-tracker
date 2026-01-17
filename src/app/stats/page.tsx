@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout';
 import { Card, StatCard, EmptyState } from '@/components/ui';
-import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles } from 'lucide-react';
+import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Image from 'next/image';
@@ -49,6 +49,12 @@ interface GameWinRate {
   winRate: number;
 }
 
+interface Nemesis {
+  name: string;
+  winsAgainstUser: number;
+  totalGamesTogether: number;
+}
+
 interface Achievement {
   id: string;
   name: string;
@@ -83,6 +89,7 @@ export default function StatsPage() {
   const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivity[]>([]);
   const [gameWinRates, setGameWinRates] = useState<GameWinRate[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [nemesis, setNemesis] = useState<Nemesis | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -139,7 +146,7 @@ export default function StatsPage() {
           duration_minutes,
           game_id,
           game:games(id, name),
-          session_players(user_id, is_winner)
+          session_players(user_id, is_winner, profile:profiles(display_name, username))
         `)
         .order('played_at', { ascending: false });
 
@@ -247,6 +254,58 @@ export default function StatsPage() {
           });
 
           setAchievements(calculatedAchievements);
+          setAchievements(calculatedAchievements);
+
+          // Calculate Nemesis (The player who beats you the most)
+          const rivalMap = new Map<string, { name: string, wins: number, games: number }>();
+
+          sessions.forEach((session: any) => {
+            const myPlay = session.session_players.find((p: any) => p.user_id === user.id);
+            // Only count games where I played AND I lost
+            if (myPlay && !myPlay.is_winner) {
+              const winner = session.session_players.find((p: any) => p.is_winner);
+              if (winner && winner.user_id !== user.id) { // Ensure winner is not me (redundant check but safe)
+                const rivalId = winner.user_id;
+                const rivalName = winner.profile?.display_name || winner.profile?.username || 'Unknown';
+
+                const current = rivalMap.get(rivalId) || { name: rivalName, wins: 0, games: 0 };
+                current.wins++;
+                rivalMap.set(rivalId, current);
+              }
+            }
+
+            // Track total games together just for context (optional)
+            if (myPlay) {
+              session.session_players.forEach((p: any) => {
+                if (p.user_id !== user.id) {
+                  const rivalId = p.user_id;
+                  const rivalName = p.profile?.display_name || p.profile?.username || 'Unknown';
+                  const current = rivalMap.get(rivalId) || { name: rivalName, wins: 0, games: 0 };
+                  current.games++;
+                  rivalMap.set(rivalId, current);
+                }
+              });
+            }
+          });
+
+          // Find the nemesis
+          let topNemesis: Nemesis | null = null;
+          let maxLosses = 0;
+
+          rivalMap.forEach((stats) => {
+            if (stats.wins > maxLosses) {
+              maxLosses = stats.wins;
+              topNemesis = {
+                name: stats.name,
+                winsAgainstUser: stats.wins,
+                totalGamesTogether: stats.games
+              };
+            }
+          });
+
+          if (topNemesis) {
+            setNemesis(topNemesis);
+          }
         }
       }
 
@@ -320,6 +379,14 @@ export default function StatsPage() {
             subValue={`${overview.totalSessions} sessions`}
             icon={<Clock className="h-8 w-8" />}
           />
+          {nemesis && (
+            <StatCard
+              label="Your Nemesis"
+              value={nemesis.name}
+              subValue={`Defeated you ${nemesis.winsAgainstUser} times`}
+              icon={<Swords className="h-8 w-8 text-red-500" />}
+            />
+          )}
         </div>
 
         {/* Charts Row */}
@@ -374,9 +441,8 @@ export default function StatsPage() {
                       </div>
                       <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${
-                            game.winRate >= 50 ? 'bg-emerald-500' : 'bg-amber-500'
-                          }`}
+                          className={`h-full rounded-full transition-all ${game.winRate >= 50 ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`}
                           style={{ width: `${game.winRate}%` }}
                         />
                       </div>
@@ -402,11 +468,10 @@ export default function StatsPage() {
               {achievements.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className={`p-3 rounded-xl border transition-all ${
-                    achievement.unlocked
+                  className={`p-3 rounded-xl border transition-all ${achievement.unlocked
                       ? 'bg-purple-500/10 border-purple-500/30'
                       : 'bg-slate-800/30 border-slate-700/50 opacity-60'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div className={achievement.unlocked ? 'text-purple-400' : 'text-slate-500'}>
@@ -457,11 +522,10 @@ export default function StatsPage() {
                 {leaderboard.map((player, index) => (
                   <div
                     key={player.user_id}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                      index === 0
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${index === 0
                         ? 'bg-yellow-500/10 border border-yellow-500/30'
                         : 'bg-slate-800/50 hover:bg-slate-800'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-center w-8">
                       {getRankIcon(index)}

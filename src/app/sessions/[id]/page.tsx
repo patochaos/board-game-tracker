@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { ArrowLeft, Trash2, Trophy, Loader2, Dice5, Save, X, Pencil, Calendar, Clock, Users } from 'lucide-react';
+import { ArrowLeft, Trash2, Trophy, Loader2, Dice5, Save, X, Pencil, Calendar, Clock, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -32,6 +32,7 @@ interface Session {
   id: string;
   played_at: string;
   duration_minutes: number | null;
+  location: string | null;
   notes: string | null;
   created_by: string;
   game: Game;
@@ -61,6 +62,7 @@ export default function SessionDetailPage() {
   // Edit form state
   const [editPlayedAt, setEditPlayedAt] = useState('');
   const [editDuration, setEditDuration] = useState('');
+  const [editLocation, setEditLocation] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editPlayers, setEditPlayers] = useState<{ id: string; score: string; isWinner: boolean }[]>([]);
 
@@ -129,6 +131,7 @@ export default function SessionDetailPage() {
       // Initialize edit form
       setEditPlayedAt(sessionData.played_at);
       setEditDuration(sessionData.duration_minutes?.toString() || '');
+      setEditLocation(sessionData.location || '');
       setEditNotes(sessionData.notes || '');
       setEditPlayers(
         sessionData.session_players.map(sp => ({
@@ -155,6 +158,7 @@ export default function SessionDetailPage() {
         .update({
           played_at: editPlayedAt,
           duration_minutes: editDuration ? parseInt(editDuration) : null,
+          location: editLocation || null,
           notes: editNotes || null,
         })
         .eq('id', session.id);
@@ -387,6 +391,22 @@ export default function SessionDetailPage() {
                       />
                     ) : (
                       `${session.duration_minutes} min`
+                    )}
+                  </span>
+                )}
+                {(session.location || editing) && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={editLocation}
+                        onChange={(e) => setEditLocation(e.target.value)}
+                        placeholder="Location"
+                        className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
+                      />
+                    ) : (
+                      session.location
                     )}
                   </span>
                 )}
