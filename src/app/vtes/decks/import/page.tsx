@@ -109,7 +109,7 @@ export default function ImportDeckPage() {
                     user_id: user.id,
                     name: deckName || 'Imported Deck',
                     description: 'Imported via text parser',
-                    is_public: !isPrivate
+                    is_public: true // Force public for now
                 })
                 .select()
                 .single();
@@ -181,20 +181,11 @@ export default function ImportDeckPage() {
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <div className={`w-10 h-6 rounded-full p-1 transition-colors ${isPrivate ? 'bg-red-600' : 'bg-slate-700'}`}>
-                                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isPrivate ? 'translate-x-4' : 'translate-x-0'}`} />
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        className="hidden"
-                                        checked={isPrivate}
-                                        onChange={(e) => setIsPrivate(e.target.checked)}
-                                    />
-                                    <span className="text-slate-300 text-sm group-hover:text-slate-100 transition-colors">Mark as Private (Hidden contents)</span>
-                                </label>
-                            </div>
+                            {/* Privacy Option Removed temporarily due to issues */}
+                            {/* <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Privacy</label>
+                                ...
+                            </div> */}
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-400 mb-2">Deck List (Text)</label>

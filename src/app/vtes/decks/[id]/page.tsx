@@ -68,12 +68,8 @@ export default function DeckDetailPage() {
             const deckData = data as unknown as DeckData;
             setDeck(deckData);
 
-            // Check Privacy
-            if (!deckData.is_public && deckData.user_id !== user?.id) {
-                setIsRestricted(true);
-                setLoading(false);
-                return; // Do not fetch cards
-            }
+            // Privacy check removed to fix visibility issues
+            // if (!deckData.is_public && deckData.user_id !== user?.id) { ... }
 
             // Hydrate cards
             const ids = deckData.deck_cards.map(dc => dc.card_id);
