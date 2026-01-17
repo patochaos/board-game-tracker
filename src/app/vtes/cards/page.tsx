@@ -2,24 +2,14 @@
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { Search, Filter, Loader2, Info } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { searchKrcg, VtesCard } from '@/lib/krcg';
-import Image from 'next/image';
+// ... imports ...
+import { Search, Filter, Loader2, Info, X, ChevronLeft, ChevronRight } from 'lucide-react';
+// ... imports ...
 
-// Constants
-const CLANS = [
-    'Assamite', 'Brujah', 'Followers of Set', 'Gangrel', 'Giovanni', 'Lasombra',
-    'Malkavian', 'Nosferatu', 'Ravnos', 'Toreador', 'Tremere', 'Tzimisce', 'Ventrue',
-    'Caitiff', 'Pander', 'Baali', 'Blood Brothers', 'Gargoyles', 'Harbingers of Skulls',
-    'Nagaraja', 'Salubri', 'Samedi', 'True Brujah', 'Daughters of Cacophony',
-    'Kiasyd', 'Osebo', 'Akunanse', 'Guruhi', 'Ishtarri'
-];
-
-const DISCIPLINES = [
-    'Animalism', 'Auspex', 'Celerity', 'Dominate', 'Fortitude', 'Obfuscate',
-    'Potence', 'Presence', 'Protean', 'Thaumaturgy', 'Vicissitude', 'Obtenebration',
-    'Dementation', 'Necromancy', 'Chimerstry', 'Serpentis'
+// ... Constants ...
+const LIBRARY_TYPES = [
+    'Action', 'Action Modifier', 'Reaction', 'Combat', 'Master',
+    'Ally', 'Equipment', 'Retainer', 'Event', 'Political Action', 'Conviction', 'Power'
 ];
 
 export default function CardSearchPage() {
@@ -29,38 +19,56 @@ export default function CardSearchPage() {
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
+    // Zoom Modal State
+    const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+
     // Filters
     const [clanFilter, setClanFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState(''); // For Library
     const [capacityMin, setCapacityMin] = useState('');
     const [capacityMax, setCapacityMax] = useState('');
 
+    // Keyboard Navigation for Modal
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (selectedCardIndex === null) return;
+
+            if (e.key === 'Escape') setSelectedCardIndex(null);
+            if (e.key === 'ArrowLeft') navigateModal(-1);
+            if (e.key === 'ArrowRight') navigateModal(1);
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedCardIndex, results]);
+
+    const navigateModal = (direction: -1 | 1) => {
+        if (selectedCardIndex === null) return;
+        const newIndex = selectedCardIndex + direction;
+        if (newIndex >= 0 && newIndex < results.length) {
+            setSelectedCardIndex(newIndex);
+        }
+    };
+
     const handleSearch = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         setLoading(true);
         setHasSearched(true);
+        setSelectedCardIndex(null);
 
         try {
             const filters: any = {};
 
-            // Basic type filtering based on Tab
-            // KRCG uses 'type' array. 
-            // Crypt cards have type=['Vampire'] or 'Imbued'.
-            // Library cards have type=['Action', 'Master', etc.]
-
             if (activeTab === 'crypt') {
                 filters.type = ['Vampire', 'Imbued'];
-                if (capacityMin || capacityMax) {
-                    // KRCG API might support range or we filter client side?
-                    // Let's rely on basic query + client filtering if API is opaque
-                }
             } else {
-                // Library: exclude Vampire/Imbued? Or just specify explicit types?
-                // Easiest is to filter post-fetch if API is permissive, 
-                // BUT standard practice is to search for specific filters.
-                if (typeFilter) filters.type = [typeFilter];
-                else filters['text'] = '-type:Vampire -type:Imbued'; // Negative filter trick if supported? 
-                // Actually, KRCG usually handles "type" logic strictly.
+                if (typeFilter) {
+                    filters.type = [typeFilter];
+                } else {
+                    // Send all library types to ensure we exclude Crypt cards
+                    // This is safer than negative filters which API might not support
+                    filters.type = LIBRARY_TYPES;
+                }
             }
 
             if (clanFilter) filters.clan = [clanFilter];
@@ -68,19 +76,12 @@ export default function CardSearchPage() {
             // Perform Search
             const cards = await searchKrcg(query, filters);
 
-            // Client-side refinement due to loose API
+            // Client-side refinement (Capacity)
             const filtered = cards.filter(c => {
-                // Tab separation
-                const isCrypt = c.types.includes('Vampire') || c.types.includes('Imbued');
-                if (activeTab === 'crypt' && !isCrypt) return false;
-                if (activeTab === 'library' && isCrypt) return false;
-
-                // Capacity check
                 if (activeTab === 'crypt') {
                     if (capacityMin && (c.capacity || 0) < parseInt(capacityMin)) return false;
                     if (capacityMax && (c.capacity || 0) > parseInt(capacityMax)) return false;
                 }
-
                 return true;
             });
 
@@ -182,15 +183,7 @@ export default function CardSearchPage() {
                                     onChange={(e) => setTypeFilter(e.target.value)}
                                 >
                                     <option value="">Any Type</option>
-                                    <option value="Action">Action</option>
-                                    <option value="Action Modifier">Action Modifier</option>
-                                    <option value="Reaction">Reaction</option>
-                                    <option value="Combat">Combat</option>
-                                    <option value="Master">Master</option>
-                                    <option value="Ally">Ally</option>
-                                    <option value="Equipment">Equipment</option>
-                                    <option value="Retainer">Retainer</option>
-                                    <option value="Event">Event</option>
+                                    {LIBRARY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                             )}
                         </div>
@@ -204,8 +197,12 @@ export default function CardSearchPage() {
                     </div>
                 ) : results.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {results.map((card) => (
-                            <div key={card.id} className="relative group perspective-1000">
+                        {results.map((card, index) => (
+                            <div
+                                key={card.id}
+                                className="relative group perspective-1000 cursor-pointer"
+                                onClick={() => setSelectedCardIndex(index)}
+                            >
                                 <div className="relative aspect-[358/500] bg-slate-800 rounded-xl overflow-hidden shadow-xl border border-slate-700 group-hover:border-red-500/50 transition-all duration-300 group-hover:scale-[1.02]">
                                     {/* Image - KRCG hosted images */}
                                     {card.url && (
@@ -224,7 +221,7 @@ export default function CardSearchPage() {
                                             {card.types.join(', ')} {card.group ? `(G${card.group})` : ''}
                                             {card.capacity ? ` • Cap ${card.capacity}` : ''}
                                         </p>
-                                        {/* <p className="text-xs text-slate-400 line-clamp-3">{card.text}</p> */}
+                                        <p className="text-xs text-emerald-400 font-bold mt-2">Click to View</p>
                                     </div>
                                 </div>
                             </div>
@@ -242,6 +239,88 @@ export default function CardSearchPage() {
                     </div>
                 )}
             </div>
+
+            {/* ZOOM MODAL */}
+            {selectedCardIndex !== null && results[selectedCardIndex] && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedCardIndex(null)}>
+
+                    {/* Content Container (Stop Propagation) */}
+                    <div className="relative max-w-4xl w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
+
+                        {/* Close Button */}
+                        <button
+                            className="absolute -top-12 right-0 md:bg-white/10 p-2 rounded-full hover:bg-white/20 text-white transition-colors"
+                            onClick={() => setSelectedCardIndex(null)}
+                        >
+                            <X className="h-6 w-6" />
+                        </button>
+
+                        <div className="flex items-center justify-center gap-4 w-full h-[80vh]">
+                            {/* Previous Button */}
+                            <button
+                                className={`hidden md:flex p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all ${selectedCardIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                                onClick={(e) => { e.stopPropagation(); navigateModal(-1); }}
+                                disabled={selectedCardIndex === 0}
+                            >
+                                <ChevronLeft className="h-8 w-8" />
+                            </button>
+
+                            {/* Card Image */}
+                            <div className="relative h-full aspect-[358/500] bg-slate-900 rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                                {results[selectedCardIndex].url ? (
+                                    <img
+                                        src={results[selectedCardIndex].url}
+                                        alt={results[selectedCardIndex].name}
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-slate-500">No Image</div>
+                                )}
+
+                                <div className="absolute bottom-0 inset-x-0 bg-black/60 p-4 text-center">
+                                    <h2 className="text-xl font-bold text-white mb-1">{results[selectedCardIndex].name}</h2>
+                                    <p className="text-sm text-slate-300">
+                                        {results[selectedCardIndex].types.join(', ')}
+                                        {results[selectedCardIndex].capacity && ` • Cap ${results[selectedCardIndex].capacity}`}
+                                        {results[selectedCardIndex].group && ` • G${results[selectedCardIndex].group}`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Next Button */}
+                            <button
+                                className={`hidden md:flex p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all ${selectedCardIndex === results.length - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                                onClick={(e) => { e.stopPropagation(); navigateModal(1); }}
+                                disabled={selectedCardIndex === results.length - 1}
+                            >
+                                <ChevronRight className="h-8 w-8" />
+                            </button>
+                        </div>
+
+                        {/* Mobile Navigation Footer */}
+                        <div className="flex md:hidden items-center justify-center gap-8 mt-6">
+                            <button
+                                className="p-3 rounded-full bg-white/10 text-white"
+                                onClick={(e) => { e.stopPropagation(); navigateModal(-1); }}
+                                disabled={selectedCardIndex === 0}
+                            >
+                                <ChevronLeft className="h-6 w-6" />
+                            </button>
+                            <span className="text-slate-400 text-sm">
+                                {selectedCardIndex + 1} / {results.length}
+                            </span>
+                            <button
+                                className="p-3 rounded-full bg-white/10 text-white"
+                                onClick={(e) => { e.stopPropagation(); navigateModal(1); }}
+                                disabled={selectedCardIndex === results.length - 1}
+                            >
+                                <ChevronRight className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }
