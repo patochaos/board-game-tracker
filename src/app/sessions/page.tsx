@@ -281,7 +281,7 @@ export default function SessionsPage() {
         ) : (
           <div className="space-y-4">
             {sessions.map((session) => (
-              <Link key={session.id} href={`/sessions/${session.id}`}>
+              <Link key={session.id} href={`/sessions/${session.id}`} className="block">
                 <Card
                   variant="glass"
                   className="hover:border-emerald-500/50 transition-colors cursor-pointer"

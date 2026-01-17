@@ -105,6 +105,7 @@ Ver `.env.local.example`:
   - `useLeaderboard`, `useGameDetail`, `useExpansions`, `useGroupData`
 
 ### 2026-01-17 (Continuación)
+- 2026-01-17: Deck Visibility Fix, VTES Icons Improvement (TDD), UI Polish (Hover Jitter, Search Overlay, Sessions Nav)
 - **Deck Visibility Fix:**
   - Solucionado problema donde visitantes (Guest/Anon) no podían ver mazos públicos por políticas RLS.
   - Migración: `migrations/11_fix_public_decks_rls.sql`.

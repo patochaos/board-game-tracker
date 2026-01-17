@@ -286,14 +286,7 @@ export default function CardSearchPage() {
                                     <div className="flex items-center justify-center h-full text-slate-500">No Image</div>
                                 )}
 
-                                <div className="absolute bottom-0 inset-x-0 bg-black/60 p-4 text-center">
-                                    <h2 className="text-xl font-bold text-white mb-1">{results[selectedCardIndex].name}</h2>
-                                    <p className="text-sm text-slate-300">
-                                        {results[selectedCardIndex].types.join(', ')}
-                                        {results[selectedCardIndex].capacity && ` • Cap ${results[selectedCardIndex].capacity}`}
-                                        {results[selectedCardIndex].group && ` • G${results[selectedCardIndex].group}`}
-                                    </p>
-                                </div>
+
                             </div>
 
                             {/* Next Button */}
