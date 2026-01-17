@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { AppLayout } from '@/components/layout';
 import { Card, StatCard, EmptyState } from '@/components/ui';
 import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords } from 'lucide-react';

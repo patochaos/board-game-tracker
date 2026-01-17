@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState } from '@/components/ui';
 import { CalendarDays, Plus, Loader2, Trophy, Clock, Dice5, Filter, X } from 'lucide-react';

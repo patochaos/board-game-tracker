@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
 import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5 } from 'lucide-react';

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input, Badge } from '@/components/ui';
