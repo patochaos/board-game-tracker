@@ -12,6 +12,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getCardsByIds, VtesCard } from '@/lib/krcg';
 import Image from 'next/image';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
+import { sortDisciplines } from '@/lib/vtes/utils';
 
 interface DeckData {
     id: string;
@@ -26,7 +27,7 @@ interface DeckData {
     };
     deck_cards: {
         card_id: number;
-        quantity: number;
+        count: number;
     }[];
 }
 
@@ -56,7 +57,7 @@ export default function DeckDetailPage() {
                     .select(`
                         id, name, description, created_at, user_id, is_public,
                         profile:profiles(display_name, username),
-                        deck_cards(card_id, quantity)
+                        deck_cards(card_id, count)
                     `)
                     .eq('id', params.id)
                     .single();
@@ -140,8 +141,8 @@ export default function DeckDetailPage() {
         const card = hydratedCards.get(dc.card_id);
         if (card) {
             const isCrypt = card.types?.includes('Vampire') || card.types?.includes('Imbued');
-            if (isCrypt) cryptCards.push({ q: dc.quantity, card });
-            else libraryCards.push({ q: dc.quantity, card });
+            if (isCrypt) cryptCards.push({ q: dc.count, card });
+            else libraryCards.push({ q: dc.count, card });
         }
     });
 
@@ -236,7 +237,7 @@ export default function DeckDetailPage() {
                                             </td>
                                             <td className="px-2 py-1.5">
                                                 <div className="flex items-center gap-0.5">
-                                                    {item.card.disciplines?.map(d => (
+                                                    {sortDisciplines(item.card.disciplines || []).map(d => (
                                                         <VtesIcon key={d} name={d} type="discipline" size="sm" />
                                                     ))}
                                                 </div>
@@ -316,10 +317,11 @@ export default function DeckDetailPage() {
                                                                 </div>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-12 text-right">
-                                                                {/* Requirements - simplified logic: check for discipline/clan in text or special fields if available.
-                                                                    KRCG usually doesn't give explicit 'reqs' array easily, but we can infer or rely on text parsing if vital.
-                                                                    For now, let's leave blank or use basic knowns if any.
-                                                                */}
+                                                                <div className="flex items-center justify-end gap-0.5">
+                                                                    {sortDisciplines(item.card.disciplines || []).map(d => (
+                                                                        <VtesIcon key={d} name={d} type="discipline" size="sm" />
+                                                                    ))}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))}

@@ -123,7 +123,8 @@ export default function ImportDeckPage() {
                     const res = await fetch(`https://api.krcg.org/card/${encodeURIComponent(card.name)}`);
                     if (res.ok) {
                         const data = await res.json();
-                        return { ...card, id: data.id, type: data.type && data.type.length ? 'library' : 'crypt' }; // Heuristic
+                        const isCrypt = data.types && (data.types.includes('Vampire') || data.types.includes('Imbued'));
+                        return { ...card, id: data.id, type: isCrypt ? 'crypt' : 'library' };
                     }
                 } catch (e) { console.warn('Failed to fetch', card.name); }
                 return { ...card, id: 0 }; // Fallback

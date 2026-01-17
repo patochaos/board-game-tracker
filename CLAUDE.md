@@ -18,7 +18,8 @@ src/
 │   ├── sessions/             # Historial de sesiones
 │   ├── players/              # Gestión de grupo
 │   ├── stats/                # Estadísticas
-│   └── settings/             # Config + importar colección BGG
+│   ├── settings/             # Config + importar colección BGG
+│   └── vtes/                 # VTES Module (Decks, Cards, Crypt)
 ├── components/ui/            # Componentes reutilizables
 ├── hooks/                    # Custom React hooks
 │   ├── useCurrentUser.ts     # Auth user + profile
@@ -45,6 +46,9 @@ src/
 - Sidebar y navegación
 - Schema de base de datos en Supabase
 - API route `/api/bgg/collection` para importar colección de BGG
+- CRUD de sesiones de juego (List, Create, Edit, Delete)
+- Formulario para registrar partidas
+- Módulo VTES (Vampire: The Eternal Struggle) - Basic Deck Management
 
 ### Pendiente - BGG API Token
 BGG cambió su API en 2025 y ahora requiere tokens de autorización.
@@ -61,8 +65,6 @@ BGG cambió su API en 2025 y ahora requiere tokens de autorización.
 
 ### Próximas Funcionalidades (por implementar)
 - [ ] Crear API routes para search y details de BGG (con token)
-- [ ] CRUD de sesiones de juego
-- [ ] Formulario para registrar partidas
 - [ ] Sistema de estadísticas (win rates, H-index)
 - [ ] Tabla de líderes del grupo
 - [ ] Gestión de jugadores/grupo
@@ -101,6 +103,16 @@ Ver `.env.local.example`:
 - **Custom Hooks:** Created 8 reusable hooks in `src/hooks/` for data fetching:
   - `useCurrentUser`, `useGames`, `useSessions`, `useSessionDetail`
   - `useLeaderboard`, `useGameDetail`, `useExpansions`, `useGroupData`
+
+### 2026-01-17 (Continuación)
+- **Deck Visibility Fix:**
+  - Solucionado problema donde visitantes (Guest/Anon) no podían ver mazos públicos por políticas RLS.
+  - Migración: `migrations/11_fix_public_decks_rls.sql`.
+  - Test corregido: `tests/deck-visibility.spec.ts` (ahora selecciona mazos correctamente).
+- **VTES Icons Improvement:**
+  - Standardized discipline icons to match VDB style (Alphabetical order).
+  - TDD Applied: Created `tests/unit/vtes-sorting.test.ts` to verify `sortDisciplines` utility.
+  - Component `VtesIcon` made robust with text fallback and better mapping.
 
 ### 2026-01-16
 - Initial git commit and push to GitHub (Deployment initialization)
