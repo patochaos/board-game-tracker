@@ -5,9 +5,17 @@ import { Card, Button, Input } from '@/components/ui';
 // ... imports ...
 import { Search, Filter, Loader2, Info, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-// ... imports ...
+import { searchKrcg, VtesCard } from '@/lib/krcg';
 
-// ... Constants ...
+// Constants
+const CLANS = [
+    'Assamite', 'Brujah', 'Followers of Set', 'Gangrel', 'Giovanni', 'Lasombra',
+    'Malkavian', 'Nosferatu', 'Ravnos', 'Toreador', 'Tremere', 'Tzimisce', 'Ventrue',
+    'Caitiff', 'Pander', 'Baali', 'Blood Brothers', 'Gargoyles', 'Harbingers of Skulls',
+    'Nagaraja', 'Salubri', 'Samedi', 'True Brujah', 'Daughters of Cacophony',
+    'Kiasyd', 'Osebo', 'Akunanse', 'Guruhi', 'Ishtarri'
+];
+
 const LIBRARY_TYPES = [
     'Action', 'Action Modifier', 'Reaction', 'Combat', 'Master',
     'Ally', 'Equipment', 'Retainer', 'Event', 'Political Action', 'Conviction', 'Power'
