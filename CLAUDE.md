@@ -72,3 +72,8 @@ Ver `.env.local.example`:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `BGG_API_TOKEN` (pendiente de aprobación)
+ 
+ ## Changelog
+ ### 2026-01-16
+ - Initial git commit and push to GitHub (Deployment initialization)
+ - Deployed to Vercel: https://board-game-tracker-78pn.vercel.app/
