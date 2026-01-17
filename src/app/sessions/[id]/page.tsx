@@ -84,6 +84,7 @@ export default function SessionDetailPage() {
           duration_minutes,
           notes,
           created_by,
+          location,
           game:games(id, name, thumbnail_url),
           session_players(
             id,
