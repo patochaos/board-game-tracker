@@ -105,3 +105,30 @@ export async function searchKrcg(query: string, filters: any = {}): Promise<Vtes
         return [];
     }
 }
+
+/**
+ * Fetch multiple cards by ID
+ */
+export async function getCardsByIds(ids: number[]): Promise<VtesCard[]> {
+    if (ids.length === 0) return [];
+
+    // Deduplicate IDs to save requests
+    const uniqueIds = Array.from(new Set(ids));
+
+    // Parallel fetch
+    // Note: In a production app with huge decks, batching or a different API would be better.
+    // KRCG typically responds fast.
+    const promises = uniqueIds.map(async (id) => {
+        try {
+            const res = await fetch(`${KRCG_API}/card/${id}`);
+            if (!res.ok) return null;
+            return await res.json() as VtesCard;
+        } catch (e) {
+            console.error(`Failed to fetch card ${id}`, e);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(promises);
+    return results.filter((c): c is VtesCard => c !== null);
+}
