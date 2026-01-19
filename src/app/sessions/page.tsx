@@ -283,106 +283,106 @@ export default function SessionsPage() {
         ) : (
           <div className="space-y-4">
             {sessions.map((session) => (
-              <div
+              <Card
                 key={session.id}
-                onClick={() => router.push(`/sessions/${session.id}`)}
-                className="cursor-pointer block"
+                variant="glass"
+                className="hover:border-emerald-500/50 transition-colors cursor-pointer"
+                data-testid={`session-card-${session.id}`}
+                onClick={() => {
+                  console.log(`[DEBUG] Clicked session ${session.id}, pushing router...`);
+                  router.push(`/sessions/${session.id}`);
+                }}
               >
-                <Card
-                  variant="glass"
-                  className="hover:border-emerald-500/50 transition-colors"
-                >
-                  <div className="flex gap-4">
-                    {/* Game Thumbnail */}
-                    {session.game?.thumbnail_url ? (
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0">
-                        <Image
-                          src={session.game.thumbnail_url}
-                          alt={session.game.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
+                <div className="flex gap-4">
+                  {/* Game Thumbnail */}
+                  {session.game?.thumbnail_url ? (
+                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0">
+                      <Image
+                        src={session.game.thumbnail_url}
+                        alt={session.game.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                      <Dice5 className="h-6 w-6 text-slate-600" />
+                    </div>
+                  )}
+
+                  {/* Session Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-slate-100">
+                          {session.game?.name || 'Unknown Game'}
+                        </h3>
+                        {session.isNewToGroup && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            New to Group!
+                          </span>
+                        )}
+                        <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            {formatDate(session.played_at)}
+                          </span>
+                          {session.duration_minutes && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              {session.duration_minutes} min
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                        <Dice5 className="h-6 w-6 text-slate-600" />
+                    </div>
+
+                    {/* Players */}
+                    {(session.session_players?.length > 0 || session.guest_players?.length > 0) && (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        {session.session_players?.map((sp) => (
+                          <div
+                            key={sp.id}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${sp.is_winner
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-slate-800 text-slate-300'
+                              }`}
+                          >
+                            {sp.is_winner && <Trophy className="h-3 w-3" />}
+                            <span>{sp.profile?.display_name || sp.profile?.username}</span>
+                            {sp.score !== null && (
+                              <span className="text-slate-500">({sp.score})</span>
+                            )}
+                          </div>
+                        ))}
+                        {session.guest_players?.map((gp) => (
+                          <div
+                            key={gp.id}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${gp.is_winner
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-slate-800 text-slate-300'
+                              }`}
+                          >
+                            {gp.is_winner && <Trophy className="h-3 w-3" />}
+                            <span>{gp.name}</span>
+                            {gp.score !== null && (
+                              <span className="text-slate-500">({gp.score})</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
 
-                    {/* Session Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="font-semibold text-slate-100">
-                            {session.game?.name || 'Unknown Game'}
-                          </h3>
-                          {session.isNewToGroup && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              New to Group!
-                            </span>
-                          )}
-                          <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <CalendarDays className="h-3.5 w-3.5" />
-                              {formatDate(session.played_at)}
-                            </span>
-                            {session.duration_minutes && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                {session.duration_minutes} min
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Players */}
-                      {(session.session_players?.length > 0 || session.guest_players?.length > 0) && (
-                        <div className="flex flex-wrap items-center gap-2 mt-3">
-                          {session.session_players?.map((sp) => (
-                            <div
-                              key={sp.id}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${sp.is_winner
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-slate-800 text-slate-300'
-                                }`}
-                            >
-                              {sp.is_winner && <Trophy className="h-3 w-3" />}
-                              <span>{sp.profile?.display_name || sp.profile?.username}</span>
-                              {sp.score !== null && (
-                                <span className="text-slate-500">({sp.score})</span>
-                              )}
-                            </div>
-                          ))}
-                          {session.guest_players?.map((gp) => (
-                            <div
-                              key={gp.id}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm ${gp.is_winner
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-slate-800 text-slate-300'
-                                }`}
-                            >
-                              {gp.is_winner && <Trophy className="h-3 w-3" />}
-                              <span>{gp.name}</span>
-                              {gp.score !== null && (
-                                <span className="text-slate-500">({gp.score})</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Notes preview */}
-                      {session.notes && (
-                        <p className="mt-2 text-sm text-slate-500 line-clamp-1">
-                          {session.notes}
-                        </p>
-                      )}
-                    </div>
+                    {/* Notes preview */}
+                    {session.notes && (
+                      <p className="mt-2 text-sm text-slate-500 line-clamp-1">
+                        {session.notes}
+                      </p>
+                    )}
                   </div>
-                </Card>
-              </div>
+                </div>
+              </Card>
             ))}
           </div>
         )}

@@ -13,7 +13,13 @@
       "Bash(git push)",
       "Bash(npm install:*)",
       "Bash(npm run test:run:*)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\Patricio\\\\Downloads\\\\board-game-tracker\\\\src\\\\app\\\\vtes\\\\decks\\\\import\"\" 2>/dev/null || echo \"Directory check \")",
+      "Bash(tree:*)",
+      "WebFetch(domain:vdb.im)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:static.krcg.org)"
     ]
   }
 }

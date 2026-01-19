@@ -149,6 +149,14 @@ const NAME_MAP: Record<string, string> = {
     'thin-blood alchemy': 'tba',
 };
 
+// Update size mapping
+const sizeMap = {
+    xs: 16,
+    sm: 22, // Adjusted per plan (was 20/24)
+    md: 28,
+    lg: 36,
+};
+
 export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconProps) {
     const [error, setError] = useState(false);
 
@@ -159,8 +167,10 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
     let filename = NAME_MAP[lowerName] || lowerName.replace(/[^a-z0-9]/g, ''); // Default strip special chars
 
     // Logic to determine URL
+    // Use WEBP for disciplines (filled icons), SVG for others
     let url = '';
-    const baseUrl = 'https://static.krcg.org/svg';
+    const svgBaseUrl = 'https://static.krcg.org/svg';
+    const webpBaseUrl = 'https://static.krcg.org/webp';
 
     if (type === 'discipline') {
         // Superior check: If input was uppercase ("DOM"), it's superior.
@@ -168,25 +178,22 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
         const folder = isSuperior ? 'sup' : 'inf';
 
         // Handle mappings
-        // If code is "obl", it might need to be "obt" depending on KRCG version, 
-        // but let's assume standard codes.
-        // Explicitly handle "Blood Sorcery" -> "tha" if not mapped by NAME_MAP
         if (lowerName === 'blood sorcery') filename = 'tha';
         if (lowerName === 'oblivion') filename = 'obl';
 
-        // Map known 3-letter codes if needed? usually they match.
-
-        url = `${baseUrl}/disc/${folder}/${filename}.svg`;
+        // Use WEBP for filled discipline icons
+        url = `${webpBaseUrl}/disc/${folder}/${filename}.webp`;
 
     } else if (type === 'clan') {
-        url = `${baseUrl}/clan/${filename}.svg`;
+        url = `${webpBaseUrl}/clan/${filename}.webp`;
     } else if (type === 'type') {
-        url = `${baseUrl}/type/${filename}.svg`;
+        url = `${svgBaseUrl}/type/${filename}.svg`;
     } else {
-        url = `${baseUrl}/icon/${filename}.svg`;
+        url = `${svgBaseUrl}/icon/${filename}.svg`;
     }
 
-    const pxSize = size === 'sm' ? 20 : size === 'md' ? 28 : 36;
+    // Size mapping
+    const pxSize = sizeMap[size as keyof typeof sizeMap] || sizeMap.md;
 
     if (error) {
         return (
@@ -200,8 +207,11 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
         );
     }
 
-    // High contrast filter for dark mode: Force black then invert to white.
-    const filterClass = (type === 'discipline' || type === 'clan') ? 'brightness-0 invert' : '';
+    // Improved filter: remove harsh invert, add subtle drop shadow and brightness control
+    const isColoredType = type === 'discipline' || type === 'clan';
+    const filterClass = isColoredType
+        ? 'drop-shadow-[1px_1px_1px_rgba(0,0,0,0.5)] dark:brightness-90'
+        : '';
 
     return (
         <div
@@ -214,7 +224,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
                 src={url}
                 alt={name}
                 referrerPolicy="no-referrer"
-                className={`w-full h-full object-contain drop-shadow-sm ${filterClass}`}
+                className={`w-full h-full object-contain ${filterClass}`}
                 onError={() => setError(true)}
             />
         </div>

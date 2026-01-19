@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, StatCard } from '@/components/ui';
-import { Swords, Plus, Search, Trophy } from 'lucide-react';
+import { Swords, Plus, Search, Trophy, TrendingUp, BookOpen, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function VTESDashboard() {
@@ -54,14 +54,45 @@ export default function VTESDashboard() {
                     </div>
                 </div>
 
-                <Card variant="glass">
-                    <div className="text-center py-12">
-                        <p className="text-slate-400 mb-4">No struggles recorded yet.</p>
-                        <Link href="/vtes/sessions/new">
-                            <Button variant="secondary">Record your first game</Button>
-                        </Link>
-                    </div>
-                </Card>
+                {/* Quick Links */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <Link href="/vtes/decks" className="block">
+                        <Card variant="glass" className="p-4 hover:border-red-500/30 transition-colors cursor-pointer">
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <BookOpen className="h-8 w-8 text-red-400" />
+                                <span className="font-medium text-slate-200">Decks</span>
+                                <span className="text-xs text-slate-500">Browse & Import</span>
+                            </div>
+                        </Card>
+                    </Link>
+                    <Link href="/vtes/sessions" className="block">
+                        <Card variant="glass" className="p-4 hover:border-red-500/30 transition-colors cursor-pointer">
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <Calendar className="h-8 w-8 text-red-400" />
+                                <span className="font-medium text-slate-200">Sessions</span>
+                                <span className="text-xs text-slate-500">Game History</span>
+                            </div>
+                        </Card>
+                    </Link>
+                    <Link href="/vtes/leaderboard" className="block">
+                        <Card variant="glass" className="p-4 hover:border-red-500/30 transition-colors cursor-pointer">
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <TrendingUp className="h-8 w-8 text-amber-400" />
+                                <span className="font-medium text-slate-200">Leaderboard</span>
+                                <span className="text-xs text-slate-500">Rankings</span>
+                            </div>
+                        </Card>
+                    </Link>
+                    <Link href="/vtes/cards" className="block">
+                        <Card variant="glass" className="p-4 hover:border-red-500/30 transition-colors cursor-pointer">
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <Search className="h-8 w-8 text-red-400" />
+                                <span className="font-medium text-slate-200">Cards</span>
+                                <span className="text-xs text-slate-500">Card Database</span>
+                            </div>
+                        </Card>
+                    </Link>
+                </div>
             </div>
         </AppLayout>
     );

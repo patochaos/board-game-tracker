@@ -13,11 +13,15 @@ import { useRouter } from 'next/navigation';
 interface PlayerEntry {
     id: string;
     name: string;
-    deckName: string;
-    vp: string; // Victory Points (0-5 typically)
+    deckId: string | null;    // Link to deck table
+    deckName: string;         // Fallback text name
+    vp: string;               // Victory Points (0-5 typically)
+    seatPosition: number;     // 1-6
     isCurrentUser: boolean;
     userId: string | null;
 }
+
+type GameType = 'casual' | 'tournament_prelim' | 'tournament_final' | 'league';
 
 const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
@@ -32,6 +36,8 @@ export default function NewVTESSessionPage() {
     const [durationMinutes, setDurationMinutes] = useState<string>('120'); // Standard VTES time limit
     const [location, setLocation] = useState('');
     const [notes, setNotes] = useState('');
+    const [gameType, setGameType] = useState<GameType>('casual');
+    const [tableSwept, setTableSwept] = useState(false);
     const [players, setPlayers] = useState<PlayerEntry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [availableDecks, setAvailableDecks] = useState<{ id: string; name: string }[]>([]);
@@ -69,11 +75,13 @@ export default function NewVTESSessionPage() {
             if (decks) setAvailableDecks(decks);
 
             // Initialize with 5 players (standard VTES table)
-            const initialPlayers = Array.from({ length: 5 }).map((_, i) => ({
+            const initialPlayers: PlayerEntry[] = Array.from({ length: 5 }).map((_, i) => ({
                 id: crypto.randomUUID(),
                 name: i === 0 ? userName : '',
+                deckId: null,
                 deckName: '',
-                vp: '', // Empty initially
+                vp: '',
+                seatPosition: i + 1,
                 isCurrentUser: i === 0,
                 userId: i === 0 ? user.id : null,
             }));
@@ -104,8 +112,10 @@ export default function NewVTESSessionPage() {
         setPlayers([...players, {
             id: crypto.randomUUID(),
             name: '',
+            deckId: null,
             deckName: '',
             vp: '',
+            seatPosition: players.length + 1,
             isCurrentUser: false,
             userId: null,
         }]);
@@ -138,7 +148,7 @@ export default function NewVTESSessionPage() {
                 throw new Error("No group found. Please create a group first.");
             }
 
-            // Create Session
+            // Create Session with VTES-specific fields
             const { data: session, error: sessionError } = await supabase
                 .from('sessions')
                 .insert({
@@ -149,21 +159,26 @@ export default function NewVTESSessionPage() {
                     location: location || null,
                     notes: notes || null,
                     created_by: currentUserId,
+                    game_type: gameType,
+                    time_limit_minutes: durationMinutes ? parseInt(durationMinutes) : 120,
+                    table_swept: tableSwept,
                 })
                 .select('id')
                 .single();
 
             if (sessionError) throw sessionError;
 
-            // Insert Players
+            // Insert Players with deck_id and seat_position
             const currentUserPlayer = validPlayers.find(p => p.isCurrentUser);
             if (currentUserPlayer) {
                 await supabase.from('session_players').insert({
                     session_id: session.id,
                     user_id: currentUserId,
-                    score: parseFloat(currentUserPlayer.vp || '0'), // VP is score
+                    score: parseFloat(currentUserPlayer.vp || '0'),
                     is_winner: winnerIds.has(currentUserPlayer.id),
+                    deck_id: currentUserPlayer.deckId || null,
                     deck_name: currentUserPlayer.deckName || null,
+                    seat_position: currentUserPlayer.seatPosition,
                 });
             }
 
@@ -174,7 +189,9 @@ export default function NewVTESSessionPage() {
                     name: p.name,
                     score: parseFloat(p.vp || '0'),
                     is_winner: winnerIds.has(p.id),
+                    deck_id: p.deckId || null,
                     deck_name: p.deckName || null,
+                    seat_position: p.seatPosition,
                 })));
             }
 
@@ -228,6 +245,30 @@ export default function NewVTESSessionPage() {
                                 value={durationMinutes}
                                 onChange={(e) => setDurationMinutes(e.target.value)}
                             />
+                            <div>
+                                <label className="text-sm text-slate-400 mb-1 block">Game Type</label>
+                                <select
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                    value={gameType}
+                                    onChange={(e) => setGameType(e.target.value as GameType)}
+                                >
+                                    <option value="casual">Casual</option>
+                                    <option value="league">League</option>
+                                    <option value="tournament_prelim">Tournament Prelim</option>
+                                    <option value="tournament_final">Tournament Final</option>
+                                </select>
+                            </div>
+                            <div className="flex items-end">
+                                <label className="flex items-center gap-2 cursor-pointer px-3 py-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={tableSwept}
+                                        onChange={(e) => setTableSwept(e.target.checked)}
+                                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500"
+                                    />
+                                    <span className="text-slate-300">Table Sweep</span>
+                                </label>
+                            </div>
                             <div className="col-span-2">
                                 <Input
                                     label="Location"
@@ -278,28 +319,38 @@ export default function NewVTESSessionPage() {
                                         {/* Deck */}
                                         <div className="md:col-span-4">
                                             <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
-                                            {availableDecks.length > 0 ? (
-                                                <div className="flex gap-2">
+                                            {player.isCurrentUser && availableDecks.length > 0 ? (
+                                                <div className="space-y-2">
                                                     <select
                                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                        value={availableDecks.some(d => d.name === player.deckName) ? player.deckName : ''}
-                                                        onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                        value={player.deckId || ''}
+                                                        onChange={(e) => {
+                                                            const selectedDeck = availableDecks.find(d => d.id === e.target.value);
+                                                            setPlayers(players.map(p => {
+                                                                if (p.id === player.id) {
+                                                                    return {
+                                                                        ...p,
+                                                                        deckId: e.target.value || null,
+                                                                        deckName: selectedDeck?.name || p.deckName
+                                                                    };
+                                                                }
+                                                                return p;
+                                                            }));
+                                                        }}
                                                     >
                                                         <option value="">-- Select Deck --</option>
                                                         {availableDecks.map(d => (
-                                                            <option key={d.id} value={d.name}>{d.name}</option>
+                                                            <option key={d.id} value={d.id}>{d.name}</option>
                                                         ))}
-                                                        <option value="custom">-- Custom Name --</option>
                                                     </select>
-                                                    {(!availableDecks.some(d => d.name === player.deckName) && player.deckName) || player.deckName === 'custom' ? (
+                                                    {!player.deckId && (
                                                         <input
                                                             className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                            placeholder="Custom Name"
-                                                            value={player.deckName === 'custom' ? '' : player.deckName}
+                                                            placeholder="Or enter deck name"
+                                                            value={player.deckName}
                                                             onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
-                                                            autoFocus
                                                         />
-                                                    ) : null}
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <input

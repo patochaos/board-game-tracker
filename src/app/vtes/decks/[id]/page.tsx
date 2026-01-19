@@ -13,6 +13,43 @@ import { getCardsByIds, VtesCard } from '@/lib/krcg';
 import Image from 'next/image';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { sortDisciplines } from '@/lib/vtes/utils';
+import { useVtesDeckStats } from '@/hooks/useVtesDeckStats';
+import { Trophy, Crosshair, Crown, Layout, Zap } from 'lucide-react';
+
+function DeckStatsSection({ deckId }: { deckId: string }) {
+    const { stats, loading } = useVtesDeckStats(deckId);
+
+    if (loading || !stats) return null;
+
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Card variant="glass" className="p-3 flex flex-col items-center justify-center text-center bg-slate-900/40 border-slate-800">
+                <div className="text-sm text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <Layout className="h-3 w-3" /> Games
+                </div>
+                <div className="text-xl font-bold text-slate-200">{stats.gamesPlayed}</div>
+            </Card>
+            <Card variant="glass" className="p-3 flex flex-col items-center justify-center text-center bg-slate-900/40 border-slate-800">
+                <div className="text-sm text-amber-500/70 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <Trophy className="h-3 w-3" /> Wins
+                </div>
+                <div className="text-xl font-bold text-amber-100">{stats.gamesWon}</div>
+            </Card>
+            <Card variant="glass" className="p-3 flex flex-col items-center justify-center text-center bg-slate-900/40 border-slate-800">
+                <div className="text-sm text-red-500/70 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <Crosshair className="h-3 w-3" /> Win %
+                </div>
+                <div className="text-xl font-bold text-red-200">{stats.winRate.toFixed(1)}%</div>
+            </Card>
+            <Card variant="glass" className="p-3 flex flex-col items-center justify-center text-center bg-slate-900/40 border-slate-800">
+                <div className="text-sm text-purple-400/70 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <Zap className="h-3 w-3" /> Avg VP
+                </div>
+                <div className="text-xl font-bold text-purple-200">{stats.averageVp.toFixed(2)}</div>
+            </Card>
+        </div>
+    );
+}
 
 interface DeckData {
     id: string;
@@ -37,7 +74,8 @@ export default function DeckDetailPage() {
     const [deck, setDeck] = useState<DeckData | null>(null);
     const [hydratedCards, setHydratedCards] = useState<Map<number, VtesCard>>(new Map());
     const [loading, setLoading] = useState(true);
-    const [hoveredCardUrl, setHoveredCardUrl] = useState<string | null>(null);
+    // const [hoveredCardUrl, setHoveredCardUrl] = useState<string | null>(null); // Removed for CSS-only hover
+
     const [isRestricted, setIsRestricted] = useState(false);
 
     const supabase = createBrowserClient(
@@ -91,6 +129,14 @@ export default function DeckDetailPage() {
                     const cardMap = new Map<number, VtesCard>();
                     krcgCards.forEach(c => cardMap.set(c.id, c));
                     setHydratedCards(cardMap);
+
+                    // Preload all card images to prevent flicker on hover
+                    krcgCards.forEach(card => {
+                        if (card.url) {
+                            const img = new window.Image();
+                            img.src = card.url;
+                        }
+                    });
                 }
 
                 setLoading(false);
@@ -168,22 +214,9 @@ export default function DeckDetailPage() {
     return (
         <AppLayout>
             <div className="max-w-7xl mx-auto space-y-6 relative">
-                {/* Hover Preview */}
-                {hoveredCardUrl && (
-                    <div className="fixed z-[9999] pointer-events-none hidden lg:block animate-in fade-in duration-100" style={{
-                        top: '50%',
-                        right: '2%', // Align to right side
-                        transform: 'translateY(-50%)', // Center vertically
-                        width: '360px', // Fixed width
-                        height: '503px', // Fixed height (~1.4 aspect ratio) to prevent shift
-                    }}>
-                        <img
-                            src={hoveredCardUrl}
-                            alt="Card Preview"
-                            className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                        />
-                    </div>
-                )}
+                {/* Hover Preview - Uses CSS transition for smooth appearance */}
+                {/* Hover Preview - Replaced with CSS-only group-hover in list items */}
+
 
                 {/* Debugging / Empty State */}
                 {deck.deck_cards.length === 0 && (
@@ -211,6 +244,8 @@ export default function DeckDetailPage() {
                         </div>
                     </div>
                 </div>
+
+                <DeckStatsSection deckId={params.id as string} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* CRYPT SECTION (Wide) */}
@@ -247,15 +282,23 @@ export default function DeckDetailPage() {
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-1.5">
+                                            <td className="px-2 py-1.5 relative">
                                                 <span
                                                     className="text-blue-400 hover:text-blue-300 cursor-help font-medium"
-                                                    onMouseEnter={() => setHoveredCardUrl(item.card.url)}
-                                                    onMouseLeave={() => setHoveredCardUrl(null)}
                                                 >
                                                     {item.card.name}
                                                 </span>
                                                 {item.card.title && <span className="text-xs text-slate-500 ml-2">({item.card.title})</span>}
+
+                                                {/* CSS Hover Preview */}
+                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
+                                                    <img
+                                                        src={item.card.url}
+                                                        alt={item.card.name}
+                                                        loading="lazy"
+                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                    />
+                                                </div>
                                             </td>
                                             <td className="px-2 py-1.5 text-center">
                                                 {item.card.clans && item.card.clans.length > 0 && (
@@ -296,14 +339,22 @@ export default function DeckDetailPage() {
                                                     {cards.map((item, idx) => (
                                                         <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
                                                             <td className="px-3 py-1.5 w-8 text-center text-slate-400 font-mono border-r border-slate-800/50">{item.q}</td>
-                                                            <td className="px-3 py-1.5">
+                                                            <td className="px-3 py-1.5 relative">
                                                                 <span
                                                                     className="text-blue-400 hover:text-blue-300 cursor-help"
-                                                                    onMouseEnter={() => setHoveredCardUrl(item.card.url)}
-                                                                    onMouseLeave={() => setHoveredCardUrl(null)}
                                                                 >
                                                                     {item.card.name}
                                                                 </span>
+
+                                                                {/* CSS Hover Preview */}
+                                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
+                                                                    <img
+                                                                        src={item.card.url}
+                                                                        alt={item.card.name}
+                                                                        loading="lazy"
+                                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                    />
+                                                                </div>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-16 text-right">
                                                                 <div className="flex items-center justify-end gap-2">
@@ -345,8 +396,55 @@ export default function DeckDetailPage() {
                                             <div className="px-3 py-1 bg-slate-900 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                                                 {type} ({cards.reduce((a, b) => a + b.q, 0)})
                                             </div>
-                                            {/* Same Table Structure */}
-                                            {/* ... */}
+                                            <table className="w-full text-sm">
+                                                <tbody className="divide-y divide-slate-800/50">
+                                                    {cards.map((item, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-800/50 transition-colors group">
+                                                            <td className="px-3 py-1.5 w-8 text-center text-slate-400 font-mono border-r border-slate-800/50">{item.q}</td>
+                                                            <td className="px-3 py-1.5 relative">
+                                                                <span
+                                                                    className="text-blue-400 hover:text-blue-300 cursor-help"
+                                                                >
+                                                                    {item.card.name}
+                                                                </span>
+
+                                                                {/* CSS Hover Preview */}
+                                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
+                                                                    <img
+                                                                        src={item.card.url}
+                                                                        alt={item.card.name}
+                                                                        loading="lazy"
+                                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 w-16 text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    {item.card.blood_cost && item.card.blood_cost !== '0' && (
+                                                                        <div className="flex items-center text-xs font-bold text-red-400 bg-red-950/30 px-1 rounded">
+                                                                            <Droplet className="w-3 h-3 mr-0.5 fill-red-500 text-red-500" />
+                                                                            {item.card.blood_cost}
+                                                                        </div>
+                                                                    )}
+                                                                    {item.card.pool_cost && item.card.pool_cost !== '0' && (
+                                                                        <div className="flex items-center text-xs font-bold text-amber-400 bg-amber-950/30 px-1 rounded border border-amber-900/50">
+                                                                            <div className="w-2.5 h-2.5 bg-amber-500 rotate-45 mr-1" />
+                                                                            {item.card.pool_cost}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 w-12 text-right">
+                                                                <div className="flex items-center justify-end gap-0.5">
+                                                                    {sortDisciplines(item.card.disciplines || []).map(d => (
+                                                                        <VtesIcon key={d} name={d} type="discipline" size="sm" />
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     )
                                 })}
