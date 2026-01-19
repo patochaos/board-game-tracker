@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
-import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle, Trash2, Shield, Sword, Eye, MousePointerClick } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -16,6 +16,7 @@ import { sortDisciplines } from '@/lib/vtes/utils';
 import { useVtesDeckStats } from '@/hooks/useVtesDeckStats';
 import { Trophy, Crosshair, Crown, Layout, Zap, Tag, Wand2 } from 'lucide-react';
 import { autoTagDeck } from '@/lib/vtes/autoTag';
+import CardHover from '@/components/vtes/CardHover';
 
 function DeckStatsSection({ deckId }: { deckId: string }) {
     const { stats, loading } = useVtesDeckStats(deckId);
@@ -366,26 +367,10 @@ export default function DeckDetailPage() {
                                                 </div>
                                             </td>
                                             <td className="px-2 py-1.5 relative">
-                                                <span
-                                                    className="text-blue-400 hover:text-blue-300 cursor-help font-medium"
-                                                >
+                                                <CardHover card={item.card}>
                                                     {item.card.name.replace(/\s*\(G\d+\)$/i, '')}
-                                                </span>
+                                                </CardHover>
                                                 {item.card.title && <span className="text-xs text-slate-500 ml-2">({item.card.title})</span>}
-
-                                                {/* CSS Hover Preview */}
-                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                    {item.card.url ? (
-                                                        <Image
-                                                            src={item.card.url}
-                                                            alt={item.card.name}
-                                                            fill
-                                                            sizes="360px"
-                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                            unoptimized={false}
-                                                        />
-                                                    ) : null}
-                                                </div>
                                             </td>
                                             <td className="px-2 py-1.5 text-center">
                                                 {item.card.clans && item.card.clans.length > 0 && (
@@ -427,25 +412,9 @@ export default function DeckDetailPage() {
                                                         <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
                                                             <td className="px-3 py-1.5 w-8 text-center text-slate-400 font-mono border-r border-slate-800/50">{item.q}</td>
                                                             <td className="px-3 py-1.5 relative">
-                                                                <span
-                                                                    className="text-blue-400 hover:text-blue-300 cursor-help"
-                                                                >
+                                                                <CardHover card={item.card}>
                                                                     {item.card.name}
-                                                                </span>
-
-                                                                {/* CSS Hover Preview */}
-                                                                <div className="fixed top-1/2 left-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                                    {item.card.url ? (
-                                                                        <Image
-                                                                            src={item.card.url}
-                                                                            alt={item.card.name}
-                                                                            fill
-                                                                            sizes="360px"
-                                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                                            unoptimized={false}
-                                                                        />
-                                                                    ) : null}
-                                                                </div>
+                                                                </CardHover>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-16 text-right">
                                                                 <div className="flex items-center justify-end gap-2">
@@ -493,25 +462,9 @@ export default function DeckDetailPage() {
                                                         <tr key={idx} className="hover:bg-slate-800/50 transition-colors group">
                                                             <td className="px-3 py-1.5 w-8 text-center text-slate-400 font-mono border-r border-slate-800/50">{item.q}</td>
                                                             <td className="px-3 py-1.5 relative">
-                                                                <span
-                                                                    className="text-blue-400 hover:text-blue-300 cursor-help"
-                                                                >
+                                                                <CardHover card={item.card}>
                                                                     {item.card.name}
-                                                                </span>
-
-                                                                {/* CSS Hover Preview */}
-                                                                <div className="fixed top-1/2 left-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                                    {item.card.url ? (
-                                                                        <Image
-                                                                            src={item.card.url}
-                                                                            alt={item.card.name}
-                                                                            fill
-                                                                            sizes="360px"
-                                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                                            unoptimized={false}
-                                                                        />
-                                                                    ) : null}
-                                                                </div>
+                                                                </CardHover>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-16 text-right">
                                                                 <div className="flex items-center justify-end gap-2">
