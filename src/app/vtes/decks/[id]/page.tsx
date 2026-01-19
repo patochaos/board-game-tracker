@@ -14,7 +14,8 @@ import Image from 'next/image';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { sortDisciplines } from '@/lib/vtes/utils';
 import { useVtesDeckStats } from '@/hooks/useVtesDeckStats';
-import { Trophy, Crosshair, Crown, Layout, Zap } from 'lucide-react';
+import { Trophy, Crosshair, Crown, Layout, Zap, Tag, Wand2 } from 'lucide-react';
+import { autoTagDeck } from '@/lib/vtes/autoTag';
 
 function DeckStatsSection({ deckId }: { deckId: string }) {
     const { stats, loading } = useVtesDeckStats(deckId);
@@ -62,6 +63,7 @@ interface DeckData {
         display_name: string;
         username: string;
     };
+    tags: string[];
     deck_cards: {
         card_id: number;
         count: number;
@@ -96,7 +98,7 @@ export default function DeckDetailPage() {
                 const { data, error } = await supabase
                     .from('decks')
                     .select(`
-                        id, name, description, created_at, user_id, is_public,
+                        id, name, description, created_at, user_id, is_public, tags,
                         profile:profiles(display_name, username),
                         deck_cards(card_id, count)
                     `)
@@ -165,6 +167,34 @@ export default function DeckDetailPage() {
             alert('Failed to delete deck');
         } else {
             router.push('/vtes/decks');
+        }
+    };
+
+    const handleAutoTag = async () => {
+        if (!deck || hydratedCards.size === 0) return;
+
+        // Construct deck composition for analyzer
+        const composition = deck.deck_cards.map(dc => ({
+            quantity: dc.count,
+            card: hydratedCards.get(dc.card_id)!
+        })).filter(c => c.card); // filter out missing cards
+
+        const newTags = autoTagDeck(composition);
+
+        if (newTags.length === 0 && !confirm('No specific tags were detected. Clear existing tags?')) {
+            return;
+        }
+
+        const { error } = await supabase
+            .from('decks')
+            .update({ tags: newTags })
+            .eq('id', deck.id);
+
+        if (error) {
+            console.error('Error updating tags:', error);
+            alert('Failed to update tags');
+        } else {
+            setDeck({ ...deck, tags: newTags });
         }
     };
 
@@ -261,6 +291,17 @@ export default function DeckDetailPage() {
                                 <span>•</span>
                                 <span>{new Date(deck.created_at).toLocaleDateString()}</span>
                             </div>
+                            {/* Tags Display */}
+                            {deck.tags && deck.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {deck.tags.map(tag => (
+                                        <span key={tag} className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-xs border border-slate-700 flex items-center gap-1">
+                                            <Tag className="h-3 w-3" />
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                     {
@@ -273,6 +314,14 @@ export default function DeckDetailPage() {
                                     onClick={handleDelete}
                                 >
                                     Delete
+                                </Button>
+                                <Button
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    size="sm"
+                                    leftIcon={<Wand2 className="h-4 w-4" />}
+                                    onClick={handleAutoTag}
+                                >
+                                    Auto Tag
                                 </Button>
                             </div>
                         )
@@ -326,13 +375,16 @@ export default function DeckDetailPage() {
 
                                                 {/* CSS Hover Preview */}
                                                 <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                    <img
-                                                        src={item.card.url}
-                                                        alt={item.card.name}
-                                                        loading="lazy"
-                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                        referrerPolicy="no-referrer"
-                                                    />
+                                                    {item.card.url ? (
+                                                        <Image
+                                                            src={item.card.url}
+                                                            alt={item.card.name}
+                                                            fill
+                                                            sizes="360px"
+                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                            unoptimized={false}
+                                                        />
+                                                    ) : null}
                                                 </div>
                                             </td>
                                             <td className="px-2 py-1.5 text-center">

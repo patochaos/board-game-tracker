@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface VtesIconProps {
     name: string;
@@ -186,10 +187,11 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
 
     } else if (type === 'clan') {
         url = `${webpBaseUrl}/clan/${filename}.webp`;
-    } else if (type === 'type') {
-        url = `${svgBaseUrl}/type/${filename}.svg`;
     } else {
-        url = `${svgBaseUrl}/icon/${filename}.svg`;
+        // Use WEBP icons for types/icons to ensure they are raster and proxyable
+        // Previously used SVG from /type/ or /icon/, but SVG isn't proxied and fails SSL check
+        // Also fixed path: KRCG docs/testing confirm /icon/ is correct, /type/ is not.
+        url = `${webpBaseUrl}/icon/${filename}.webp`;
     }
 
     // Size mapping
@@ -219,13 +221,14 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
             style={{ width: pxSize, height: pxSize }}
             title={name}
         >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
                 src={url}
                 alt={name}
-                referrerPolicy="no-referrer"
-                className={`w-full h-full object-contain ${filterClass}`}
+                width={pxSize}
+                height={pxSize}
+                className={`object-contain ${filterClass}`}
                 onError={() => setError(true)}
+                unoptimized={false} // Force proxying to bypass local SSL issues
             />
         </div>
     );
