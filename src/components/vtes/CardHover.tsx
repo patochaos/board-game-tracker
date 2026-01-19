@@ -19,7 +19,7 @@ export default function CardHover({ card, children }: CardHoverProps) {
     // Constants for card dimensions
     const CARD_WIDTH = 300; // Slightly smaller to be safe
     const CARD_HEIGHT = 420;
-    const OFFSET = 20;
+    const OFFSET = 60;
 
     const handleMouseMove = (e: React.MouseEvent) => {
         setMousePos({ x: e.clientX, y: e.clientY });

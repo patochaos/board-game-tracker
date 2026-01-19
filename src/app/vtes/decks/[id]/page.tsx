@@ -374,7 +374,7 @@ export default function DeckDetailPage() {
                                             </td>
                                             <td className="px-2 py-1.5 text-center">
                                                 {item.card.clans && item.card.clans.length > 0 && (
-                                                    <VtesIcon name={item.card.clans[0]} type="clan" size="sm" className="opacity-80" />
+                                                    <VtesIcon name={item.card.clans[0]} type="clan" size="sm" />
                                                 )}
                                             </td>
                                             <td className="px-2 py-1.5 text-center text-slate-500 text-xs">
@@ -403,7 +403,7 @@ export default function DeckDetailPage() {
                                     return (
                                         <div key={type}>
                                             <div className="px-3 py-1 bg-slate-900 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                                <VtesIcon name={type} type="type" size="sm" className="opacity-50 grayscale" />
+                                                <VtesIcon name={type} type="type" size="sm" />
                                                 {type} ({cards.reduce((a, b) => a + b.q, 0)})
                                             </div>
                                             <table className="w-full text-sm">
