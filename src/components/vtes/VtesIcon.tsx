@@ -171,7 +171,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
     // Use WEBP for disciplines (filled icons), SVG for others
     let url = '';
     const svgBaseUrl = 'https://static.krcg.org/svg';
-    const webpBaseUrl = 'https://static.krcg.org/webp';
+    const webpBaseUrl = 'https://static.krcg.org/webp_wb';
 
     if (type === 'discipline') {
         // Superior check: If input was uppercase ("DOM"), it's superior.

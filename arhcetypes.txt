@@ -1,0 +1,69 @@
+1. Offensive Archetypes (Aggro)
+
+These decks focus on ousting their prey (the player to their left) as quickly as possible.
+
+    Stealth & Bleed (S&B)
+
+        Strategy: The most classic "glass cannon" strategy. These decks focus on taking "Bleed" actions to damage the opponent's pool directly. They use "Stealth" cards (like Obfuscate modifiers) to bypass blockers.
+
+        Weakness: They often have very little defense. If they get blocked or rushed, they crumble.
+
+    Powerbleed
+
+        Strategy: Similar to Stealth & Bleed, but instead of sneaking past blockers, they simply prevent blocks or deliver massive damage in one hit. They use cards that say "cannot be blocked" or modifiers that make a single bleed deal massive damage (e.g., 5+ pool loss).
+
+        Key difference: Low stealth, high impact.
+
+    Rush
+
+        Strategy: A combat-focused deck. Instead of bleeding directly, they use cards to force combat (like Bum's Rush) with enemy vampires to put them in torpor (knock them out). Once the opponent has no active defenders, they bleed freely.
+
+        Key difference: They attack minions, not the pool directly.
+
+    Swarm
+
+        Strategy: "Quantity over quality." These decks flood the board with many small, cheap minions. Even if the opponent can block one or two, they can't block all ten.
+
+        Variations: Allies Swarm (using human allies instead of vampires) or Weenie Swarm (using very low-capacity vampires).
+
+2. Defensive Archetypes (Control)
+
+These decks play a longer game, often waiting for opponents to exhaust themselves before striking.
+
+    Wall
+
+        Strategy: The ultimate defense. These decks focus on "Intercept"—the ability to block opponent actions. They aim to block almost everything (bleeds, votes, etc.) and slowly wear the table down.
+
+        Win Condition: They often win by timeout or by using "passive" damage cards like Smiling Jack, which damages everyone else while the Wall sits tight.
+
+    Lock & Bleed (or Tap & Bleed)
+
+        Strategy: A control variant that uses cards to "lock" (tap) enemy minions so they cannot act or block. Once the enemy board is tapped out, the deck bleeds safely.
+
+3. Political Archetypes
+
+These decks use the political system (referendums) to deal damage.
+
+    Vote
+
+        Strategy: These decks use titled vampires (Princes, Barons) to call political referendums. If the vote passes, they can deal damage to the whole table or steal pool.
+
+        Key Advantage: Votes are harder to block because they are "indirect" damage—blocking the vampire doesn't always stop the vote if they have enough support.
+
+    Vote & Bleed
+
+        Strategy: A hybrid that can pass damaging votes and bleed heavily. If you block the bleed, they call a vote. If you stop the vote, they bleed you.
+
+4. Flexible & Specialized Archetypes
+
+    Toolbox
+
+        Strategy: The "Jack of all trades." A Toolbox deck has a balanced mix of offense, defense, and combat. It doesn't do any one thing perfectly but can adapt to any situation. It usually features mid-capacity vampires that can fight and bleed.
+
+    Combo
+
+        Strategy: Relies on a specific, often complex interaction between two or three specific cards to create an infinite loop or an unstoppable win condition. These are rarer and often require complex setup.
+
+    Allies (or Ally Toolbox)
+
+        Strategy: Instead of relying on vampires, this deck recruits non-vampire Allies (like War Ghouls, Mages, or Werewolves). Allies often have different immunity rules or combat abilities that standard vampires struggle to deal with.

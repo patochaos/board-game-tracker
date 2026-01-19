@@ -8,11 +8,14 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
+import { detectArchetype, ARCHETYPES, Archetype } from '@/lib/vtes/archetypes';
+
 interface ParsedCard {
     count: number;
     name: string;
     id?: number; // KRCG ID
     type: 'crypt' | 'library';
+    data?: any; // Full KRCG data for detection
 }
 
 export default function ImportDeckPage() {
@@ -22,6 +25,8 @@ export default function ImportDeckPage() {
     const [isPrivate, setIsPrivate] = useState(false);
     const [parsedCards, setParsedCards] = useState<ParsedCard[]>([]);
     const [step, setStep] = useState<'input' | 'preview'>('input');
+    const [detectedArchetype, setDetectedArchetype] = useState<Archetype>('Unknown');
+    const [selectedArchetype, setSelectedArchetype] = useState<Archetype>('Unknown');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -86,7 +91,36 @@ export default function ImportDeckPage() {
                 throw new Error("No cards found. Please check the format (Lackey or Standard).");
             }
 
-            setParsedCards(cards);
+            // ENRICHMENT STEP: Fetch data from KRCG to detect archetype
+            const enrichedCards = await Promise.all(cards.map(async (card) => {
+                try {
+                    const res = await fetch(`https://api.krcg.org/card/${encodeURIComponent(card.name)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const isCrypt = data.types && (data.types.includes('Vampire') || data.types.includes('Imbued'));
+                        return {
+                            ...card,
+                            id: data.id,
+                            type: (isCrypt ? 'crypt' : 'library') as 'crypt' | 'library',
+                            data: data // Store full data for detection
+                        };
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch', card.name);
+                }
+                return card;
+            }));
+
+            // Run Detection
+            const validForDetection = enrichedCards
+                .filter(c => c.data)
+                .map(c => ({ count: c.count, data: c.data }));
+
+            const archetype = detectArchetype(validForDetection);
+
+            setDetectedArchetype(archetype);
+            setSelectedArchetype(archetype); // Default to detected
+            setParsedCards(enrichedCards);
             setStep('preview');
 
         } catch (err) {
@@ -109,7 +143,8 @@ export default function ImportDeckPage() {
                     user_id: user.id,
                     name: deckName || 'Imported Deck',
                     description: 'Imported via text parser',
-                    is_public: true // Force public for now
+                    is_public: true, // Force public for now
+                    tags: selectedArchetype !== 'Unknown' ? [selectedArchetype] : []
                 })
                 .select()
                 .single();
@@ -117,20 +152,8 @@ export default function ImportDeckPage() {
             if (deckError) throw deckError;
 
             // 2. Create Deck Cards
-            // Quick fetch from KRCG for the cards
-            const cardsWithIds = await Promise.all(parsedCards.map(async (card) => {
-                try {
-                    const res = await fetch(`https://api.krcg.org/card/${encodeURIComponent(card.name)}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const isCrypt = data.types && (data.types.includes('Vampire') || data.types.includes('Imbued'));
-                        return { ...card, id: data.id, type: isCrypt ? 'crypt' : 'library' };
-                    }
-                } catch (e) { console.warn('Failed to fetch', card.name); }
-                return { ...card, id: 0 }; // Fallback
-            }));
-
-            const validCards = cardsWithIds.filter(c => c.id !== 0);
+            // Data is already fetched in parsedCards, just filter invalid
+            const validCards = parsedCards.filter(c => c.id && c.id !== 0);
 
             const { error: cardsError } = await supabase
                 .from('deck_cards')
@@ -240,6 +263,31 @@ export default function ImportDeckPage() {
                                 <div className="text-slate-400 text-sm">
                                     {parsedCards.reduce((acc, c) => acc + c.count, 0)} Cards Found
                                 </div>
+                            </div>
+
+                            {/* Archetype Selector */}
+                            <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-slate-300">Detected Archetype</label>
+                                    {detectedArchetype !== 'Unknown' && (
+                                        <span className="text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50">
+                                            AI Suggestion: {detectedArchetype}
+                                        </span>
+                                    )}
+                                </div>
+                                <select
+                                    className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-slate-100 focus:border-red-500 outline-none"
+                                    value={selectedArchetype}
+                                    onChange={(e) => setSelectedArchetype(e.target.value as Archetype)}
+                                >
+                                    <option value="Unknown">Unknown / Other</option>
+                                    {ARCHETYPES.map(a => (
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    This will be saved as a tag for your deck.
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-8">

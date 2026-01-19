@@ -315,14 +315,14 @@ export default function DeckDetailPage() {
                                 >
                                     Delete
                                 </Button>
-                                <Button
+                                {/* <Button
                                     className="bg-indigo-600 hover:bg-indigo-700 text-white"
                                     size="sm"
                                     leftIcon={<Wand2 className="h-4 w-4" />}
                                     onClick={handleAutoTag}
                                 >
                                     Auto Tag
-                                </Button>
+                                </Button> */}
                             </div>
                         )
                     }
@@ -435,13 +435,16 @@ export default function DeckDetailPage() {
 
                                                                 {/* CSS Hover Preview */}
                                                                 <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                                    <img
-                                                                        src={item.card.url}
-                                                                        alt={item.card.name}
-                                                                        loading="lazy"
-                                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                                        referrerPolicy="no-referrer"
-                                                                    />
+                                                                    {item.card.url ? (
+                                                                        <Image
+                                                                            src={item.card.url}
+                                                                            alt={item.card.name}
+                                                                            fill
+                                                                            sizes="360px"
+                                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                            unoptimized={false}
+                                                                        />
+                                                                    ) : null}
                                                                 </div>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-16 text-right">
@@ -498,13 +501,16 @@ export default function DeckDetailPage() {
 
                                                                 {/* CSS Hover Preview */}
                                                                 <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
-                                                                    <img
-                                                                        src={item.card.url}
-                                                                        alt={item.card.name}
-                                                                        loading="lazy"
-                                                                        className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
-                                                                        referrerPolicy="no-referrer"
-                                                                    />
+                                                                    {item.card.url ? (
+                                                                        <Image
+                                                                            src={item.card.url}
+                                                                            alt={item.card.name}
+                                                                            fill
+                                                                            sizes="360px"
+                                                                            className="object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                            unoptimized={false}
+                                                                        />
+                                                                    ) : null}
                                                                 </div>
                                                             </td>
                                                             <td className="px-3 py-1.5 w-16 text-right">
