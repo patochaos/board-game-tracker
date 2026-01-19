@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { calculatePlayerStats, PlayerStats, RawSessionData } from '@/lib/vtes/stats';
 
-export function useVtesPlayerStats(userId: string) {
+export type StatsPeriod = number | 'all';
+
+export function useVtesPlayerStats(userId: string, period: StatsPeriod = 28) {
     const [stats, setStats] = useState<PlayerStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [recentSessions, setRecentSessions] = useState<any[]>([]);
@@ -18,10 +20,7 @@ export function useVtesPlayerStats(userId: string) {
         const fetchStats = async () => {
             setLoading(true);
 
-            // We fetch all sessions to ensure we validly calculate stats using the shared logic
-            // Optimization: In a real app with thousands of sessions, we would filter by player at the DB level
-            // but for now this reuses our robust client-side logic.
-            const { data, error } = await supabase
+            let query = supabase
                 .from('sessions')
                 .select(`
                     id, played_at, game_type, notes, location,
@@ -32,6 +31,15 @@ export function useVtesPlayerStats(userId: string) {
                 `)
                 .eq('game_id', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')
                 .order('played_at', { ascending: false });
+
+            // Apply Date Filter
+            if (period !== 'all') {
+                const date = new Date();
+                date.setDate(date.getDate() - period);
+                query = query.gte('played_at', date.toISOString());
+            }
+
+            const { data, error } = await query;
 
             if (error) {
                 console.error('Error fetching player stats:', error);
@@ -54,7 +62,7 @@ export function useVtesPlayerStats(userId: string) {
         };
 
         fetchStats();
-    }, [userId]);
+    }, [userId, period]);
 
     return { stats, loading, recentSessions };
 }

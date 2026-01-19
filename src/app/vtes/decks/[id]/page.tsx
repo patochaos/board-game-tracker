@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
-import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -73,8 +73,10 @@ export default function DeckDetailPage() {
     const router = useRouter();
     const [deck, setDeck] = useState<DeckData | null>(null);
     const [hydratedCards, setHydratedCards] = useState<Map<number, VtesCard>>(new Map());
+
+
     const [loading, setLoading] = useState(true);
-    // const [hoveredCardUrl, setHoveredCardUrl] = useState<string | null>(null); // Removed for CSS-only hover
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     const [isRestricted, setIsRestricted] = useState(false);
 
@@ -89,6 +91,7 @@ export default function DeckDetailPage() {
             try {
                 // Get Current User First
                 const { data: { user } } = await supabase.auth.getUser();
+                setCurrentUserId(user?.id || null);
 
                 const { data, error } = await supabase
                     .from('decks')
@@ -148,6 +151,26 @@ export default function DeckDetailPage() {
 
         if (params.id) fetchDeck();
     }, [params.id]);
+
+    const handleDelete = async () => {
+        if (!confirm('Are you sure you want to delete this deck? This cannot be undone.')) return;
+
+        const { error } = await supabase
+            .from('decks')
+            .delete()
+            .eq('id', params.id);
+
+        if (error) {
+            console.error(error);
+            alert('Failed to delete deck');
+        } else {
+            router.push('/vtes/decks');
+        }
+    };
+
+    const isOwner = currentUserId && deck && deck.user_id === currentUserId;
+
+
 
     if (loading || !deck) {
         return (
@@ -211,14 +234,11 @@ export default function DeckDetailPage() {
     const totalCrypt = cryptCards.reduce((acc, c) => acc + c.q, 0);
     const totalLibrary = libraryCards.reduce((acc, c) => acc + c.q, 0);
 
+
+
     return (
         <AppLayout>
             <div className="max-w-7xl mx-auto space-y-6 relative">
-                {/* Hover Preview - Uses CSS transition for smooth appearance */}
-                {/* Hover Preview - Replaced with CSS-only group-hover in list items */}
-
-
-                {/* Debugging / Empty State */}
                 {deck.deck_cards.length === 0 && (
                     <div className="p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg text-amber-200 mb-6">
                         <h3 className="font-bold flex items-center gap-2"><AlertCircle className="h-4 w-4" /> No Cards Found</h3>
@@ -243,7 +263,21 @@ export default function DeckDetailPage() {
                             </div>
                         </div>
                     </div>
-                </div>
+                    {
+                        isOwner && (
+                            <div className="flex gap-2">
+                                <Button
+                                    className="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50"
+                                    size="sm"
+                                    leftIcon={<Trash2 className="h-4 w-4" />}
+                                    onClick={handleDelete}
+                                >
+                                    Delete
+                                </Button>
+                            </div>
+                        )
+                    }
+                </div >
 
                 <DeckStatsSection deckId={params.id as string} />
 
@@ -286,7 +320,7 @@ export default function DeckDetailPage() {
                                                 <span
                                                     className="text-blue-400 hover:text-blue-300 cursor-help font-medium"
                                                 >
-                                                    {item.card.name}
+                                                    {item.card.name.replace(/\s*\(G\d+\)$/i, '')}
                                                 </span>
                                                 {item.card.title && <span className="text-xs text-slate-500 ml-2">({item.card.title})</span>}
 
@@ -297,6 +331,7 @@ export default function DeckDetailPage() {
                                                         alt={item.card.name}
                                                         loading="lazy"
                                                         className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                        referrerPolicy="no-referrer"
                                                     />
                                                 </div>
                                             </td>
@@ -353,6 +388,7 @@ export default function DeckDetailPage() {
                                                                         alt={item.card.name}
                                                                         loading="lazy"
                                                                         className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                        referrerPolicy="no-referrer"
                                                                     />
                                                                 </div>
                                                             </td>
@@ -415,6 +451,7 @@ export default function DeckDetailPage() {
                                                                         alt={item.card.name}
                                                                         loading="lazy"
                                                                         className="w-full h-full object-contain rounded-xl shadow-2xl border-4 border-slate-900 bg-black"
+                                                                        referrerPolicy="no-referrer"
                                                                     />
                                                                 </div>
                                                             </td>
@@ -452,7 +489,7 @@ export default function DeckDetailPage() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </AppLayout>
+            </div >
+        </AppLayout >
     );
 }

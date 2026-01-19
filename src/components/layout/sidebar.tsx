@@ -32,9 +32,10 @@ const boardGameNavItems = [
 ];
 
 const vtesNavItems = [
-  { label: 'Dashboard', href: '/vtes', icon: Swords },
+  { label: 'Dashboard', href: '/vtes', icon: LayoutDashboard },
   { label: 'Decks', href: '/vtes/decks', icon: Swords },
   { label: 'Sessions', href: '/vtes/sessions', icon: FileText },
+  { label: 'Leaderboard', href: '/vtes/leaderboard', icon: Trophy },
   { label: 'Search Cards', href: '/vtes/cards', icon: Search },
 ];
 

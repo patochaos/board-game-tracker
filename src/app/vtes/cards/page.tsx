@@ -220,6 +220,7 @@ export default function CardSearchPage() {
                                             alt={card.name}
                                             className="w-full h-full object-cover"
                                             loading="lazy"
+                                            referrerPolicy="no-referrer"
                                         />
                                     )}
 
@@ -281,6 +282,7 @@ export default function CardSearchPage() {
                                         src={results[selectedCardIndex].url}
                                         alt={results[selectedCardIndex].name}
                                         className="w-full h-full object-contain"
+                                        referrerPolicy="no-referrer"
                                     />
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-slate-500">No Image</div>

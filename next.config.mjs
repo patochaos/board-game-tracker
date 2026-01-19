@@ -7,6 +7,11 @@ const nextConfig = {
         hostname: 'cf.geekdo-images.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'static.krcg.org',
+        pathname: '/**',
+      },
     ],
   },
 };

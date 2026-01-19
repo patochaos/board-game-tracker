@@ -149,79 +149,81 @@ export default function SessionsPage() {
                         {sessions.map((session) => {
                             const winner = session.players.find(p => p.is_winner);
                             return (
-                                <Card key={session.id} variant="glass" className="p-0 overflow-hidden hover:border-red-500/30 transition-colors">
-                                    <div className="p-4 sm:p-6">
-                                        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
-                                            <div className="flex items-start gap-4">
-                                                <div className="p-3 rounded-xl bg-red-900/20 text-red-400">
-                                                    <Calendar className="h-6 w-6" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-slate-100 mb-1">
-                                                        {format(new Date(session.played_at), 'MMMM d, yyyy')}
-                                                    </h3>
-                                                    <div className="flex items-center gap-3 text-sm text-slate-400">
-                                                        {session.location && (
+                                <Link key={session.id} href={`/vtes/sessions/${session.id}`} className="block group">
+                                    <Card variant="glass" className="p-0 overflow-hidden hover:border-red-500/50 transition-colors">
+                                        <div className="p-4 sm:p-6">
+                                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="p-3 rounded-xl bg-red-900/20 text-red-400">
+                                                        <Calendar className="h-6 w-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-slate-100 mb-1 group-hover:text-red-400 transition-colors">
+                                                            {format(new Date(session.played_at), 'MMMM d, yyyy')}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 text-sm text-slate-400">
+                                                            {session.location && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <MapPin className="h-3 w-3" /> {session.location}
+                                                                </span>
+                                                            )}
                                                             <span className="flex items-center gap-1">
-                                                                <MapPin className="h-3 w-3" /> {session.location}
+                                                                <Users className="h-3 w-3" /> {session.players.length} Players
                                                             </span>
-                                                        )}
-                                                        <span className="flex items-center gap-1">
-                                                            <Users className="h-3 w-3" /> {session.players.length} Players
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                {/* Game Type Badge */}
-                                                {session.game_type && GAME_TYPE_LABELS[session.game_type] && (
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${GAME_TYPE_LABELS[session.game_type].color}`}>
-                                                        {GAME_TYPE_LABELS[session.game_type].label}
-                                                    </span>
-                                                )}
-                                                {/* Table Sweep Badge */}
-                                                {session.table_swept && (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
-                                                        Sweep
-                                                    </span>
-                                                )}
-                                                {/* Winner Badge */}
-                                                {winner && (
-                                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm">
-                                                        <Trophy className="h-3 w-3 text-amber-500" />
-                                                        <span className="font-semibold">
-                                                            {winner.profile?.display_name || winner.profile?.username || winner.guest_name}
-                                                        </span>
-                                                        <span className="text-amber-500/50">({winner.score} VP)</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Players Table (Compact) */}
-                                        <div className="bg-slate-900/40 rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {session.players.map((p, idx) => (
-                                                <div key={idx} className="flex items-center justify-between text-sm p-2 rounded hover:bg-slate-800/50">
-                                                    <div className="flex items-center gap-2">
-                                                        {p.seat_position && (
-                                                            <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-400 text-xs flex items-center justify-center">
-                                                                {p.seat_position}
-                                                            </span>
-                                                        )}
-                                                        <div className="flex flex-col">
-                                                            <span className={p.is_winner ? "text-amber-100 font-medium" : "text-slate-300"}>
-                                                                {p.profile?.display_name || p.profile?.username || p.guest_name}
-                                                            </span>
-                                                            {p.deck_name && <span className="text-xs text-slate-500">{p.deck_name}</span>}
                                                         </div>
                                                     </div>
-                                                    <span className="font-mono text-slate-400">{p.score} VP</span>
                                                 </div>
-                                            ))}
+
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {/* Game Type Badge */}
+                                                    {session.game_type && GAME_TYPE_LABELS[session.game_type] && (
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${GAME_TYPE_LABELS[session.game_type].color}`}>
+                                                            {GAME_TYPE_LABELS[session.game_type].label}
+                                                        </span>
+                                                    )}
+                                                    {/* Table Sweep Badge */}
+                                                    {session.table_swept && (
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+                                                            Sweep
+                                                        </span>
+                                                    )}
+                                                    {/* Winner Badge */}
+                                                    {winner && (
+                                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm">
+                                                            <Trophy className="h-3 w-3 text-amber-500" />
+                                                            <span className="font-semibold">
+                                                                {winner.profile?.display_name || winner.profile?.username || winner.guest_name}
+                                                            </span>
+                                                            <span className="text-amber-500/50">({winner.score} VP)</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Players Table (Compact) */}
+                                            <div className="bg-slate-900/40 rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                {session.players.map((p, idx) => (
+                                                    <div key={idx} className="flex items-center justify-between text-sm p-2 rounded hover:bg-slate-800/50">
+                                                        <div className="flex items-center gap-2">
+                                                            {p.seat_position && (
+                                                                <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-400 text-xs flex items-center justify-center">
+                                                                    {p.seat_position}
+                                                                </span>
+                                                            )}
+                                                            <div className="flex flex-col">
+                                                                <span className={p.is_winner ? "text-amber-100 font-medium" : "text-slate-300"}>
+                                                                    {p.profile?.display_name || p.profile?.username || p.guest_name}
+                                                                </span>
+                                                                {p.deck_name && <span className="text-xs text-slate-500">{p.deck_name}</span>}
+                                                            </div>
+                                                        </div>
+                                                        <span className="font-mono text-slate-400">{p.score} VP</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </Card>
+                                    </Card>
+                                </Link>
                             );
                         })}
                     </div>

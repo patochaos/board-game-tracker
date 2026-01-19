@@ -109,6 +109,8 @@ export interface PlayerStats {
     totalVp: number;
     winRate: number;
     favoriteDeck?: DeckStat;
+    bestDeck?: DeckStat;
+    worstDeck?: DeckStat;
     decks: DeckStat[];
 }
 
@@ -166,6 +168,16 @@ export function calculatePlayerStats(
         winRate: d.gamesPlayed > 0 ? (d.gamesWon / d.gamesPlayed) * 100 : 0
     }));
 
+    // Sort to find Best and Worst (min 3 games played)
+    const significantDecks = decks.filter(d => d.gamesPlayed >= 3);
+    const sortedByPerformance = significantDecks.length > 0
+        ? [...significantDecks].sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed)
+        : [...decks].sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
+
+    const bestDeck = sortedByPerformance.length > 0 ? sortedByPerformance[0] : undefined;
+    const worstDeck = sortedByPerformance.length > 0 ? sortedByPerformance[sortedByPerformance.length - 1] : undefined;
+
+    // Original favorite deck logic preserved
     // Find Favorite Deck (most played)
     const favoriteDeck = decks.length > 0
         ? decks.sort((a, b) => b.gamesPlayed - a.gamesPlayed)[0]
@@ -179,6 +191,8 @@ export function calculatePlayerStats(
         totalVp,
         winRate: (gamesWon / userSessions.length) * 100,
         favoriteDeck,
+        bestDeck,
+        worstDeck,
         decks
     };
 }

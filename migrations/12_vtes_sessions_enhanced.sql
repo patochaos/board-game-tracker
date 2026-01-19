@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS session_ousts (
 ALTER TABLE session_ousts ENABLE ROW LEVEL SECURITY;
 
 -- Allow viewing ousts for sessions in user's group
+DROP POLICY IF EXISTS "Users can view ousts from group sessions" ON session_ousts;
 CREATE POLICY "Users can view ousts from group sessions"
   ON session_ousts FOR SELECT
   USING (
@@ -47,6 +48,7 @@ CREATE POLICY "Users can view ousts from group sessions"
   );
 
 -- Allow inserting ousts for sessions user created
+DROP POLICY IF EXISTS "Users can insert ousts for own sessions" ON session_ousts;
 CREATE POLICY "Users can insert ousts for own sessions"
   ON session_ousts FOR INSERT
   WITH CHECK (
@@ -56,6 +58,7 @@ CREATE POLICY "Users can insert ousts for own sessions"
   );
 
 -- Allow updating ousts for sessions user created
+DROP POLICY IF EXISTS "Users can update ousts for own sessions" ON session_ousts;
 CREATE POLICY "Users can update ousts for own sessions"
   ON session_ousts FOR UPDATE
   USING (
@@ -65,6 +68,7 @@ CREATE POLICY "Users can update ousts for own sessions"
   );
 
 -- Allow deleting ousts for sessions user created
+DROP POLICY IF EXISTS "Users can delete ousts for own sessions" ON session_ousts;
 CREATE POLICY "Users can delete ousts for own sessions"
   ON session_ousts FOR DELETE
   USING (
