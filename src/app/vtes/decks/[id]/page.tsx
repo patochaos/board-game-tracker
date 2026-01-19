@@ -434,7 +434,7 @@ export default function DeckDetailPage() {
                                                                 </span>
 
                                                                 {/* CSS Hover Preview */}
-                                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
+                                                                <div className="fixed top-1/2 left-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
                                                                     {item.card.url ? (
                                                                         <Image
                                                                             src={item.card.url}
@@ -500,7 +500,7 @@ export default function DeckDetailPage() {
                                                                 </span>
 
                                                                 {/* CSS Hover Preview */}
-                                                                <div className="fixed top-1/2 right-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
+                                                                <div className="fixed top-1/2 left-[2%] -translate-y-1/2 w-[360px] h-[503px] z-[9999] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 hidden lg:block">
                                                                     {item.card.url ? (
                                                                         <Image
                                                                             src={item.card.url}
