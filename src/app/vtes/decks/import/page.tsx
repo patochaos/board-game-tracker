@@ -220,7 +220,7 @@ export default function ImportDeckPage() {
                                     onChange={(e) => setText(e.target.value)}
                                 />
                                 <p className="text-xs text-slate-500 mt-2">
-                                    Paste "Text" or "TWD" format here.
+                                    Paste &quot;Text&quot; or &quot;TWD&quot; format here.
                                 </p>
                             </div>
 

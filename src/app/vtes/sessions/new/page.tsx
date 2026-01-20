@@ -141,7 +141,7 @@ export default function NewVTESSessionPage() {
                 .eq('user_id', currentUserId)
                 .limit(1);
 
-            let groupId = memberships?.[0]?.group_id;
+            const groupId = memberships?.[0]?.group_id;
 
             if (!groupId) {
                 // Fallback create group if none exists (simplified)

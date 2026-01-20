@@ -4,6 +4,8 @@ export interface Profile {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
+  bgg_username?: string;
+  bgg_api_token?: string;
   created_at: string;
 }
 
@@ -80,6 +82,20 @@ export interface BGGGameDetails {
   playingTime: number | null;
   averageRating: number | null;
   description: string | null;
+}
+
+export interface BGGCollectionItem {
+  id: number;
+  name: string;
+  yearPublished: number | null;
+  image: string | null;
+  thumbnail: string | null;
+  numPlays: number;
+  owned: boolean;
+  minPlayers: number | null;
+  maxPlayers: number | null;
+  playingTime: number | null;
+  rating: number | null;
 }
 
 // Stats types

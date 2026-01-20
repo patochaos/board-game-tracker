@@ -19,7 +19,9 @@
       "WebFetch(domain:vdb.im)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:static.krcg.org)"
+      "WebFetch(domain:static.krcg.org)",
+      "Bash(ls:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

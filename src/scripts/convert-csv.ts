@@ -3,7 +3,7 @@ import path from 'path';
 
 function parseCSV(text: string) {
     const result: any[] = [];
-    let rows: string[][] = [];
+    const rows: string[][] = [];
     let currentRow: string[] = [];
     let currentField = '';
     let inQuote = false;

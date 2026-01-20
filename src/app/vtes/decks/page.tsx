@@ -50,7 +50,7 @@ export default function DecksPage() {
 
             // 2. Fetch Profiles for these decks
             const userIds = Array.from(new Set(decksData.map(d => d.user_id)));
-            let profilesMap: Record<string, { display_name: string | null; username: string }> = {};
+            const profilesMap: Record<string, { display_name: string | null; username: string }> = {};
 
             if (userIds.length > 0) {
                 const { data: profilesData } = await supabase

@@ -32,7 +32,7 @@ export default function LeaderboardPage() {
             setLoading(true);
 
             // Fetch all session players with expanded profile and session data
-            let query = supabase
+            const query = supabase
                 .from('session_players')
                 .select(`
           is_winner,

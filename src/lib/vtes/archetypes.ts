@@ -42,7 +42,7 @@ const SIGNATURE_CARDS: Record<string, Archetype> = {
 };
 
 export function detectArchetype(cards: { count: number; data: CardData }[]): Archetype {
-    let scores: Record<Archetype, number> = {
+    const scores: Record<Archetype, number> = {
         'Stealth & Bleed': 0,
         'Powerbleed': 0,
         'Rush': 0,
@@ -62,7 +62,7 @@ export function detectArchetype(cards: { count: number; data: CardData }[]): Arc
     let totalCapacity = 0;
 
     // Counters
-    let counts = {
+    const counts = {
         stealthmod: 0,
         bleedmod: 0,
         combat: 0,
@@ -76,7 +76,7 @@ export function detectArchetype(cards: { count: number; data: CardData }[]): Arc
     };
 
     // Crypt Stats
-    let cryptDominantDisciplines: Record<string, number> = {};
+    const cryptDominantDisciplines: Record<string, number> = {};
     let cryptTitles = 0;
     let cryptObfDom = 0; // Stats for S&B
 
