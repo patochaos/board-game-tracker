@@ -12,13 +12,17 @@ App para loguear sesiones de juegos de mesa con amigos. Trackea partidas, estad�
 ```
 src/
 ├── app/
-│   ├── api/bgg/collection/   # API route para fetch de BGG (server-side)
+│   ├── api/bgg/
+│   │   ├── collection/       # Importar colección de usuario BGG
+│   │   ├── search/           # Buscar juegos en BGG
+│   │   ├── game/             # Agregar juego + detectar expansiones
+│   │   └── expansions/       # Importar expansiones
 │   ├── dashboard/            # Dashboard principal
-│   ├── games/                # Biblioteca de juegos
+│   ├── games/                # Biblioteca de juegos (con modal de expansiones)
 │   ├── sessions/             # Historial de sesiones
 │   ├── players/              # Gestión de grupo
 │   ├── stats/                # Estadísticas
-│   ├── settings/             # Config + importar colección BGG
+│   ├── settings/             # Config usuario + BGG username
 │   └── vtes/                 # VTES Module (Decks, Cards, Crypt)
 ├── components/ui/            # Componentes reutilizables
 ├── hooks/                    # Custom React hooks
@@ -45,29 +49,26 @@ src/
 - UI components (Button, Card, Input, Badge, etc.)
 - Sidebar y navegación
 - Schema de base de datos en Supabase
-- API route `/api/bgg/collection` para importar colección de BGG
+- **BGG Integration (completa):**
+  - API route `/api/bgg/collection` - importar colección de BGG
+  - API route `/api/bgg/search` - buscar juegos en BGG
+  - API route `/api/bgg/game` - agregar juego individual + detectar expansiones
+  - API route `/api/bgg/expansions` - importar expansiones con `base_game_id`
+  - Token configurado en `.env.local` y Vercel
+- **Sistema de Expansiones:**
+  - Al agregar un juego, detecta expansiones disponibles en BGG
+  - Modal para seleccionar e importar expansiones
+  - Relación `base_game_id` en tabla games
+  - Selector de expansiones en formulario de sesión
 - CRUD de sesiones de juego (List, Create, Edit, Delete)
-- Formulario para registrar partidas
+- Formulario para registrar partidas (con soporte de expansiones)
 - Módulo VTES (Vampire: The Eternal Struggle) - Basic Deck Management
-
-### Pendiente - BGG API Token
-BGG cambió su API en 2025 y ahora requiere tokens de autorización.
-
-**Estado:** Esperando aprobación de registro en https://boardgamegeek.com/applications
-
-**Cuando llegue el token:**
-1. Agregarlo a `.env.local`:
-   ```
-   BGG_API_TOKEN=el_token_aqui
-   ```
-2. Probar importar colección en Settings con usuario `patochaos`
-3. Actualizar las otras funciones de BGG (`searchGames`, `getGameDetails`, `getHotGames`) para usar el token también
+- Sistema de grupos e invitaciones
 
 ### Próximas Funcionalidades (por implementar)
-- [ ] Crear API routes para search y details de BGG (con token)
 - [ ] Sistema de estadísticas (win rates, H-index)
-- [ ] Tabla de líderes del grupo
-- [ ] Gestión de jugadores/grupo
+- [ ] Mejorar tabla de líderes del grupo
+- [ ] Gestión avanzada de jugadores/grupo
 
 ## Usuario BGG del Owner
 - Username: `patochaos`
@@ -90,9 +91,21 @@ ALWAYS run `npm run build` before pushing to main/deploying. This catches type e
 Ver `.env.local.example`:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `BGG_API_TOKEN` (pendiente de aprobación)
+- `BGG_API_TOKEN` (configurado y funcionando)
  
 ## Changelog
+
+### 2026-01-24
+- **Expansion Support:**
+  - Modified `/api/bgg/game` to detect and return available expansions from BGG
+  - Created `/api/bgg/expansions` endpoint to import expansions with `base_game_id`
+  - Added expansion selection modal in Games page after adding a game
+  - Improved session form to find expansions by `base_game_id` (more accurate than name matching)
+  - Migration: `migrations/17_base_game_id.sql`
+- **Build Fixes:**
+  - Fixed Suspense boundary issue in `/join` page for Next.js 14 static generation
+  - Fixed TypeScript Set iteration compatibility
+  - Fixed invalid status type in settings page
 
 ### 2026-01-17
 - **Type Safety:** Fixed 13 `any` type instances across the codebase with proper interfaces

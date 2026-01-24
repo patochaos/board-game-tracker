@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Dice5, Mail, Lock, Loader2 } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
       router.push(nextUrl);
       router.refresh();
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
@@ -60,7 +60,7 @@ export default function LoginPage() {
       {/* Background effects */}
       <div className="fixed inset-0 bg-gradient-to-br from-wood-500/5 via-transparent to-felt-500/5" />
       <div className="fixed top-1/3 left-1/4 w-96 h-96 bg-wood-500/10 rounded-full blur-3xl" />
-      
+
       <Card className="relative z-10 w-full max-w-md p-8" variant="glass">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -72,8 +72,8 @@ export default function LoginPage() {
         </div>
 
         {/* Google Login */}
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           className="w-full mb-6"
           onClick={handleGoogleLogin}
         >
@@ -135,9 +135,9 @@ export default function LoginPage() {
             required
           />
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             size="lg"
             isLoading={isLoading}
           >
@@ -153,5 +153,17 @@ export default function LoginPage() {
         </p>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Dice5, Mail, Lock, User } from 'lucide-react';
+import { Dice5, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -43,7 +43,7 @@ export default function RegisterPage() {
       if (authData.user) {
         setSuccess(true);
       }
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
@@ -72,7 +72,7 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-100">Check your email</h1>
           <p className="mt-4 text-slate-400">
-            We sent a confirmation link to <span className="text-slate-200">{email}</span>. 
+            We sent a confirmation link to <span className="text-slate-200">{email}</span>.
             Click the link to activate your account.
           </p>
           <Link href="/login" className="btn-secondary btn-md mt-6 inline-flex">
@@ -87,7 +87,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-gradient-to-br from-wood-500/5 via-transparent to-felt-500/5" />
       <div className="fixed bottom-1/3 right-1/4 w-96 h-96 bg-felt-500/10 rounded-full blur-3xl" />
-      
+
       <Card className="relative z-10 w-full max-w-md p-8" variant="glass">
         <div className="flex flex-col items-center mb-8">
           <div className="p-3 rounded-2xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow mb-4">
@@ -97,8 +97,8 @@ export default function RegisterPage() {
           <p className="mt-2 text-slate-400">Start tracking your game nights</p>
         </div>
 
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           className="w-full mb-6"
           onClick={handleGoogleLogin}
         >
@@ -157,9 +157,9 @@ export default function RegisterPage() {
             required
           />
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             size="lg"
             isLoading={isLoading}
           >
@@ -175,5 +175,17 @@ export default function RegisterPage() {
         </p>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
