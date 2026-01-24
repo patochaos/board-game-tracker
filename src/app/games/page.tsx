@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState, Input } from '@/components/ui';
-import { Dice5, Search, Plus, Loader2, X, Check } from 'lucide-react';
+import { Dice5, Search, Plus, Loader2, X, Check, Package } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,6 +29,12 @@ interface BGGSearchResult {
   yearPublished: number | null;
 }
 
+interface BGGExpansion {
+  bggId: number;
+  name: string;
+  inLibrary: boolean;
+}
+
 export default function GamesPage() {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
@@ -42,6 +48,14 @@ export default function GamesPage() {
   const [addingGameId, setAddingGameId] = useState<number | null>(null);
   const [addedGameIds, setAddedGameIds] = useState<Set<number>>(new Set());
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Expansion modal state
+  const [showExpansions, setShowExpansions] = useState(false);
+  const [pendingExpansions, setPendingExpansions] = useState<BGGExpansion[]>([]);
+  const [selectedExpansions, setSelectedExpansions] = useState<Set<number>>(new Set());
+  const [importingExpansions, setImportingExpansions] = useState(false);
+  const [currentBaseGameId, setCurrentBaseGameId] = useState<string | null>(null);
+  const [currentBaseGameName, setCurrentBaseGameName] = useState<string>('');
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -132,12 +146,65 @@ export default function GamesPage() {
 
       // Refresh games list and mark as added
       await fetchGames();
-      setAddedGameIds(prev => new Set([...prev, bggId]));
+      setAddedGameIds(prev => new Set(prev).add(bggId));
+
+      // If game has expansions, show modal to import them
+      if (data.expansions && data.expansions.length > 0) {
+        const notImported = data.expansions.filter((e: BGGExpansion) => !e.inLibrary);
+        if (notImported.length > 0) {
+          setPendingExpansions(notImported);
+          setCurrentBaseGameId(data.game.id);
+          setCurrentBaseGameName(data.game.name);
+          setSelectedExpansions(new Set());
+          setShowExpansions(true);
+        }
+      }
     } catch (error) {
       console.error('Error adding game:', error);
     } finally {
       setAddingGameId(null);
     }
+  };
+
+  const handleImportExpansions = async () => {
+    if (selectedExpansions.size === 0 || !currentBaseGameId) return;
+
+    setImportingExpansions(true);
+
+    for (const bggId of selectedExpansions) {
+      try {
+        await fetch('/api/bgg/expansions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bggId, baseGameId: currentBaseGameId }),
+        });
+      } catch (error) {
+        console.error(`Error importing expansion ${bggId}:`, error);
+      }
+    }
+
+    await fetchGames();
+    setImportingExpansions(false);
+    setShowExpansions(false);
+    setPendingExpansions([]);
+    setSelectedExpansions(new Set());
+    setCurrentBaseGameId(null);
+  };
+
+  const toggleExpansionSelection = (bggId: number) => {
+    setSelectedExpansions(prev => {
+      const next = new Set(prev);
+      if (next.has(bggId)) {
+        next.delete(bggId);
+      } else {
+        next.add(bggId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllExpansions = () => {
+    setSelectedExpansions(new Set(pendingExpansions.map(e => e.bggId)));
   };
 
   const closeSearch = () => {
@@ -341,6 +408,96 @@ export default function GamesPage() {
                   })}
                 </div>
               )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Expansions Modal */}
+      {showExpansions && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowExpansions(false)}
+          />
+
+          <Card variant="glass" className="relative z-10 w-full max-w-lg max-h-[70vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/20">
+                  <Package className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-100">Expansions Found</h2>
+                  <p className="text-sm text-slate-400">{currentBaseGameName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExpansions(false)}
+                className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                {pendingExpansions.length} expansion{pendingExpansions.length !== 1 ? 's' : ''} available
+              </p>
+              <button
+                onClick={selectAllExpansions}
+                className="text-sm text-emerald-400 hover:text-emerald-300"
+              >
+                Select all
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {pendingExpansions.map((expansion) => (
+                <label
+                  key={expansion.bggId}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                    selectedExpansions.has(expansion.bggId)
+                      ? 'border-emerald-500 bg-emerald-500/10'
+                      : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={selectedExpansions.has(expansion.bggId)}
+                    onChange={() => toggleExpansionSelection(expansion.bggId)}
+                  />
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                    selectedExpansions.has(expansion.bggId)
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'border-slate-500'
+                  }`}>
+                    {selectedExpansions.has(expansion.bggId) && (
+                      <Check className="h-3 w-3 text-white" />
+                    )}
+                  </div>
+                  <span className="text-sm text-slate-200 flex-1">{expansion.name}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-slate-700 flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowExpansions(false)}
+              >
+                Skip
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={selectedExpansions.size === 0 || importingExpansions}
+                onClick={handleImportExpansions}
+                leftIcon={importingExpansions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              >
+                {importingExpansions ? 'Importing...' : `Import ${selectedExpansions.size} expansion${selectedExpansions.size !== 1 ? 's' : ''}`}
+              </Button>
             </div>
           </Card>
         </div>

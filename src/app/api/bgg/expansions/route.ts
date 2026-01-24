@@ -10,12 +10,6 @@ const parser = new XMLParser({
   attributeNamePrefix: '@_',
 });
 
-interface BGGLink {
-  '@_type': string;
-  '@_id': string;
-  '@_value': string;
-}
-
 interface BGGThingItem {
   '@_id': string;
   '@_type': string;
@@ -31,50 +25,34 @@ interface BGGThingItem {
       average?: { '@_value': string };
     };
   };
-  link?: BGGLink[] | BGGLink;
 }
 
+// POST: Import a single expansion and link it to base game
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
-  // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const body = await request.json();
-  const { bggId } = body;
+  const { bggId, baseGameId } = body;
 
   if (!bggId) {
-    return NextResponse.json(
-      { error: 'BGG ID is required' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'BGG ID is required' }, { status: 400 });
   }
 
   if (!BGG_TOKEN) {
-    return NextResponse.json(
-      { error: 'BGG API token not configured' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'BGG API token not configured' }, { status: 500 });
   }
 
   const url = `${BGG_API_BASE}/thing?id=${bggId}&stats=1`;
 
   try {
     const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${BGG_TOKEN}`,
-      },
+      headers: { 'Authorization': `Bearer ${BGG_TOKEN}` },
     });
-
-    if (response.status === 401) {
-      return NextResponse.json(
-        { error: 'BGG API authorization failed' },
-        { status: 401 }
-      );
-    }
 
     if (!response.ok) {
       return NextResponse.json(
@@ -87,43 +65,22 @@ export async function POST(request: NextRequest) {
     const result = parser.parse(xml);
 
     if (!result.items || !result.items.item) {
-      return NextResponse.json(
-        { error: 'Game not found on BGG' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Expansion not found on BGG' }, { status: 404 });
     }
 
     const item: BGGThingItem = Array.isArray(result.items.item)
       ? result.items.item[0]
       : result.items.item;
 
-    // Get primary name
     const names = Array.isArray(item.name) ? item.name : [item.name];
     const primaryName = names.find(n => n['@_type'] === 'primary');
     const name = primaryName?.['@_value'] || names[0]?.['@_value'] || 'Unknown';
 
-    // Determine type (base game or expansion)
-    const type = item['@_type'] === 'boardgameexpansion' ? 'expansion' : 'base';
-
-    // Extract expansion links from BGG data
-    const links = item.link ? (Array.isArray(item.link) ? item.link : [item.link]) : [];
-    const expansionLinks = links
-      .filter(link => link['@_type'] === 'boardgameexpansion')
-      .map(link => ({
-        bggId: parseInt(link['@_id']),
-        name: link['@_value'],
-      }));
-
-    // If this is an expansion, find what base game it expands
-    const expandsLinks = links
-      .filter(link => link['@_type'] === 'boardgameexpansion' && item['@_type'] === 'boardgameexpansion')
-      .map(link => parseInt(link['@_id']));
-
-    // Prepare game data
-    const gameData = {
+    const expansionData = {
       bgg_id: parseInt(item['@_id']),
       name,
-      type,
+      type: 'expansion',
+      base_game_id: baseGameId || null,
       year_published: item.yearpublished?.['@_value']
         ? parseInt(item.yearpublished['@_value'])
         : null,
@@ -144,47 +101,50 @@ export async function POST(request: NextRequest) {
       cached_at: new Date().toISOString(),
     };
 
-    // Upsert game (insert or update if exists)
-    const { data: game, error: dbError } = await supabase
+    const { data: expansion, error: dbError } = await supabase
       .from('games')
-      .upsert(gameData, { onConflict: 'bgg_id' })
+      .upsert(expansionData, { onConflict: 'bgg_id' })
       .select()
       .single();
 
     if (dbError) {
       console.error('Database error:', dbError);
-      return NextResponse.json(
-        { error: 'Failed to save game to database' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to save expansion' }, { status: 500 });
     }
 
-    // Check which expansions we already have in DB
-    let availableExpansions: { bggId: number; name: string; inLibrary: boolean }[] = [];
-    if (expansionLinks.length > 0) {
-      const expansionBggIds = expansionLinks.map(e => e.bggId);
-      const { data: existingExpansions } = await supabase
-        .from('games')
-        .select('bgg_id')
-        .in('bgg_id', expansionBggIds);
-
-      const existingBggIds = new Set(existingExpansions?.map(e => e.bgg_id) || []);
-
-      availableExpansions = expansionLinks.map(exp => ({
-        ...exp,
-        inLibrary: existingBggIds.has(exp.bggId),
-      }));
-    }
-
-    return NextResponse.json({
-      game,
-      expansions: availableExpansions,
-    });
+    return NextResponse.json({ expansion });
   } catch (error) {
-    console.error('Error adding game from BGG:', error);
-    return NextResponse.json(
-      { error: 'Failed to add game from BGG' },
-      { status: 500 }
-    );
+    console.error('Error importing expansion:', error);
+    return NextResponse.json({ error: 'Failed to import expansion' }, { status: 500 });
   }
+}
+
+// GET: Get expansions for a base game (from DB)
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const searchParams = request.nextUrl.searchParams;
+  const baseGameId = searchParams.get('baseGameId');
+
+  if (!baseGameId) {
+    return NextResponse.json({ error: 'Base game ID is required' }, { status: 400 });
+  }
+
+  const { data: expansions, error } = await supabase
+    .from('games')
+    .select('*')
+    .eq('base_game_id', baseGameId)
+    .eq('type', 'expansion')
+    .order('name');
+
+  if (error) {
+    return NextResponse.json({ error: 'Failed to fetch expansions' }, { status: 500 });
+  }
+
+  return NextResponse.json({ expansions: expansions || [] });
 }

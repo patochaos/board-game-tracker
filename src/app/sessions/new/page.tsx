@@ -125,20 +125,31 @@ export default function NewSessionPage() {
       const selectedGame = games.find(g => g.id === selectedGameId);
       if (!selectedGame) return;
 
-      // 1. Find expansions (name matching)
-      // "Root" -> "Root: The Riverfolk", "Root: Underworld"
-      const { data: expansions } = await supabase
+      // 1. Find expansions by base_game_id first (more accurate)
+      let { data: expansions } = await supabase
         .from('games')
         .select('*')
         .eq('type', 'expansion')
-        .ilike('name', `${selectedGame.name}%`)
+        .eq('base_game_id', selectedGameId)
         .order('name');
+
+      // 2. Fallback to name matching if no expansions found by base_game_id
+      // "Root" -> "Root: The Riverfolk", "Root: Underworld"
+      if (!expansions || expansions.length === 0) {
+        const { data: nameMatchedExpansions } = await supabase
+          .from('games')
+          .select('*')
+          .eq('type', 'expansion')
+          .ilike('name', `${selectedGame.name}:%`)
+          .order('name');
+
+        expansions = nameMatchedExpansions;
+      }
 
       if (expansions && expansions.length > 0) {
         setAvailableExpansions(expansions);
 
-        // 2. Find last used expansions for this game
-        // We get the most recent session for this game created by the user
+        // 3. Find last used expansions for this game
         const { data: lastSession } = await supabase
           .from('sessions')
           .select(`
