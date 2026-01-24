@@ -171,7 +171,7 @@ export default function GamesPage() {
 
     setImportingExpansions(true);
 
-    for (const bggId of selectedExpansions) {
+    for (const bggId of Array.from(selectedExpansions)) {
       try {
         await fetch('/api/bgg/expansions', {
           method: 'POST',
