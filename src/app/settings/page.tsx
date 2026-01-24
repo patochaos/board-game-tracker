@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { Link2, Check, AlertCircle, Dice5 } from 'lucide-react';
+import { Link2, Check, AlertCircle, Dice5, Download, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   const supabase = createClient();
 
@@ -65,6 +66,94 @@ export default function SettingsPage() {
       }
     }
     setIsSaving(false);
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+
+    try {
+      // Fetch all sessions with related data
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          played_at,
+          duration_minutes,
+          notes,
+          game:games(name),
+          session_players(
+            score,
+            is_winner,
+            profile:profiles(display_name, username)
+          )
+        `)
+        .order('played_at', { ascending: false });
+
+      if (!sessions || sessions.length === 0) {
+        setSaveMessage('No sessions to export');
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+        setIsExporting(false);
+        return;
+      }
+
+      // Convert to CSV
+      const csvRows = [
+        ['Date', 'Game', 'Duration (min)', 'Players', 'Winner', 'Notes'].join(',')
+      ];
+
+      sessions.forEach((session) => {
+        const gameData = session.game as unknown as { name: string } | { name: string }[] | null;
+        const gameName = Array.isArray(gameData) ? gameData[0]?.name : gameData?.name || 'Unknown';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sessionPlayers = (session.session_players || []) as any[];
+        const players = sessionPlayers
+          .map((sp) => {
+            const profile = Array.isArray(sp.profile) ? sp.profile[0] : sp.profile;
+            const name = profile?.display_name || profile?.username || 'Unknown';
+            return sp.score !== null ? `${name} (${sp.score})` : name;
+          })
+          .join('; ');
+        const winner = sessionPlayers
+          .filter((sp) => sp.is_winner)
+          .map((sp) => {
+            const profile = Array.isArray(sp.profile) ? sp.profile[0] : sp.profile;
+            return profile?.display_name || profile?.username || 'Unknown';
+          })
+          .join('; ');
+
+        csvRows.push([
+          session.played_at,
+          `"${gameName.replace(/"/g, '""')}"`,
+          session.duration_minutes?.toString() || '',
+          `"${players.replace(/"/g, '""')}"`,
+          `"${winner.replace(/"/g, '""')}"`,
+          `"${(session.notes || '').replace(/"/g, '""')}"`
+        ].join(','));
+      });
+
+      // Download CSV
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `game-sessions-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setSaveMessage(`Exported ${sessions.length} sessions`);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error) {
+      console.error('Export error:', error);
+      setSaveMessage('Failed to export data');
+      setSaveStatus('error');
+    }
+
+    setIsExporting(false);
   };
 
   return (
@@ -138,6 +227,30 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        </Card>
+
+        {/* Export Data */}
+        <Card variant="glass">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="p-3 rounded-xl bg-blue-500/20">
+              <Download className="h-6 w-6 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-100">Export Data</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Download your session history as a CSV file.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            onClick={handleExportData}
+            disabled={isExporting}
+            leftIcon={isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          >
+            {isExporting ? 'Exporting...' : 'Export Sessions to CSV'}
+          </Button>
         </Card>
 
         {/* Quick Actions */}
