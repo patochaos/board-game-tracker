@@ -3,10 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button, EmptyState } from '@/components/ui';
-import { Dice5, Search, Plus, Loader2 } from 'lucide-react';
+import { Card, Button, EmptyState, Input } from '@/components/ui';
+import { Dice5, Search, Plus, Loader2, X, Check } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -23,18 +23,32 @@ interface Game {
   bgg_rating: number | null;
 }
 
+interface BGGSearchResult {
+  id: number;
+  name: string;
+  yearPublished: number | null;
+}
+
 export default function GamesPage() {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
+
+  // Search modal state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<BGGSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingGameId, setAddingGameId] = useState<number | null>(null);
+  const [addedGameIds, setAddedGameIds] = useState<Set<number>>(new Set());
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const fetchGames = async () => {
+  const fetchGames = useCallback(async () => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
@@ -43,13 +57,15 @@ export default function GamesPage() {
 
     if (!error && data) {
       setGames(data);
+      // Track which BGG IDs are already in the library
+      const bggIds = new Set(data.map((g: Game) => g.bgg_id));
+      setAddedGameIds(bggIds);
     }
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     const checkAuthAndFetch = async () => {
-      // Check auth and group membership
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
@@ -71,22 +87,64 @@ export default function GamesPage() {
     };
 
     checkAuthAndFetch();
-  }, []);
+  }, [router, supabase, fetchGames]);
 
-  const handleSeed = async () => {
-    setSeeding(true);
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return;
+
+    setSearching(true);
+    setSearchError(null);
+    setSearchResults([]);
+
     try {
-      const response = await fetch('/api/seed', { method: 'POST' });
-      const result = await response.json();
-      if (result.success) {
-        await fetchGames();
-      } else {
-        console.error('Seed failed:', result.error);
+      const response = await fetch(`/api/bgg/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSearchError(data.error || 'Search failed');
+        return;
       }
-    } catch (error) {
-      console.error('Seed error:', error);
+
+      setSearchResults(data.results || []);
+    } catch {
+      setSearchError('Failed to search BGG');
+    } finally {
+      setSearching(false);
     }
-    setSeeding(false);
+  };
+
+  const handleAddGame = async (bggId: number) => {
+    setAddingGameId(bggId);
+
+    try {
+      const response = await fetch('/api/bgg/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bggId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to add game:', data.error);
+        return;
+      }
+
+      // Refresh games list and mark as added
+      await fetchGames();
+      setAddedGameIds(prev => new Set([...prev, bggId]));
+    } catch (error) {
+      console.error('Error adding game:', error);
+    } finally {
+      setAddingGameId(null);
+    }
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchError(null);
   };
 
   return (
@@ -99,19 +157,12 @@ export default function GamesPage() {
               Your board game library
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              leftIcon={seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              onClick={handleSeed}
-              disabled={seeding}
-            >
-              {seeding ? 'Seeding...' : 'Seed Test Games'}
-            </Button>
-            <Button variant="secondary" leftIcon={<Search className="h-4 w-4" />}>
-              Search BGG
-            </Button>
-          </div>
+          <Button
+            leftIcon={<Search className="h-4 w-4" />}
+            onClick={() => setShowSearch(true)}
+          >
+            Add Game from BGG
+          </Button>
         </div>
 
         {loading ? (
@@ -123,14 +174,13 @@ export default function GamesPage() {
             <EmptyState
               icon={<Dice5 className="h-20 w-20" />}
               title="No games yet"
-              description="Click 'Seed Test Games' to add Cosmic Encounter and Hansa Teutonica, or search BoardGameGeek to add games."
+              description="Search BoardGameGeek to add games to your library."
               action={
                 <Button
-                  leftIcon={seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  onClick={handleSeed}
-                  disabled={seeding}
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  onClick={() => setShowSearch(true)}
                 >
-                  {seeding ? 'Seeding...' : 'Seed Test Games'}
+                  Add Your First Game
                 </Button>
               }
             />
@@ -184,6 +234,117 @@ export default function GamesPage() {
           </div>
         )}
       </div>
+
+      {/* Search Modal */}
+      {showSearch && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={closeSearch}
+          />
+
+          {/* Modal */}
+          <Card variant="glass" className="relative z-10 w-full max-w-2xl max-h-[70vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-100">Search BoardGameGeek</h2>
+              <button
+                onClick={closeSearch}
+                className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-4 border-b border-slate-700">
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
+                className="flex gap-3"
+              >
+                <Input
+                  placeholder="Search for a game..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                  leftIcon={<Search className="h-5 w-5" />}
+                />
+                <Button
+                  type="submit"
+                  disabled={searching || searchQuery.length < 2}
+                  leftIcon={searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                >
+                  {searching ? 'Searching...' : 'Search'}
+                </Button>
+              </form>
+            </div>
+
+            {/* Results */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {searchError && (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-center">
+                  {searchError}
+                </div>
+              )}
+
+              {!searchError && searchResults.length === 0 && !searching && searchQuery && (
+                <div className="text-center py-8 text-slate-500">
+                  No results found. Try a different search term.
+                </div>
+              )}
+
+              {!searchError && searchResults.length === 0 && !searching && !searchQuery && (
+                <div className="text-center py-8 text-slate-500">
+                  Enter a game name to search BoardGameGeek.
+                </div>
+              )}
+
+              {searchResults.length > 0 && (
+                <div className="space-y-2">
+                  {searchResults.map((result) => {
+                    const isAdded = addedGameIds.has(result.id);
+                    const isAdding = addingGameId === result.id;
+
+                    return (
+                      <div
+                        key={result.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-200 truncate">
+                            {result.name}
+                          </p>
+                          {result.yearPublished && (
+                            <p className="text-sm text-slate-500">{result.yearPublished}</p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isAdded ? 'ghost' : 'secondary'}
+                          disabled={isAdded || isAdding}
+                          onClick={() => handleAddGame(result.id)}
+                          leftIcon={
+                            isAdding ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isAdded ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )
+                          }
+                        >
+                          {isAdding ? 'Adding...' : isAdded ? 'Added' : 'Add'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </AppLayout>
   );
 }
