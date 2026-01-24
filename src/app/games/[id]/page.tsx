@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, StatCard, EmptyState } from '@/components/ui';
-import { ArrowLeft, Loader2, Dice5, Trophy, TrendingUp, Clock, Users, CalendarDays, Target } from 'lucide-react';
+import { ArrowLeft, Loader2, Dice5, Trophy, TrendingUp, Clock, Users, CalendarDays, Target, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -22,6 +22,15 @@ interface Game {
   max_players: number | null;
   playing_time: number | null;
   bgg_rating: number | null;
+  type?: string;
+  base_game_id?: string | null;
+}
+
+interface Expansion {
+  id: string;
+  name: string;
+  thumbnail_url: string | null;
+  year_published: number | null;
 }
 
 interface SessionWithPlayers {
@@ -55,6 +64,7 @@ export default function GameDetailPage() {
 
   const [game, setGame] = useState<Game | null>(null);
   const [sessions, setSessions] = useState<SessionWithPlayers[]>([]);
+  const [expansions, setExpansions] = useState<Expansion[]>([]);
   const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -82,6 +92,20 @@ export default function GameDetailPage() {
       }
 
       setGame(gameData);
+
+      // Fetch expansions for this game (if it's a base game)
+      if (gameData.type !== 'expansion') {
+        const { data: expansionData } = await supabase
+          .from('games')
+          .select('id, name, thumbnail_url, year_published')
+          .eq('base_game_id', gameId)
+          .eq('type', 'expansion')
+          .order('name');
+
+        if (expansionData) {
+          setExpansions(expansionData);
+        }
+      }
 
       // Fetch sessions for this game
       const { data: sessionsData } = await supabase
@@ -237,6 +261,49 @@ export default function GameDetailPage() {
             </div>
           </div>
         </Card>
+
+        {/* Expansions */}
+        {expansions.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+              <Package className="h-5 w-5 text-purple-500" />
+              Expansions ({expansions.length})
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {expansions.map((expansion) => (
+                <Card
+                  key={expansion.id}
+                  variant="glass"
+                  className="p-3 hover:border-purple-500/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {expansion.thumbnail_url ? (
+                      <div className="relative w-12 h-12 rounded overflow-hidden bg-slate-800 flex-shrink-0">
+                        <Image
+                          src={expansion.thumbnail_url}
+                          alt={expansion.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded bg-slate-800 flex items-center justify-center flex-shrink-0">
+                        <Package className="h-5 w-5 text-slate-600" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-200 truncate">{expansion.name}</p>
+                      {expansion.year_published && (
+                        <p className="text-xs text-slate-500">{expansion.year_published}</p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Personal Stats */}
         {personalStats && personalStats.plays > 0 && (
