@@ -119,7 +119,7 @@ export default function SettingsPage() {
       // Or better, let's direct the user to the Import page for the actual import action.
 
       setImportMessage('Please use the Import Collection page to fetch and import games.');
-      setImportStatus('info');
+      setImportStatus('success');
       // In a real fix, I'd wire up the server action here too.
 
     } catch (error) {
@@ -204,12 +204,10 @@ export default function SettingsPage() {
             {importMessage && (
               <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${importStatus === 'success' ? 'bg-felt-500/10 text-felt-400 border border-felt-500/20' :
                   importStatus === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                    importStatus === 'info' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                      'bg-slate-800/50 text-slate-300'
+                    'bg-slate-800/50 text-slate-300'
                 }`}>
                 {importStatus === 'success' && <Check className="h-4 w-4" />}
                 {importStatus === 'error' && <AlertCircle className="h-4 w-4" />}
-                {importStatus === 'info' && <ExternalLink className="h-4 w-4" />}
                 {importMessage}
               </div>
             )}
