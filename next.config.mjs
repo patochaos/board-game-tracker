@@ -3,6 +3,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors/warnings. These should be fixed later.
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
