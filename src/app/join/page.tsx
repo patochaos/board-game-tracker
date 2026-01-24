@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -12,7 +14,7 @@ interface GroupInfo {
   name: string;
 }
 
-export default function JoinPage() {
+function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
@@ -186,5 +188,26 @@ export default function JoinPage() {
         </Link>
       </Card>
     </div>
+  );
+}
+
+function JoinPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-gradient-to-br from-wood-500/5 via-transparent to-felt-500/5" />
+      <div className="fixed top-1/3 left-1/4 w-96 h-96 bg-wood-500/10 rounded-full blur-3xl" />
+      <Card className="relative z-10 w-full max-w-md p-8 text-center" variant="glass">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto" />
+        <p className="mt-4 text-slate-400">Loading...</p>
+      </Card>
+    </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={<JoinPageFallback />}>
+      <JoinPageContent />
+    </Suspense>
   );
 }
