@@ -64,10 +64,23 @@ src/
 - Formulario para registrar partidas (con soporte de expansiones)
 - Módulo VTES (Vampire: The Eternal Struggle) - Basic Deck Management
 - Sistema de grupos e invitaciones
+- **Sistema de Estadísticas (completo):**
+  - H-index calculation
+  - Win rates por jugador y por juego
+  - Weekly activity chart
+  - Achievements system
+  - Nemesis tracking
+  - Head-to-head comparison (`/stats/head-to-head`)
+- **Leaderboard:**
+  - Podio visual top 3
+  - Tabla completa con filtro por mes
+  - Win rate y total de plays
 
 ### Próximas Funcionalidades (por implementar)
-- [ ] Sistema de estadísticas (win rates, H-index)
-- [ ] Mejorar tabla de líderes del grupo
+- [ ] PWA support
+- [ ] Share session results
+- [ ] Light theme option
+- [ ] Export data
 - [ ] Gestión avanzada de jugadores/grupo
 
 ## Usuario BGG del Owner
@@ -101,11 +114,24 @@ Ver `.env.local.example`:
   - Created `/api/bgg/expansions` endpoint to import expansions with `base_game_id`
   - Added expansion selection modal in Games page after adding a game
   - Improved session form to find expansions by `base_game_id` (more accurate than name matching)
+  - Added expansions display on game detail page (`/games/[id]`)
   - Migration: `migrations/17_base_game_id.sql`
+- **Head-to-Head Comparison:**
+  - Created `/stats/head-to-head` page for comparing two players
+  - Shows total games played together, win/loss breakdown
+  - Breakdown by game with visual bars
+  - Recent matches list with links to sessions
+- **Settings Simplification:**
+  - Removed BGG API token field from Settings (app uses its own token)
+  - Users only need to enter BGG username
+  - Added quick action links to Settings page
 - **Build Fixes:**
-  - Fixed Suspense boundary issue in `/join` page for Next.js 14 static generation
+  - Fixed Suspense boundary issue in `/join`, `/login`, `/register` pages
   - Fixed TypeScript Set iteration compatibility
   - Fixed invalid status type in settings page
+- **Documentation:**
+  - Updated README.md with completed features
+  - Updated CLAUDE.md with current state
 
 ### 2026-01-17
 - **Type Safety:** Fixed 13 `any` type instances across the codebase with proper interfaces
