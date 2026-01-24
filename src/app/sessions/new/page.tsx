@@ -61,6 +61,19 @@ export default function NewSessionPage() {
         router.push('/login');
         return;
       }
+
+      // Check if user has a group
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (!membership || membership.length === 0) {
+        router.push('/onboard');
+        return;
+      }
+
       setCurrentUserId(user.id);
 
       // Get user profile

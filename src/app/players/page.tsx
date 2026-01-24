@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input, EmptyState } from '@/components/ui';
-import { Users, UserPlus, Copy, Check, Loader2, LogIn, Crown, User } from 'lucide-react';
+import { Users, UserPlus, Copy, Check, Loader2, LogIn, Crown, User, Link2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -31,6 +31,7 @@ export default function PlayersPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Join group state
@@ -104,6 +105,14 @@ export default function PlayersPage() {
     await navigator.clipboard.writeText(group.invite_code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyInviteLink = async () => {
+    if (!group) return;
+    const link = `${window.location.origin}/join?code=${group.invite_code}`;
+    await navigator.clipboard.writeText(link);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleJoinGroup = async () => {
@@ -322,6 +331,14 @@ export default function PlayersPage() {
                     onClick={copyInviteCode}
                   >
                     {copied ? 'Copied!' : 'Copy'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={linkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                    onClick={copyInviteLink}
+                  >
+                    {linkCopied ? 'Copied!' : 'Copy Invite Link'}
                   </Button>
                 </div>
               </div>

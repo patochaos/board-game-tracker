@@ -7,6 +7,7 @@ import { Card, Button, EmptyState } from '@/components/ui';
 import { Dice5, Search, Plus, Loader2 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -23,6 +24,7 @@ interface Game {
 }
 
 export default function GamesPage() {
+  const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -46,7 +48,29 @@ export default function GamesPage() {
   };
 
   useEffect(() => {
-    fetchGames();
+    const checkAuthAndFetch = async () => {
+      // Check auth and group membership
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (!membership || membership.length === 0) {
+        router.push('/onboard');
+        return;
+      }
+
+      fetchGames();
+    };
+
+    checkAuthAndFetch();
   }, []);
 
   const handleSeed = async () => {

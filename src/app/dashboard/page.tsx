@@ -14,6 +14,17 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  // Check if user has a group
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('group_id')
+    .eq('user_id', user.id)
+    .limit(1);
+
+  if (!membership || membership.length === 0) {
+    redirect('/onboard');
+  }
+
   // Fetch real data
   const { data: sessions } = await supabase
     .from('sessions')

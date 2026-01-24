@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout';
 import { Card, StatCard, EmptyState } from '@/components/ui';
 import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Image from 'next/image';
 import { format, subDays, startOfWeek, eachWeekOfInterval } from 'date-fns';
@@ -83,6 +84,7 @@ const ACHIEVEMENT_DEFINITIONS = [
 ];
 
 export default function StatsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [currentUserStats, setCurrentUserStats] = useState<PlayerStats | null>(null);
   const [leaderboard, setLeaderboard] = useState<PlayerStats[]>([]);
@@ -102,6 +104,23 @@ export default function StatsPage() {
   useEffect(() => {
     const fetchStats = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Check auth and group membership
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (!membership || membership.length === 0) {
+        router.push('/onboard');
+        return;
+      }
 
       // Fetch player stats (leaderboard)
       const { data: playerStats } = await supabase

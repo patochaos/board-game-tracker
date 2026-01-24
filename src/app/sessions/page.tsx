@@ -66,6 +66,24 @@ export default function SessionsPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Check auth and group membership
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (!membership || membership.length === 0) {
+        router.push('/onboard');
+        return;
+      }
+
       // Fetch sessions
       const { data: sessionsData, error } = await supabase
         .from('sessions')
