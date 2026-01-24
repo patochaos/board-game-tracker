@@ -157,7 +157,7 @@ export default function SettingsPage() {
                 <ol className="list-decimal list-inside space-y-1 ml-1 text-blue-300/80">
                   <li>Log in to BoardGameGeek.</li>
                   <li>Go to <a href="https://boardgamegeek.com/applications" target="_blank" className="underline text-blue-300 hover:text-white">my applications</a>.</li>
-                  <li>Create a new application (e.g. "My Tracker").</li>
+                  <li>Create a new application (e.g. &quot;My Tracker&quot;).</li>
                   <li>Get your <strong>API Token</strong> and paste it below.</li>
                 </ol>
               </div>
