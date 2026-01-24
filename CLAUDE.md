@@ -75,12 +75,13 @@ src/
   - Podio visual top 3
   - Tabla completa con filtro por mes
   - Win rate y total de plays
+- **Export Data:**
+  - Export sessions to CSV desde Settings
 
 ### Próximas Funcionalidades (por implementar)
 - [ ] PWA support
-- [ ] Share session results
+- [ ] Share session results (shareable link/image)
 - [ ] Light theme option
-- [ ] Export data
 - [ ] Gestión avanzada de jugadores/grupo
 
 ## Usuario BGG del Owner
@@ -129,9 +130,16 @@ Ver `.env.local.example`:
   - Fixed Suspense boundary issue in `/join`, `/login`, `/register` pages
   - Fixed TypeScript Set iteration compatibility
   - Fixed invalid status type in settings page
+- **Export Data:**
+  - Added Export Sessions to CSV in Settings page
+  - Includes game names, players, winners, scores, dates, and notes
 - **Documentation:**
   - Updated README.md with completed features
   - Updated CLAUDE.md with current state
+
+**IMPORTANTE - Configurar en Vercel:**
+Para que BGG funcione en producción, agregar en Vercel Dashboard → Settings → Environment Variables:
+- `BGG_API_TOKEN` = `84116b89-3590-4e45-932f-75c6e62215d3`
 
 ### 2026-01-17
 - **Type Safety:** Fixed 13 `any` type instances across the codebase with proper interfaces
