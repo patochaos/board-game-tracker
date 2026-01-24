@@ -4,7 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, StatCard, EmptyState } from '@/components/ui';
-import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords } from 'lucide-react';
+import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
@@ -410,6 +411,24 @@ export default function StatsPage() {
             />
           )}
         </div>
+
+        {/* Head-to-Head Link */}
+        <Link href="/stats/head-to-head">
+          <Card variant="glass" className="hover:border-red-500/50 transition-colors cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-red-500/20">
+                  <Swords className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-100">Head-to-Head Comparison</h3>
+                  <p className="text-sm text-slate-400">Compare stats between any two players</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-slate-500" />
+            </div>
+          </Card>
+        </Link>
 
         {/* Charts Row */}
         {hasData && (

@@ -117,9 +117,11 @@ board-game-tracker/
 | `profiles` | User profiles (extends Supabase auth) |
 | `groups` | Gaming groups |
 | `group_members` | Users in groups |
-| `games` | Cached BGG game info |
+| `games` | Cached BGG game info (with `type` and `base_game_id` for expansions) |
 | `sessions` | Game play sessions |
-| `session_players` | Players & scores per session |
+| `session_players` | Registered players & scores per session |
+| `guest_players` | Non-registered players in sessions |
+| `session_expansions` | Expansions used in each session |
 
 ### Row Level Security (RLS)
 
@@ -161,25 +163,34 @@ In Vercel dashboard:
 
 ---
 
+## ✅ Completed Features
+
+### Core Features
+- [x] Game search component with BGG integration
+- [x] New session form (with expansion support)
+- [x] Session history list
+- [x] Group invite system
+- [x] Guest player tracking
+- [x] BGG collection import
+- [x] Expansion detection and import from BGG
+
+### VTES Module
+- [x] Deck management
+- [x] Card browser
+- [x] Session tracking for VTES
+
 ## 📝 Next Steps (TODO)
 
-### Phase 2 - Core Features
-- [ ] Game search component with BGG integration
-- [ ] New session form
-- [ ] Session history list
-- [ ] Player management
-- [ ] Group invite system
-
-### Phase 3 - Stats
-- [ ] Player statistics page
-- [ ] Game statistics
+### Stats & Analytics
 - [ ] H-index calculation
+- [ ] Win rates per player
 - [ ] Head-to-head comparison
+- [ ] Detailed game statistics
 
-### Phase 4 - Polish
+### Polish
 - [ ] PWA support
 - [ ] Share session results
-- [ ] Dark/light theme toggle
+- [ ] Light theme option
 - [ ] Export data
 
 ---
