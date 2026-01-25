@@ -47,7 +47,9 @@ function normalizeGameName(name: string): string {
         .trim();
 }
 
-// Extract the base name from an expansion (part before separator)
+// Extract the base name from a game (part before any separator like ":")
+// e.g. "Cosmic Encounter: 42nd Anniversary Edition" -> "Cosmic Encounter"
+// e.g. "Cosmic Encounter: Cosmic Alliance" -> "Cosmic Encounter"
 function extractBaseName(name: string): string {
     // Normalize unicode dashes first
     const normalized = name.replace(/[\u2013\u2014\u2015]/g, '-');
@@ -58,23 +60,36 @@ function extractBaseName(name: string): string {
 
 // Check if an expansion name matches a base game
 function expansionMatchesGame(expName: string, gameName: string): boolean {
-    // Normalize both names
-    const gameNormalized = normalizeGameName(gameName);
-    const expNormalized = normalizeGameName(expName);
+    // Extract the core name from both (part before colon/dash)
+    const gameBaseName = normalizeGameName(extractBaseName(gameName));
+    const expBaseName = normalizeGameName(extractBaseName(expName));
 
-    // Get the base part of the expansion name (before any separator)
-    const expBasePart = normalizeGameName(extractBaseName(expName));
+    // The expansion must:
+    // 1. Have the same base name as the game
+    // 2. Have something after the separator (be an actual expansion, not the same game)
+    if (gameBaseName === expBaseName) {
+        // Check that the expansion has content after the base name
+        const expHasSuffix = expName.includes(':') || expName.includes(' - ') || expName.includes(' – ');
+        const gameHasSuffix = gameName.includes(':') || gameName.includes(' - ') || gameName.includes(' – ');
 
-    // If the expansion's base part matches the game's normalized name, it's a match
-    // But only if the expansion has more than just the base part (has a separator)
-    if (expBasePart === gameNormalized && expNormalized !== expBasePart) {
-        return true;
-    }
+        // If both have suffixes, they could be the same game - check if suffixes are different
+        if (expHasSuffix && gameHasSuffix) {
+            // Compare normalized full names - if they're the same, it's the same game not an expansion
+            const expFull = normalizeGameName(expName);
+            const gameFull = normalizeGameName(gameName);
+            return expFull !== gameFull;
+        }
 
-    // Also check if expansion starts with the game name followed by a separator
-    if (expNormalized.startsWith(gameNormalized + ':') ||
-        expNormalized.startsWith(gameNormalized + ' -')) {
-        return true;
+        // If only expansion has a suffix, it's an expansion of the base game
+        if (expHasSuffix && !gameHasSuffix) {
+            return true;
+        }
+
+        // If the game has a suffix (like "42nd Anniversary Edition") but expansion doesn't,
+        // the expansion might still match if its base equals the game's base
+        if (gameHasSuffix && expHasSuffix) {
+            return true;
+        }
     }
 
     return false;

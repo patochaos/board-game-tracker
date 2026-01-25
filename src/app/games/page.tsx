@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState, Input } from '@/components/ui';
-import { Dice5, Search, Plus, Loader2, X, Check, Package } from 'lucide-react';
+import { Dice5, Search, Plus, Loader2, X, Check, Package, ChevronDown, ChevronRight } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,12 @@ interface Game {
   max_players: number | null;
   playing_time: number | null;
   bgg_rating: number | null;
-  expansion_count?: number;
+  type?: string;
+  base_game_id?: string | null;
+}
+
+interface GameWithExpansions extends Game {
+  expansions: Game[];
 }
 
 interface BGGSearchResult {
@@ -38,8 +43,9 @@ interface BGGExpansion {
 
 export default function GamesPage() {
   const router = useRouter();
-  const [games, setGames] = useState<Game[]>([]);
+  const [gamesWithExpansions, setGamesWithExpansions] = useState<GameWithExpansions[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
 
   // Search modal state
   const [showSearch, setShowSearch] = useState(false);
@@ -64,41 +70,34 @@ export default function GamesPage() {
   );
 
   const fetchGames = useCallback(async () => {
-    // Fetch base games and expansion counts in parallel
-    const [gamesResult, expansionsResult] = await Promise.all([
-      supabase
-        .from('games')
-        .select('*')
-        .neq('type', 'expansion')
-        .order('name'),
-      supabase
-        .from('games')
-        .select('base_game_id')
-        .eq('type', 'expansion')
-        .not('base_game_id', 'is', null)
-    ]);
+    // Fetch all games (base games and expansions)
+    const { data: allGames, error } = await supabase
+      .from('games')
+      .select('*')
+      .order('name');
 
-    if (!gamesResult.error && gamesResult.data) {
-      // Count expansions per base game
-      const expansionCounts: Record<string, number> = {};
-      if (expansionsResult.data) {
-        for (const exp of expansionsResult.data) {
-          if (exp.base_game_id) {
-            expansionCounts[exp.base_game_id] = (expansionCounts[exp.base_game_id] || 0) + 1;
-          }
-        }
-      }
+    if (!error && allGames) {
+      // Separate base games and expansions
+      const baseGames = allGames.filter((g: Game) => g.type !== 'expansion');
+      const expansions = allGames.filter((g: Game) => g.type === 'expansion');
 
-      // Merge expansion counts into games
-      const gamesWithCounts = gamesResult.data.map((game: Game) => ({
-        ...game,
-        expansion_count: expansionCounts[game.id] || 0
-      }));
+      // Group expansions under their base games
+      const grouped: GameWithExpansions[] = baseGames.map((game: Game) => {
+        const gameExpansions = expansions.filter((exp: Game) => exp.base_game_id === game.id);
+        return { ...game, expansions: gameExpansions };
+      });
 
-      setGames(gamesWithCounts);
+      setGamesWithExpansions(grouped);
+
       // Track which BGG IDs are already in the library
-      const bggIds = new Set(gamesResult.data.map((g: Game) => g.bgg_id));
+      const bggIds = new Set(allGames.map((g: Game) => g.bgg_id));
       setAddedGameIds(bggIds);
+
+      // Auto-expand games that have expansions
+      const withExpansions = grouped
+        .filter(g => g.expansions.length > 0)
+        .map(g => g.id);
+      setExpandedGames(new Set(withExpansions));
     }
     setLoading(false);
   }, [supabase]);
@@ -127,6 +126,18 @@ export default function GamesPage() {
 
     checkAuthAndFetch();
   }, [router, supabase, fetchGames]);
+
+  const toggleExpanded = (gameId: string) => {
+    setExpandedGames(prev => {
+      const next = new Set(prev);
+      if (next.has(gameId)) {
+        next.delete(gameId);
+      } else {
+        next.add(gameId);
+      }
+      return next;
+    });
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || searchQuery.length < 2) return;
@@ -261,7 +272,7 @@ export default function GamesPage() {
           <Card variant="glass" className="p-12 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           </Card>
-        ) : games.length === 0 ? (
+        ) : gamesWithExpansions.length === 0 ? (
           <Card variant="glass">
             <EmptyState
               icon={<Dice5 className="h-20 w-20" />}
@@ -278,57 +289,117 @@ export default function GamesPage() {
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {games.map((game) => (
-              <Link key={game.id} href={`/games/${game.id}`}>
-                <Card variant="glass" className="overflow-hidden hover:border-emerald-500/50 transition-colors cursor-pointer h-full">
-                  <div className="flex gap-4 p-4">
-                    {game.thumbnail_url ? (
-                      <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-800">
-                        <Image
-                          src={game.thumbnail_url}
-                          alt={game.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
+          <div className="space-y-2">
+            {gamesWithExpansions.map((game) => {
+              const hasExpansions = game.expansions.length > 0;
+              const isExpanded = expandedGames.has(game.id);
+
+              return (
+                <div key={game.id} className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+                  {/* Base Game Row */}
+                  <div className="p-4 flex items-center gap-4 hover:bg-slate-800/80 transition-colors">
+                    {/* Expand/Collapse Button */}
+                    {hasExpansions ? (
+                      <button
+                        onClick={() => toggleExpanded(game.id)}
+                        className="p-1 hover:bg-slate-700 rounded transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        )}
+                      </button>
                     ) : (
-                      <div className="w-20 h-20 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center">
-                        <Dice5 className="h-8 w-8 text-slate-600" />
-                      </div>
+                      <div className="w-7" />
                     )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-100 truncate">{game.name}</h3>
-                      {game.year_published && (
-                        <p className="text-sm text-slate-400">{game.year_published}</p>
+
+                    {/* Thumbnail */}
+                    <Link href={`/games/${game.id}`} className="flex-shrink-0">
+                      {game.thumbnail_url ? (
+                        <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-slate-800">
+                          <Image
+                            src={game.thumbnail_url}
+                            alt={game.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center">
+                          <Dice5 className="h-6 w-6 text-slate-600" />
+                        </div>
                       )}
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                    </Link>
+
+                    {/* Game Info */}
+                    <Link href={`/games/${game.id}`} className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-slate-100">{game.name}</h3>
+                        {hasExpansions && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">
+                            <Package className="h-3 w-3" />
+                            +{game.expansions.length}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
+                        {game.year_published && <span>{game.year_published}</span>}
                         {game.min_players && game.max_players && (
                           <span>{game.min_players}-{game.max_players} players</span>
                         )}
-                        {game.playing_time && (
-                          <span>~{game.playing_time} min</span>
-                        )}
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {game.playing_time && <span>~{game.playing_time} min</span>}
                         {game.bgg_rating && (
-                          <span className="text-xs text-emerald-400 font-medium">
-                            BGG: {game.bgg_rating.toFixed(1)}
-                          </span>
-                        )}
-                        {game.expansion_count && game.expansion_count > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">
-                            <Package className="h-3 w-3" />
-                            +{game.expansion_count}
-                          </span>
+                          <span className="text-emerald-400">★ {game.bgg_rating.toFixed(1)}</span>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   </div>
-                </Card>
-              </Link>
-            ))}
+
+                  {/* Expansions List */}
+                  {hasExpansions && isExpanded && (
+                    <div className="border-t border-slate-700/50 bg-slate-900/30">
+                      {game.expansions.map((expansion) => (
+                        <Link
+                          key={expansion.id}
+                          href={`/games/${expansion.id}`}
+                          className="px-4 py-3 flex items-center gap-4 pl-16 border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/50 transition-colors"
+                        >
+                          {/* Expansion Thumbnail */}
+                          {expansion.thumbnail_url ? (
+                            <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-800 flex-shrink-0">
+                              <Image
+                                src={expansion.thumbnail_url}
+                                alt={expansion.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0">
+                              <Package className="h-4 w-4 text-slate-600" />
+                            </div>
+                          )}
+
+                          {/* Expansion Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                              <span className="text-sm text-slate-300">{expansion.name}</span>
+                            </div>
+                            {expansion.year_published && (
+                              <span className="text-xs text-slate-500">{expansion.year_published}</span>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

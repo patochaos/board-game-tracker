@@ -4,11 +4,11 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { SessionExpansionQuery } from '@/types';
 
@@ -29,15 +29,18 @@ interface PlayerEntry {
   userId: string | null;
 }
 
-export default function NewSessionPage() {
+function NewSessionContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedGameId = searchParams.get('gameId');
+
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
-  const [selectedGameId, setSelectedGameId] = useState<string>('');
+  const [selectedGameId, setSelectedGameId] = useState<string>(preselectedGameId || '');
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().split('T')[0]);
   const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [location, setLocation] = useState('');
@@ -420,6 +423,34 @@ export default function NewSessionPage() {
                   <Button variant="secondary" size="sm">Add Games First</Button>
                 </Link>
               </div>
+            ) : preselectedGameId && selectedGame ? (
+              /* If game was preselected from game detail page, show just that game */
+              <div className="flex items-center gap-4 p-4 rounded-xl border border-emerald-500 bg-emerald-500/10">
+                {selectedGame.thumbnail_url ? (
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+                    <Image
+                      src={selectedGame.thumbnail_url}
+                      alt={selectedGame.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    <Dice5 className="h-8 w-8 text-slate-500" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <span className="text-lg font-medium text-slate-100">{selectedGame.name}</span>
+                  {selectedGame.min_players && selectedGame.max_players && (
+                    <p className="text-sm text-slate-400 mt-1">
+                      {selectedGame.min_players}-{selectedGame.max_players} players
+                    </p>
+                  )}
+                </div>
+                <Check className="h-6 w-6 text-emerald-400" />
+              </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {games.map((game) => (
@@ -459,44 +490,45 @@ export default function NewSessionPage() {
           {/* Expansions */}
           {availableExpansions.length > 0 && (
             <Card variant="glass">
-              <h2 className="text-lg font-semibold text-slate-100 mb-4">Expansions used ({selectedExpansions.length})</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-5 w-5 text-purple-400" />
+                <h2 className="text-lg font-semibold text-slate-100">Expansions used ({selectedExpansions.length})</h2>
+              </div>
+              <div className="space-y-2">
                 {availableExpansions.map((exp) => (
                   <label
                     key={exp.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedExpansions.includes(exp.id)
-                      ? 'border-emerald-500 bg-emerald-500/10'
+                      ? 'border-purple-500 bg-purple-500/10'
                       : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
                       }`}
                   >
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedExpansions.includes(exp.id)
-                      ? 'bg-emerald-500 border-emerald-500'
-                      : 'border-slate-500'
-                      }`}>
-                      {selectedExpansions.includes(exp.id) && (
-                        <Trophy className="h-3 w-3 text-white" />
-                      )}
-                    </div>
                     <input
                       type="checkbox"
                       className="hidden"
                       checked={selectedExpansions.includes(exp.id)}
                       onChange={() => toggleExpansion(exp.id)}
                     />
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      {exp.thumbnail_url && (
-                        <div className="relative w-8 h-8 rounded bg-slate-700 flex-shrink-0">
-                          <Image
-                            src={exp.thumbnail_url}
-                            alt={exp.name}
-                            fill
-                            className="object-cover rounded"
-                            unoptimized
-                          />
-                        </div>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${selectedExpansions.includes(exp.id)
+                      ? 'bg-purple-500 border-purple-500'
+                      : 'border-slate-500'
+                      }`}>
+                      {selectedExpansions.includes(exp.id) && (
+                        <Check className="h-3 w-3 text-white" />
                       )}
-                      <span className="text-sm text-slate-200 truncate">{exp.name}</span>
                     </div>
+                    {exp.thumbnail_url && (
+                      <div className="relative w-10 h-10 rounded bg-slate-700 flex-shrink-0">
+                        <Image
+                          src={exp.thumbnail_url}
+                          alt={exp.name}
+                          fill
+                          className="object-cover rounded"
+                          unoptimized
+                        />
+                      </div>
+                    )}
+                    <span className="text-sm text-slate-200">{exp.name}</span>
                   </label>
                 ))}
               </div>
@@ -664,5 +696,19 @@ export default function NewSessionPage() {
         </form >
       </div >
     </AppLayout >
+  );
+}
+
+export default function NewSessionPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        </div>
+      </AppLayout>
+    }>
+      <NewSessionContent />
+    </Suspense>
   );
 }

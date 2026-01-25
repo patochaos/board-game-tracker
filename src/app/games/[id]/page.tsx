@@ -341,7 +341,7 @@ export default function GameDetailPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-100">Session History</h2>
-            <Link href={`/sessions/new`}>
+            <Link href={`/sessions/new?gameId=${gameId}`}>
               <Button size="sm">Log Session</Button>
             </Link>
           </div>
@@ -353,7 +353,7 @@ export default function GameDetailPage() {
                 title="No sessions yet"
                 description={`You haven't played ${game.name} yet. Log your first session!`}
                 action={
-                  <Link href="/sessions/new">
+                  <Link href={`/sessions/new?gameId=${gameId}`}>
                     <Button>Log Session</Button>
                   </Link>
                 }
