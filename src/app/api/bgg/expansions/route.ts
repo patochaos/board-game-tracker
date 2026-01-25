@@ -3,7 +3,6 @@ import { XMLParser } from 'fast-xml-parser';
 import { createClient } from '@/lib/supabase/server';
 
 const BGG_API_BASE = 'https://boardgamegeek.com/xmlapi2';
-const BGG_TOKEN = process.env.BGG_API_TOKEN;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -43,7 +42,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'BGG ID is required' }, { status: 400 });
   }
 
-  if (!BGG_TOKEN) {
+  // Get BGG token from user profile or env var
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('bgg_api_token')
+    .eq('id', user.id)
+    .single();
+
+  const bggToken = profile?.bgg_api_token || process.env.BGG_API_TOKEN;
+
+  if (!bggToken) {
     return NextResponse.json({ error: 'BGG API token not configured' }, { status: 500 });
   }
 
@@ -51,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${BGG_TOKEN}` },
+      headers: { 'Authorization': `Bearer ${bggToken}` },
     });
 
     if (!response.ok) {

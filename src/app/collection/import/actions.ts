@@ -174,6 +174,12 @@ export async function importGames(games: BGGCollectionItem[]): Promise<{ success
     const supabase = await createClient();
     console.log(`[Import] Starting import for ${games.length} games`);
 
+    // Get current user for ownership tracking
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { success: false, count: 0, error: 'Not authenticated' };
+    }
+
     try {
         const gamesToUpsert = games.map(game => ({
             bgg_id: game.id,
@@ -188,17 +194,38 @@ export async function importGames(games: BGGCollectionItem[]): Promise<{ success
             type: determineGameType(game)
         }));
 
-        const { error, count } = await supabase
+        const { data: upsertedGames, error } = await supabase
             .from('games')
             .upsert(gamesToUpsert, {
                 onConflict: 'bgg_id',
                 ignoreDuplicates: false
             })
-            .select();
+            .select('id');
 
         if (error) {
             console.error('[Import] Database upsert failed:', error);
             throw new Error(error.message);
+        }
+
+        // Add ownership records for the imported games
+        if (upsertedGames && upsertedGames.length > 0) {
+            const ownershipRecords = upsertedGames.map(game => ({
+                user_id: user.id,
+                game_id: game.id
+            }));
+
+            // Use upsert to avoid duplicates if user already owns some games
+            const { error: ownershipError } = await supabase
+                .from('user_games')
+                .upsert(ownershipRecords, {
+                    onConflict: 'user_id,game_id',
+                    ignoreDuplicates: true
+                });
+
+            if (ownershipError) {
+                console.error('[Import] Ownership tracking failed:', ownershipError);
+                // Don't fail the import, just log the error
+            }
         }
 
         console.log(`[Import] Successfully upserted games`);

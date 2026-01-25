@@ -58,6 +58,14 @@ interface PersonalStats {
   totalTime: number;
 }
 
+interface GameOwner {
+  user_id: string;
+  profile: {
+    display_name: string | null;
+    username: string;
+  };
+}
+
 export default function GameDetailPage() {
   const params = useParams();
   const gameId = params.id as string;
@@ -66,6 +74,7 @@ export default function GameDetailPage() {
   const [sessions, setSessions] = useState<SessionWithPlayers[]>([]);
   const [expansions, setExpansions] = useState<Expansion[]>([]);
   const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null);
+  const [owners, setOwners] = useState<GameOwner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -92,6 +101,22 @@ export default function GameDetailPage() {
       }
 
       setGame(gameData);
+
+      // Fetch ownership data for this game
+      const { data: ownershipData } = await supabase
+        .from('user_games')
+        .select(`
+          user_id,
+          profile:profiles(display_name, username)
+        `)
+        .eq('game_id', gameId);
+
+      if (ownershipData) {
+        setOwners(ownershipData.map(o => ({
+          user_id: o.user_id,
+          profile: o.profile as { display_name: string | null; username: string }
+        })));
+      }
 
       // Fetch expansions for this game (if it's a base game)
       if (gameData.type !== 'expansion') {
@@ -258,6 +283,28 @@ export default function GameDetailPage() {
                   </span>
                 )}
               </div>
+              {/* Owners */}
+              {owners.length > 0 && (
+                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-500">Owned by:</span>
+                  {owners.map((owner) => {
+                    const isMe = owner.user_id === currentUserId;
+                    const displayName = owner.profile.display_name || owner.profile.username;
+                    return (
+                      <span
+                        key={owner.user_id}
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isMe
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-amber-500/20 text-amber-400'
+                        }`}
+                      >
+                        {isMe ? 'You' : displayName}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </Card>

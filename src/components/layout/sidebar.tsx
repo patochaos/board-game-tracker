@@ -17,10 +17,7 @@ import {
   Trophy,
   Swords,
   Search,
-  Plus,
-
   FileText,
-  Download
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -31,7 +28,6 @@ const boardGameNavItems = [
   { label: 'Sessions', href: '/sessions', icon: CalendarDays },
   { label: 'Players', href: '/players', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-  { label: 'Import Collection', href: '/collection/import', icon: Download },
 ];
 
 const vtesNavItems = [

@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import { Trophy, Medal, Star, LayoutList, Calendar } from 'lucide-react';
+import { Trophy, Medal, LayoutList, Calendar, Users, Globe } from 'lucide-react';
 import Image from 'next/image';
 import { LeaderboardRow } from '@/types';
 
@@ -23,37 +23,51 @@ interface PlayerStat {
 export default function LeaderboardPage() {
     const [stats, setStats] = useState<PlayerStat[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'month'>('all');
+    const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('all');
+    const [scopeFilter, setScopeFilter] = useState<'myGroup' | 'all'>('myGroup');
+    const [userGroupId, setUserGroupId] = useState<string | null>(null);
 
     const supabase = createClient();
+
+    // Fetch user's group on mount
+    useEffect(() => {
+        const fetchUserGroup = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: membership } = await supabase
+                .from('group_members')
+                .select('group_id')
+                .eq('user_id', user.id)
+                .limit(1);
+
+            if (membership && membership.length > 0) {
+                setUserGroupId(membership[0].group_id);
+            }
+        };
+        fetchUserGroup();
+    }, []);
 
     useEffect(() => {
         const fetchStats = async () => {
             setLoading(true);
 
-            // Fetch all session players with expanded profile and session data
-            const query = supabase
+            // Build query with optional group filter
+            let query = supabase
                 .from('session_players')
                 .select(`
-          is_winner,
-          user_id,
-          profiles:user_id (
-            username,
-            display_name,
-            avatar_url
-          ),
-          sessions:session_id (
-            played_at
-          )
-        `);
-
-            if (filter === 'month') {
-                const date = new Date();
-                date.setDate(1); // First day of current month
-                const dateStr = date.toISOString().split('T')[0];
-                // We can't easily filter deep nested session date in one go with standard query unless we use inner joins or separate calls.
-                // For simplicity with small data, we'll fetch all and filter in JS.
-            }
+                    is_winner,
+                    user_id,
+                    profiles:user_id (
+                        username,
+                        display_name,
+                        avatar_url
+                    ),
+                    sessions:session_id (
+                        played_at,
+                        group_id
+                    )
+                `);
 
             const { data, error } = await query;
 
@@ -70,19 +84,24 @@ export default function LeaderboardPage() {
 
             (data as unknown as LeaderboardRow[]).forEach((row) => {
                 const userId = row.user_id;
-                const profile = row.profiles; // Single object or array depending on relation? Usually object for One-to-One
-                // Note: supabase-js returns array if multiple, object if single. profiles is joined on ID, so unique.
+                const profile = row.profiles;
+                const session = row.sessions as { played_at: string; group_id: string } | undefined;
 
                 // Handle potential missing profile (e.g. deleted user)
                 if (!profile) return;
 
+                // Skip if group filter applies
+                if (scopeFilter === 'myGroup' && userGroupId) {
+                    if (!session || session.group_id !== userGroupId) return;
+                }
+
                 const name = profile.display_name || profile.username || 'Unknown';
                 const avatarUrl = profile.avatar_url;
                 const isWinner = row.is_winner;
-                const playedAt = row.sessions?.played_at;
+                const playedAt = session?.played_at;
 
-                // Skip if date filter applies
-                if (filter === 'month' && playedAt) {
+                // Skip if time filter applies
+                if (timeFilter === 'month' && playedAt) {
                     const firstOfMonth = new Date();
                     firstOfMonth.setDate(1);
                     firstOfMonth.setHours(0, 0, 0, 0);
@@ -126,7 +145,7 @@ export default function LeaderboardPage() {
         };
 
         fetchStats();
-    }, [filter]);
+    }, [timeFilter, scopeFilter, userGroupId]);
 
     const getRankIcon = (index: number) => {
         if (index === 0) return <Trophy className="h-6 w-6 text-yellow-500" />;
@@ -138,28 +157,50 @@ export default function LeaderboardPage() {
     return (
         <AppLayout>
             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-100">Leaderboard</h1>
                         <p className="text-slate-400">Hall of Fame</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant={filter === 'all' ? 'primary' : 'secondary'}
-                            size="sm"
-                            onClick={() => setFilter('all')}
-                            leftIcon={<LayoutList className="h-4 w-4" />}
-                        >
-                            All Time
-                        </Button>
-                        <Button
-                            variant={filter === 'month' ? 'primary' : 'secondary'}
-                            size="sm"
-                            onClick={() => setFilter('month')}
-                            leftIcon={<Calendar className="h-4 w-4" />}
-                        >
-                            This Month
-                        </Button>
+                    <div className="flex flex-wrap gap-2">
+                        {/* Scope Filter */}
+                        <div className="flex gap-1 p-1 bg-slate-800/50 rounded-lg">
+                            <Button
+                                variant={scopeFilter === 'myGroup' ? 'primary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setScopeFilter('myGroup')}
+                                leftIcon={<Users className="h-4 w-4" />}
+                            >
+                                My Group
+                            </Button>
+                            <Button
+                                variant={scopeFilter === 'all' ? 'primary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setScopeFilter('all')}
+                                leftIcon={<Globe className="h-4 w-4" />}
+                            >
+                                All
+                            </Button>
+                        </div>
+                        {/* Time Filter */}
+                        <div className="flex gap-1 p-1 bg-slate-800/50 rounded-lg">
+                            <Button
+                                variant={timeFilter === 'all' ? 'primary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTimeFilter('all')}
+                                leftIcon={<LayoutList className="h-4 w-4" />}
+                            >
+                                All Time
+                            </Button>
+                            <Button
+                                variant={timeFilter === 'month' ? 'primary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTimeFilter('month')}
+                                leftIcon={<Calendar className="h-4 w-4" />}
+                            >
+                                This Month
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

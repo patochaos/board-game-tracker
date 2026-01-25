@@ -1,13 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { XMLParser } from 'fast-xml-parser';
+import { createClient } from '@/lib/supabase/server';
 
 const BGG_API_BASE = 'https://boardgamegeek.com/xmlapi2';
-const BGG_TOKEN = process.env.BGG_API_TOKEN;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
 });
+
+async function getBggToken(): Promise<string | null> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return process.env.BGG_API_TOKEN || null;
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('bgg_api_token')
+    .eq('id', user.id)
+    .single();
+
+  return profile?.bgg_api_token || process.env.BGG_API_TOKEN || null;
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -20,7 +37,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!BGG_TOKEN) {
+  const bggToken = await getBggToken();
+  if (!bggToken) {
     return NextResponse.json(
       { error: 'BGG API token not configured' },
       { status: 500 }
@@ -33,7 +51,7 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${BGG_TOKEN}`,
+        'Authorization': `Bearer ${bggToken}`,
       },
     });
 

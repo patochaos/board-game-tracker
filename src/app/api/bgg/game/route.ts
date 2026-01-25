@@ -3,7 +3,6 @@ import { XMLParser } from 'fast-xml-parser';
 import { createClient } from '@/lib/supabase/server';
 
 const BGG_API_BASE = 'https://boardgamegeek.com/xmlapi2';
-const BGG_TOKEN = process.env.BGG_API_TOKEN;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -53,7 +52,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!BGG_TOKEN) {
+  // Get BGG token from user profile or env var
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('bgg_api_token')
+    .eq('id', user.id)
+    .single();
+
+  const bggToken = profile?.bgg_api_token || process.env.BGG_API_TOKEN;
+
+  if (!bggToken) {
     return NextResponse.json(
       { error: 'BGG API token not configured' },
       { status: 500 }
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${BGG_TOKEN}`,
+        'Authorization': `Bearer ${bggToken}`,
       },
     });
 
@@ -157,6 +165,24 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to save game to database' },
         { status: 500 }
       );
+    }
+
+    // Add ownership record for the user who added the game
+    if (game) {
+      const { error: ownershipError } = await supabase
+        .from('user_games')
+        .upsert({
+          user_id: user.id,
+          game_id: game.id
+        }, {
+          onConflict: 'user_id,game_id',
+          ignoreDuplicates: true
+        });
+
+      if (ownershipError) {
+        console.error('Ownership tracking failed:', ownershipError);
+        // Don't fail the request, just log the error
+      }
     }
 
     // Check which expansions we already have in DB

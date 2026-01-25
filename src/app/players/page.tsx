@@ -26,10 +26,17 @@ interface Group {
   created_by: string;
 }
 
+interface FrequentGuest {
+  name: string;
+  gamesPlayed: number;
+  wins: number;
+}
+
 export default function PlayersPage() {
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [frequentGuests, setFrequentGuests] = useState<FrequentGuest[]>([]);
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -89,6 +96,33 @@ export default function PlayersPage() {
 
         if (membersData) {
           setMembers(membersData as unknown as GroupMember[]);
+        }
+
+        // Fetch guest players from group's sessions
+        const { data: guestData } = await supabase
+          .from('guest_players')
+          .select(`
+            name,
+            is_winner,
+            session:sessions!inner(group_id)
+          `)
+          .eq('session.group_id', groupId);
+
+        if (guestData) {
+          // Aggregate guest player stats
+          const guestStats = new Map<string, { gamesPlayed: number; wins: number }>();
+          for (const guest of guestData) {
+            const stats = guestStats.get(guest.name) || { gamesPlayed: 0, wins: 0 };
+            stats.gamesPlayed++;
+            if (guest.is_winner) stats.wins++;
+            guestStats.set(guest.name, stats);
+          }
+
+          const guests: FrequentGuest[] = Array.from(guestStats.entries())
+            .map(([name, stats]) => ({ name, ...stats }))
+            .sort((a, b) => b.gamesPlayed - a.gamesPlayed);
+
+          setFrequentGuests(guests);
         }
       }
     }
@@ -385,6 +419,45 @@ export default function PlayersPage() {
                 ))}
               </div>
             </Card>
+
+            {/* Frequent Guest Players */}
+            {frequentGuests.length > 0 && (
+              <Card variant="glass">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-purple-500" />
+                  Guest Players ({frequentGuests.length})
+                </h2>
+                <p className="text-sm text-slate-400 mb-4">
+                  Players who have joined your sessions without an account
+                </p>
+                <div className="space-y-2">
+                  {frequentGuests.map((guest) => (
+                    <div
+                      key={guest.name}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                          <User className="h-5 w-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-200">{guest.name}</p>
+                          <p className="text-sm text-slate-500">
+                            {guest.gamesPlayed} game{guest.gamesPlayed !== 1 ? 's' : ''} played
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-emerald-400">{guest.wins} wins</p>
+                        <p className="text-xs text-slate-500">
+                          {guest.gamesPlayed > 0 ? Math.round((guest.wins / guest.gamesPlayed) * 100) : 0}% win rate
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </>
         ) : (
           <Card variant="glass">

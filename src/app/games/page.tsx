@@ -4,12 +4,20 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState, Input } from '@/components/ui';
-import { Dice5, Search, Plus, Loader2, X, Check, Package, ChevronDown, ChevronRight } from 'lucide-react';
+import { Dice5, Search, Plus, Loader2, X, Check, Package, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+
+interface Owner {
+  user_id: string;
+  profile: {
+    display_name: string | null;
+    username: string;
+  };
+}
 
 interface Game {
   id: string;
@@ -25,8 +33,12 @@ interface Game {
   base_game_id?: string | null;
 }
 
-interface GameWithExpansions extends Game {
-  expansions: Game[];
+interface GameWithOwnership extends Game {
+  owners: Owner[];
+}
+
+interface GameWithExpansions extends GameWithOwnership {
+  expansions: GameWithOwnership[];
 }
 
 interface BGGSearchResult {
@@ -46,6 +58,7 @@ export default function GamesPage() {
   const [gamesWithExpansions, setGamesWithExpansions] = useState<GameWithExpansions[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Search modal state
   const [showSearch, setShowSearch] = useState(false);
@@ -76,14 +89,49 @@ export default function GamesPage() {
       .select('*')
       .order('name');
 
+    // Fetch ownership data with profiles
+    const { data: ownershipData } = await supabase
+      .from('user_games')
+      .select(`
+        game_id,
+        user_id,
+        profile:profiles(display_name, username)
+      `);
+
     if (!error && allGames) {
-      // Separate base games and expansions
-      const baseGames = allGames.filter((g: Game) => g.type !== 'expansion');
-      const expansions = allGames.filter((g: Game) => g.type === 'expansion');
+      // Create a map of game_id -> owners
+      const ownershipMap = new Map<string, Owner[]>();
+      if (ownershipData) {
+        for (const ownership of ownershipData) {
+          const gameId = ownership.game_id;
+          if (!ownershipMap.has(gameId)) {
+            ownershipMap.set(gameId, []);
+          }
+          ownershipMap.get(gameId)!.push({
+            user_id: ownership.user_id,
+            profile: ownership.profile as { display_name: string | null; username: string }
+          });
+        }
+      }
+
+      // Separate base games and expansions and add ownership
+      const baseGames: GameWithOwnership[] = allGames
+        .filter((g: Game) => g.type !== 'expansion')
+        .map((g: Game) => ({
+          ...g,
+          owners: ownershipMap.get(g.id) || []
+        }));
+
+      const expansions: GameWithOwnership[] = allGames
+        .filter((g: Game) => g.type === 'expansion')
+        .map((g: Game) => ({
+          ...g,
+          owners: ownershipMap.get(g.id) || []
+        }));
 
       // Group expansions under their base games
-      const grouped: GameWithExpansions[] = baseGames.map((game: Game) => {
-        const gameExpansions = expansions.filter((exp: Game) => exp.base_game_id === game.id);
+      const grouped: GameWithExpansions[] = baseGames.map((game) => {
+        const gameExpansions = expansions.filter((exp) => exp.base_game_id === game.id);
         return { ...game, expansions: gameExpansions };
       });
 
@@ -109,6 +157,8 @@ export default function GamesPage() {
         router.push('/login');
         return;
       }
+
+      setCurrentUserId(user.id);
 
       const { data: membership } = await supabase
         .from('group_members')
@@ -139,29 +189,36 @@ export default function GamesPage() {
     });
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim() || searchQuery.length < 2) return;
-
-    setSearching(true);
-    setSearchError(null);
-    setSearchResults([]);
-
-    try {
-      const response = await fetch(`/api/bgg/search?q=${encodeURIComponent(searchQuery)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        setSearchError(data.error || 'Search failed');
-        return;
-      }
-
-      setSearchResults(data.results || []);
-    } catch {
-      setSearchError('Failed to search BGG');
-    } finally {
-      setSearching(false);
+  // Debounced search - searches automatically as user types
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
     }
-  };
+
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      setSearchError(null);
+
+      try {
+        const response = await fetch(`/api/bgg/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          setSearchError(data.error || 'Search failed');
+          return;
+        }
+
+        setSearchResults(data.results || []);
+      } catch {
+        setSearchError('Failed to search BGG');
+      } finally {
+        setSearching(false);
+      }
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handleAddGame = async (bggId: number) => {
     setAddingGameId(bggId);
@@ -250,6 +307,18 @@ export default function GamesPage() {
     setSearchError(null);
   };
 
+  // Get owner display info for a game (returns null if current user owns it)
+  const getOtherOwner = (owners: Owner[]): string | null => {
+    if (!currentUserId || owners.length === 0) return null;
+
+    const isOwnedByMe = owners.some(o => o.user_id === currentUserId);
+    if (isOwnedByMe) return null;
+
+    // Return the first owner's display name
+    const firstOwner = owners[0];
+    return firstOwner.profile.display_name || firstOwner.profile.username;
+  };
+
   return (
     <AppLayout>
       <div className="space-y-8">
@@ -260,12 +329,19 @@ export default function GamesPage() {
               Your board game library
             </p>
           </div>
-          <Button
-            leftIcon={<Search className="h-4 w-4" />}
-            onClick={() => setShowSearch(true)}
-          >
-            Add Game from BGG
-          </Button>
+          <div className="flex gap-3">
+            <Link href="/collection/import">
+              <Button variant="secondary" leftIcon={<Download className="h-4 w-4" />}>
+                Import Collection
+              </Button>
+            </Link>
+            <Button
+              leftIcon={<Search className="h-4 w-4" />}
+              onClick={() => setShowSearch(true)}
+            >
+              Add Game from BGG
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -335,7 +411,7 @@ export default function GamesPage() {
 
                     {/* Game Info */}
                     <Link href={`/games/${game.id}`} className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium text-slate-100">{game.name}</h3>
                         {hasExpansions && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">
@@ -343,6 +419,14 @@ export default function GamesPage() {
                             +{game.expansions.length}
                           </span>
                         )}
+                        {(() => {
+                          const otherOwner = getOtherOwner(game.owners);
+                          return otherOwner ? (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
+                              {otherOwner}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
                         {game.year_published && <span>{game.year_published}</span>}
@@ -428,25 +512,19 @@ export default function GamesPage() {
 
             {/* Search Input */}
             <div className="p-4 border-b border-slate-700">
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-                className="flex gap-3"
-              >
+              <div className="relative">
                 <Input
                   placeholder="Search for a game..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1"
-                  leftIcon={<Search className="h-5 w-5" />}
+                  className="w-full"
+                  leftIcon={searching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+                  autoFocus
                 />
-                <Button
-                  type="submit"
-                  disabled={searching || searchQuery.length < 2}
-                  leftIcon={searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                >
-                  {searching ? 'Searching...' : 'Search'}
-                </Button>
-              </form>
+                {searchQuery.length > 0 && searchQuery.length < 2 && (
+                  <p className="text-xs text-slate-500 mt-2">Type at least 2 characters to search...</p>
+                )}
+              </div>
             </div>
 
             {/* Results */}
@@ -465,7 +543,7 @@ export default function GamesPage() {
 
               {!searchError && searchResults.length === 0 && !searching && !searchQuery && (
                 <div className="text-center py-8 text-slate-500">
-                  Enter a game name to search BoardGameGeek.
+                  Start typing to search BoardGameGeek...
                 </div>
               )}
 
