@@ -112,10 +112,15 @@ export default function GameDetailPage() {
         .eq('game_id', gameId);
 
       if (ownershipData) {
-        setOwners(ownershipData.map(o => ({
-          user_id: o.user_id,
-          profile: o.profile as { display_name: string | null; username: string }
-        })));
+        setOwners(ownershipData
+          .filter(o => o.profile && !Array.isArray(o.profile) || (Array.isArray(o.profile) && o.profile.length > 0))
+          .map(o => {
+            const profile = Array.isArray(o.profile) ? o.profile[0] : o.profile;
+            return {
+              user_id: o.user_id,
+              profile: profile as { display_name: string | null; username: string }
+            };
+          }));
       }
 
       // Fetch expansions for this game (if it's a base game)

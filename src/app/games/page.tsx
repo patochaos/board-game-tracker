@@ -107,10 +107,13 @@ export default function GamesPage() {
           if (!ownershipMap.has(gameId)) {
             ownershipMap.set(gameId, []);
           }
-          ownershipMap.get(gameId)!.push({
-            user_id: ownership.user_id,
-            profile: ownership.profile as { display_name: string | null; username: string }
-          });
+          const profile = Array.isArray(ownership.profile) ? ownership.profile[0] : ownership.profile;
+          if (profile) {
+            ownershipMap.get(gameId)!.push({
+              user_id: ownership.user_id,
+              profile: profile as { display_name: string | null; username: string }
+            });
+          }
         }
       }
 
