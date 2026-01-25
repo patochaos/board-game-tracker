@@ -94,12 +94,15 @@ npm run build    # Build de producción
 npm run lint     # Linter
 npm run test     # Run unit tests (watch mode)
 npm run test:run # Run unit tests once
-npm run test:run # Run unit tests once
 npx playwright test  # Run E2E tests
-
-## Deployment Protocol
-ALWAYS run `npm run build` before pushing to main/deploying. This catches type errors that don't appear in dev mode.
 ```
+
+## Workflow de Features (IMPORTANTE)
+Antes de hacer deploy de cualquier feature nueva:
+1. **Build check:** Ejecutar `npm run build` para verificar que no hay errores de tipos
+2. **Local testing:** Lanzar `npm run dev` y probar la feature manualmente
+3. **Pasar URL al usuario:** Compartir http://localhost:3000 para que el usuario pruebe
+4. **Deploy solo después de aprobación del usuario**
 
 ## Variables de Entorno Requeridas
 Ver `.env.local.example`:

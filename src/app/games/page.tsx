@@ -21,6 +21,7 @@ interface Game {
   max_players: number | null;
   playing_time: number | null;
   bgg_rating: number | null;
+  expansion_count?: number;
 }
 
 interface BGGSearchResult {
@@ -63,16 +64,40 @@ export default function GamesPage() {
   );
 
   const fetchGames = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .neq('type', 'expansion')
-      .order('name');
+    // Fetch base games and expansion counts in parallel
+    const [gamesResult, expansionsResult] = await Promise.all([
+      supabase
+        .from('games')
+        .select('*')
+        .neq('type', 'expansion')
+        .order('name'),
+      supabase
+        .from('games')
+        .select('base_game_id')
+        .eq('type', 'expansion')
+        .not('base_game_id', 'is', null)
+    ]);
 
-    if (!error && data) {
-      setGames(data);
+    if (!gamesResult.error && gamesResult.data) {
+      // Count expansions per base game
+      const expansionCounts: Record<string, number> = {};
+      if (expansionsResult.data) {
+        for (const exp of expansionsResult.data) {
+          if (exp.base_game_id) {
+            expansionCounts[exp.base_game_id] = (expansionCounts[exp.base_game_id] || 0) + 1;
+          }
+        }
+      }
+
+      // Merge expansion counts into games
+      const gamesWithCounts = gamesResult.data.map((game: Game) => ({
+        ...game,
+        expansion_count: expansionCounts[game.id] || 0
+      }));
+
+      setGames(gamesWithCounts);
       // Track which BGG IDs are already in the library
-      const bggIds = new Set(data.map((g: Game) => g.bgg_id));
+      const bggIds = new Set(gamesResult.data.map((g: Game) => g.bgg_id));
       setAddedGameIds(bggIds);
     }
     setLoading(false);
@@ -286,13 +311,19 @@ export default function GamesPage() {
                           <span>~{game.playing_time} min</span>
                         )}
                       </div>
-                      {game.bgg_rating && (
-                        <div className="mt-2 flex items-center gap-1">
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {game.bgg_rating && (
                           <span className="text-xs text-emerald-400 font-medium">
                             BGG: {game.bgg_rating.toFixed(1)}
                           </span>
-                        </div>
-                      )}
+                        )}
+                        {game.expansion_count && game.expansion_count > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">
+                            <Package className="h-3 w-3" />
+                            +{game.expansion_count}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>

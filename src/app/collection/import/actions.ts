@@ -1,6 +1,6 @@
 'use server';
 
-import { getUserCollection, searchGames } from '@/lib/bgg';
+import { getUserCollection, getUserExpansions, searchGames } from '@/lib/bgg';
 import type { BGGCollectionItem, BGGSearchResult } from '@/types';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
@@ -21,29 +21,117 @@ async function getBggToken() {
     return profile?.bgg_api_token || process.env.BGG_API_TOKEN || null;
 }
 
-export async function fetchUserCollection(username: string): Promise<{ success: boolean; data: BGGCollectionItem[]; error?: string }> {
+export interface GameWithExpansions {
+    game: BGGCollectionItem;
+    expansions: BGGCollectionItem[];
+}
+
+// Normalize game name by removing edition info, years, articles, and standardizing separators
+function normalizeGameName(name: string): string {
+    return name
+        .toLowerCase()
+        // Normalize unicode dashes to regular hyphen
+        .replace(/[\u2013\u2014\u2015]/g, '-')
+        // Remove common edition suffixes in parentheses
+        .replace(/\s*\([^)]*edition[^)]*\)/gi, '')
+        .replace(/\s*\([^)]*anniversary[^)]*\)/gi, '')
+        .replace(/\s*\([^)]*revised[^)]*\)/gi, '')
+        .replace(/\s*\([^)]*second[^)]*\)/gi, '')
+        .replace(/\s*\([^)]*third[^)]*\)/gi, '')
+        // Remove year in parentheses like (2020)
+        .replace(/\s*\(\d{4}\)/g, '')
+        // Remove leading "The" article
+        .replace(/^the\s+/i, '')
+        // Normalize multiple spaces to single space
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Extract the base name from an expansion (part before separator)
+function extractBaseName(name: string): string {
+    // Normalize unicode dashes first
+    const normalized = name.replace(/[\u2013\u2014\u2015]/g, '-');
+    // Split on common separators: colon, hyphen with spaces
+    const parts = normalized.split(/\s*[:]\s*|\s+[-]\s+/);
+    return parts[0].trim();
+}
+
+// Check if an expansion name matches a base game
+function expansionMatchesGame(expName: string, gameName: string): boolean {
+    // Normalize both names
+    const gameNormalized = normalizeGameName(gameName);
+    const expNormalized = normalizeGameName(expName);
+
+    // Get the base part of the expansion name (before any separator)
+    const expBasePart = normalizeGameName(extractBaseName(expName));
+
+    // If the expansion's base part matches the game's normalized name, it's a match
+    // But only if the expansion has more than just the base part (has a separator)
+    if (expBasePart === gameNormalized && expNormalized !== expBasePart) {
+        return true;
+    }
+
+    // Also check if expansion starts with the game name followed by a separator
+    if (expNormalized.startsWith(gameNormalized + ':') ||
+        expNormalized.startsWith(gameNormalized + ' -')) {
+        return true;
+    }
+
+    return false;
+}
+
+export async function fetchUserCollection(username: string): Promise<{ success: boolean; data: BGGCollectionItem[]; expansions: BGGCollectionItem[]; grouped: GameWithExpansions[]; error?: string }> {
     console.log('[Import] fetchUserCollection started for:', username);
     try {
         const token = await getBggToken();
         console.log('[Import] Token resolution:', token ? 'Found' : 'Missing', token ? `(Length: ${token.length})` : '');
 
         if (!token) {
-            return { success: false, data: [], error: 'BGG API Token not found. Please add it in Settings.' };
+            return { success: false, data: [], expansions: [], grouped: [], error: 'BGG API Token not found. Please add it in Settings.' };
         }
 
         console.log('[Import] Calling getUserCollection...');
-        const data = await getUserCollection(username, token);
-        console.log('[Import] getUserCollection returned:', data.length, 'items');
-        return { success: true, data };
+        const [baseGames, expansions] = await Promise.all([
+            getUserCollection(username, token),
+            getUserExpansions(username, token)
+        ]);
+        console.log('[Import] getUserCollection returned:', baseGames.length, 'base games and', expansions.length, 'expansions');
+
+        // Group expansions under their base games by name matching
+        // Debug: log some examples
+        console.log('[Import] Sample base games:', baseGames.slice(0, 5).map(g => g.name));
+        console.log('[Import] Sample expansions:', expansions.slice(0, 5).map(e => e.name));
+
+        const grouped: GameWithExpansions[] = baseGames.map(game => {
+            const gameExpansions = expansions.filter(exp => {
+                const matches = expansionMatchesGame(exp.name, game.name);
+                if (exp.name.toLowerCase().includes('cosmic') || exp.name.toLowerCase().includes('quacks')) {
+                    console.log(`[Import] Matching "${exp.name}" with "${game.name}" => ${matches}`);
+                }
+                return matches;
+            });
+            return { game, expansions: gameExpansions };
+        });
+
+        // Find orphan expansions (don't match any base game)
+        const matchedExpansionIds = new Set(grouped.flatMap(g => g.expansions.map(e => e.id)));
+        const orphanExpansions = expansions.filter(exp => !matchedExpansionIds.has(exp.id));
+
+        // Add orphan expansions as standalone items
+        orphanExpansions.forEach(exp => {
+            grouped.push({ game: exp, expansions: [] });
+        });
+
+        return { success: true, data: baseGames, expansions, grouped };
     } catch (error) {
         console.error('[Import] Failed to fetch collection:', error);
         if (error instanceof Error) {
             console.error('[Import] Error message:', error.message);
             if (error.message === 'Unauthorized') {
-                return { success: false, data: [], error: 'Unauthorized: Invalid BGG API Token. Please check Settings.' };
+                return { success: false, data: [], expansions: [], grouped: [], error: 'Unauthorized: Invalid BGG API Token. Please check Settings.' };
             }
         }
-        return { success: false, data: [], error: 'Failed to fetch collection from BGG: ' + (error instanceof Error ? error.message : String(error)) };
+        return { success: false, data: [], expansions: [], grouped: [], error: 'Failed to fetch collection from BGG: ' + (error instanceof Error ? error.message : String(error)) };
     }
 }
 
@@ -106,11 +194,7 @@ export async function importGames(games: BGGCollectionItem[]): Promise<{ success
     }
 }
 
-// Helper to determine game type (heuristic)
+// Helper to determine game type
 function determineGameType(game: BGGCollectionItem): 'standalone' | 'expansion' {
-    // Just a basic heuristic. Ideally we'd check 'subtype' from BGG if we asked for it, 
-    // but the collection fetch filtered out expansions unless we specifically asked.
-    // However, user might want to import things that are technically expansions but act as games.
-    // For now, default to standalone as we filtered `excludesubtype=boardgameexpansion` in the fetch.
-    return 'standalone';
+    return game.isExpansion ? 'expansion' : 'standalone';
 }

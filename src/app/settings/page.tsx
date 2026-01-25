@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { Link2, Check, AlertCircle, Dice5, Download, Loader2 } from 'lucide-react';
+import { Link2, Check, AlertCircle, Dice5, Download, Loader2, Trash2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -17,6 +17,9 @@ export default function SettingsPage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
 
   const supabase = createClient();
 
@@ -156,6 +159,54 @@ export default function SettingsPage() {
     setIsExporting(false);
   };
 
+  const handleResetData = async () => {
+    if (resetConfirmText !== 'DELETE') return;
+
+    setIsResetting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Get user's group
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!membership) throw new Error('No group found');
+
+      // Delete all sessions from the group (cascades to session_players and session_expansions)
+      const { error: sessionsError } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('group_id', membership.group_id);
+
+      if (sessionsError) throw sessionsError;
+
+      // Delete all games (they're global but we want a clean slate)
+      const { error: gamesError } = await supabase
+        .from('games')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all (dummy condition)
+
+      if (gamesError) {
+        console.warn('Could not delete games (may need admin):', gamesError);
+      }
+
+      setSaveMessage('All data has been reset successfully!');
+      setSaveStatus('success');
+      setShowResetConfirm(false);
+      setResetConfirmText('');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error) {
+      console.error('Reset error:', error);
+      setSaveMessage('Failed to reset data');
+      setSaveStatus('error');
+    }
+    setIsResetting(false);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-8 max-w-4xl">
@@ -271,7 +322,91 @@ export default function SettingsPage() {
             </Link>
           </div>
         </Card>
+
+        {/* Danger Zone */}
+        <Card variant="glass" className="border-red-500/30">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="p-3 rounded-xl bg-red-500/20">
+              <Trash2 className="h-6 w-6 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-red-400">Danger Zone</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Irreversible actions. Be careful!
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+            <h3 className="font-medium text-slate-200 mb-2">Reset All Data</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Delete all sessions and games from your library. This cannot be undone.
+            </p>
+            <Button
+              variant="secondary"
+              className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+              onClick={() => setShowResetConfirm(true)}
+              leftIcon={<Trash2 className="h-4 w-4" />}
+            >
+              Reset All Data
+            </Button>
+          </div>
+        </Card>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowResetConfirm(false)}
+          />
+          <Card variant="glass" className="relative z-10 w-full max-w-md border-red-500/30">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-red-400">Confirm Reset</h2>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="p-2 rounded-lg hover:bg-slate-800 text-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-slate-300 mb-4">
+              This will permanently delete all your sessions and games. This action cannot be undone.
+            </p>
+            <p className="text-sm text-slate-400 mb-2">
+              Type <span className="font-mono text-red-400">DELETE</span> to confirm:
+            </p>
+            <Input
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="Type DELETE"
+              className="mb-4"
+            />
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  setResetConfirmText('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                onClick={handleResetData}
+                disabled={resetConfirmText !== 'DELETE' || isResetting}
+                leftIcon={isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              >
+                {isResetting ? 'Resetting...' : 'Reset All'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </AppLayout>
   );
 }

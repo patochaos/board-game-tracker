@@ -141,6 +141,72 @@ export async function getGameDetails(bggId: number, token?: string): Promise<BGG
     }
 }
 
+export async function getUserExpansions(username: string, token?: string): Promise<BGGCollectionItem[]> {
+    const url = `${BGG_API_BASE}/collection?username=${encodeURIComponent(username)}&own=1&stats=1&subtype=boardgameexpansion`;
+
+    try {
+        let attempts = 0;
+        let response: Response;
+
+        do {
+            response = await rateLimitedFetch(url, token);
+
+            if (response.status === 401) {
+                throw new Error('Unauthorized');
+            }
+
+            if (response.status === 202) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                attempts++;
+            }
+        } while (response.status === 202 && attempts < 5);
+
+        if (!response.ok) {
+            return [];
+        }
+
+        const xml = await response.text();
+        const result = parser.parse(xml);
+
+        if (!result.items || !result.items.item) {
+            return [];
+        }
+
+        const items = Array.isArray(result.items.item)
+            ? result.items.item
+            : [result.items.item];
+
+        return items.map((item: any) => ({
+            id: parseInt(item['@_objectid']),
+            name: item.name?.['#text'] || item.name || 'Unknown',
+            yearPublished: item.yearpublished
+                ? parseInt(item.yearpublished)
+                : null,
+            image: item.image || null,
+            thumbnail: item.thumbnail || null,
+            numPlays: item.numplays ? parseInt(item.numplays) : 0,
+            owned: item.status?.['@_own'] === '1',
+            minPlayers: item.stats?.['@_minplayers']
+                ? parseInt(item.stats['@_minplayers'])
+                : null,
+            maxPlayers: item.stats?.['@_maxplayers']
+                ? parseInt(item.stats['@_maxplayers'])
+                : null,
+            playingTime: item.stats?.['@_playingtime']
+                ? parseInt(item.stats['@_playingtime'])
+                : null,
+            rating: item.stats?.rating?.average?.['@_value']
+                ? parseFloat(item.stats.rating.average['@_value'])
+                : null,
+            isExpansion: true,
+        }));
+    } catch (error) {
+        console.error('Error fetching BGG expansions:', error);
+        if (error instanceof Error && error.message === 'Unauthorized') throw error;
+        return [];
+    }
+}
+
 export async function getUserCollection(username: string, token?: string): Promise<BGGCollectionItem[]> {
     const url = `${BGG_API_BASE}/collection?username=${encodeURIComponent(username)}&own=1&stats=1&excludesubtype=boardgameexpansion`;
 

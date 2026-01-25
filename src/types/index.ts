@@ -96,6 +96,7 @@ export interface BGGCollectionItem {
   maxPlayers: number | null;
   playingTime: number | null;
   rating: number | null;
+  isExpansion?: boolean;
 }
 
 // Stats types
