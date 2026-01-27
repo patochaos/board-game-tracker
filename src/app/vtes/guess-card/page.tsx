@@ -179,6 +179,13 @@ export default function GuessCardPage() {
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [lastPoints, setLastPoints] = useState(0);
 
+  // Ranked Mode State
+  const [gameMode, setGameMode] = useState<'normal' | 'ranked' | null>('normal');
+  const [rankedPlaylist, setRankedPlaylist] = useState<CardData[]>([]);
+  const [rankedCardIndex, setRankedCardIndex] = useState(0);
+  const [rankedScore, setRankedScore] = useState(0);
+  const [showFinalScore, setShowFinalScore] = useState(false);
+
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
   const progressRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -281,6 +288,89 @@ export default function GuessCardPage() {
     }
   }, []);
 
+  // Ranked Mode Helper Functions
+  const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, []);
+
+  const generatePhaseCards = useCallback((difficulty: number, count: number, data: GameData): CardData[] => {
+    const libraryCount = Math.round(count * 0.8);
+    const cryptCount = count - libraryCount;
+
+    const libraryPool = data.library.filter(c => c.difficulty === difficulty);
+    const cryptPool = data.crypt.filter(c => c.difficulty === difficulty);
+
+    const selectedLibrary = shuffleArray(libraryPool).slice(0, libraryCount);
+    const selectedCrypt = shuffleArray(cryptPool).slice(0, cryptCount);
+
+    return shuffleArray([...selectedLibrary, ...selectedCrypt]);
+  }, [shuffleArray]);
+
+  const generateRankedPlaylist = useCallback((data: GameData): CardData[] => {
+    const playlist: CardData[] = [];
+
+    // Phase 1: 8 cards, Level 1
+    playlist.push(...generatePhaseCards(1, 8, data));
+
+    // Phase 2: 7 cards, Level 2
+    playlist.push(...generatePhaseCards(2, 7, data));
+
+    // Phase 3: 4 cards, Level 3
+    playlist.push(...generatePhaseCards(3, 4, data));
+
+    // Phase 4: 1 card, Level 4
+    playlist.push(...generatePhaseCards(4, 1, data));
+
+    return playlist;
+  }, [generatePhaseCards]);
+
+  const getRankedCardValue = useCallback((difficulty: number): number => {
+    const values: Record<number, number> = { 1: 2, 2: 5, 3: 10, 4: 20 };
+    return values[difficulty] || 0;
+  }, []);
+
+  const getRankedHintCost = useCallback((difficulty: number): number => {
+    return Math.round(getRankedCardValue(difficulty) * 0.5);
+  }, [getRankedCardValue]);
+
+  const startRankedGame = useCallback(() => {
+    if (!gameData) return;
+    const playlist = generateRankedPlaylist(gameData);
+    setRankedPlaylist(playlist);
+    setRankedCardIndex(0);
+    setRankedScore(0);
+    setShowFinalScore(false);
+    setGameMode('ranked');
+
+    // Load first card
+    if (playlist[0]) {
+      setCurrentCard(playlist[0]);
+      fetchCardDetails(playlist[0].name, playlist[0]);
+    }
+  }, [gameData, generateRankedPlaylist, fetchCardDetails]);
+
+  const resetRankedGame = useCallback(() => {
+    startRankedGame();
+    setRevealed(false);
+    setGuess('');
+    setResult(null);
+    setShowInitials(false);
+  }, [startRankedGame]);
+
+  const startNormalGame = useCallback(() => {
+    setGameMode('normal');
+    setShowFinalScore(false);
+    // Reset to normal mode defaults
+    setSelectedDifficulty(1);
+    setCardType('library');
+  }, []);
+
+
   // Start game
   useEffect(() => {
     if (gameData && !currentCard) {
@@ -330,12 +420,29 @@ export default function GuessCardPage() {
     if (progressRef.current) clearInterval(progressRef.current);
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
 
-    const card = pickRandomCard();
-    if (card) {
-      setCurrentCard(card);
-      setCardDetails(null);
-      fetchCardDetails(card.name, card);
+    if (gameMode === 'ranked') {
+      // Ranked mode: Load next card from playlist
+      const nextIndex = rankedCardIndex + 1;
+      if (nextIndex < rankedPlaylist.length) {
+        const card = rankedPlaylist[nextIndex];
+        setRankedCardIndex(nextIndex);
+        setCurrentCard(card);
+        setCardDetails(null);
+        fetchCardDetails(card.name, card);
+      } else if (nextIndex === rankedPlaylist.length) {
+        // Game complete
+        setShowFinalScore(true);
+      }
+    } else {
+      // Normal mode: Pick random card
+      const card = pickRandomCard();
+      if (card) {
+        setCurrentCard(card);
+        setCardDetails(null);
+        fetchCardDetails(card.name, card);
+      }
     }
+
     setRevealed(false);
     setGuess('');
     setResult(null);
@@ -344,7 +451,7 @@ export default function GuessCardPage() {
     setAutoAdvanceProgress(0);
     setShowLargeCard(false);
     setShowInitials(false);
-  }, [pickRandomCard, fetchCardDetails]);
+  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails]);
 
   const revealNextHint = () => {
     if (hintsRevealed < MAX_HINTS) {
@@ -358,20 +465,32 @@ export default function GuessCardPage() {
     setTotalPlayed(prev => prev + 1);
 
     if (isCorrectGuess(guess, currentCard.name)) {
-      const newStreak = streak + 1;
-      const points = calculateScore(hintsRevealed, showInitials, newStreak, selectedDifficulty);
-
       setResult('correct');
       setRevealed(true);
-      setStreak(newStreak);
-      setBestStreak(prev => Math.max(prev, newStreak));
       setTotalCorrect(prev => prev + 1);
-      setScore(prev => prev + points);
-      setLastPoints(points);
+
+      if (gameMode === 'ranked') {
+        // Ranked mode scoring
+        const cardValue = getRankedCardValue(currentCard.difficulty);
+        const hintPenalty = showInitials ? getRankedHintCost(currentCard.difficulty) : 0;
+        const points = Math.max(0, cardValue - hintPenalty);
+        setRankedScore(prev => prev + points);
+        setLastPoints(points);
+      } else {
+        // Normal mode scoring
+        const newStreak = streak + 1;
+        const points = calculateScore(hintsRevealed, showInitials, newStreak, selectedDifficulty);
+        setStreak(newStreak);
+        setBestStreak(prev => Math.max(prev, newStreak));
+        setScore(prev => prev + points);
+        setLastPoints(points);
+      }
     } else {
       setResult('incorrect');
       setRevealed(true);
-      setStreak(0);
+      if (gameMode !== 'ranked') {
+        setStreak(0);
+      }
     }
   };
 
@@ -473,6 +592,68 @@ export default function GuessCardPage() {
         background: 'radial-gradient(ellipse at center, transparent 0%, rgba(10, 10, 15, 0.4) 100%)'
       }} />
 
+      {/* Ranked Game Completion Message */}
+      {showFinalScore && gameMode === 'ranked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(10, 10, 15, 0.95)' }}>
+          <div className="max-w-md w-full p-8 rounded-2xl border-2 text-center" style={{
+            backgroundColor: 'var(--vtes-bg-secondary)',
+            borderColor: 'var(--vtes-gold)',
+            boxShadow: 'var(--glow-gold)'
+          }}>
+            <h2 className="text-4xl font-bold mb-2" style={{
+              fontFamily: 'var(--vtes-font-display)',
+              color: 'var(--vtes-gold)'
+            }}>
+              🏆 Ranked Complete!
+            </h2>
+            <p className="text-6xl font-bold my-6" style={{ color: 'var(--vtes-blood)' }}>
+              {rankedScore}
+            </p>
+            <p className="text-sm mb-6" style={{ color: 'var(--vtes-text-muted)' }}>
+              Final Score
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={resetRankedGame}
+                className="px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--vtes-burgundy)',
+                  color: 'var(--vtes-gold)',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)'
+                }}
+              >
+                Play Again
+              </button>
+              <button
+                onClick={() => {
+                  startNormalGame();
+                  setShowFinalScore(false);
+                  const card = pickRandomCard();
+                  if (card) {
+                    setCurrentCard(card);
+                    fetchCardDetails(card.name, card);
+                  }
+                }}
+                className="px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  color: 'var(--vtes-text-muted)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--vtes-burgundy-dark)',
+                  fontFamily: 'var(--vtes-font-body)'
+                }}
+              >
+                Normal Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-md mx-auto relative z-10">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
@@ -485,81 +666,136 @@ export default function GuessCardPage() {
               Guess the Card
             </h1>
             <div className="h-0.5 w-16 bg-gradient-to-r from-[var(--vtes-gold)] to-transparent" />
-            <p className="text-xs mt-1" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
-          </div>
-          <div className="flex gap-2 text-center">
-            <div className="px-3 py-2 rounded-lg border" style={{
-              backgroundColor: 'var(--vtes-bg-tertiary)',
-              borderColor: 'var(--vtes-burgundy-dark)'
-            }}>
-              <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{streak}</p>
-              <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
-            </div>
-            <div className="px-3 py-2 rounded-lg border" style={{
-              backgroundColor: 'var(--vtes-bg-tertiary)',
-              borderColor: 'var(--vtes-burgundy-dark)'
-            }}>
-              <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{score}</p>
-              <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Difficulty selector */}
-        <div className="mb-5">
-          <div className="flex gap-2 justify-center flex-wrap">
-            {[1, 2, 3, 4, 5, 6].map(diff => {
-              const info = difficultyLabels[diff];
-              const isSelected = selectedDifficulty === diff;
-              return (
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
+              {gameMode && (
                 <button
-                  key={diff}
-                  onClick={() => changeDifficulty(diff)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                  onClick={() => {
+                    if (gameMode === 'normal') {
+                      startRankedGame();
+                    } else {
+                      startNormalGame();
+                      const card = pickRandomCard();
+                      if (card) {
+                        setCurrentCard(card);
+                        fetchCardDetails(card.name, card);
+                      }
+                    }
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded transition-all duration-200"
                   style={{
-                    backgroundColor: isSelected ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
-                    color: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-text-muted)',
+                    backgroundColor: gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-bg-tertiary)',
+                    color: gameMode === 'ranked' ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
                     borderWidth: '1px',
                     borderStyle: 'solid',
-                    borderColor: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
-                    boxShadow: isSelected ? 'var(--glow-gold)' : 'none',
+                    borderColor: gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-burgundy-dark)',
                     fontFamily: 'var(--vtes-font-body)'
                   }}
                 >
-                  {info.name}
+                  {gameMode === 'ranked' ? '🏆 RANKED' : 'Normal'}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 text-center">
+            {gameMode === 'ranked' ? (
+              // Ranked Mode: Show Progress and Score
+              <>
+                <div className="px-3 py-2 rounded-lg border" style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  borderColor: 'var(--vtes-blood)'
+                }}>
+                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{rankedCardIndex + 1}/20</p>
+                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Progress</p>
+                </div>
+                <div className="px-3 py-2 rounded-lg border" style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  borderColor: 'var(--vtes-gold)'
+                }}>
+                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{rankedScore}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
+                </div>
+              </>
+            ) : (
+              // Normal Mode: Show Streak and Score
+              <>
+                <div className="px-3 py-2 rounded-lg border" style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  borderColor: 'var(--vtes-burgundy-dark)'
+                }}>
+                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{streak}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
+                </div>
+                <div className="px-3 py-2 rounded-lg border" style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  borderColor: 'var(--vtes-burgundy-dark)'
+                }}>
+                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{score}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Difficulty selector - Hidden in Ranked Mode */}
+        {gameMode === 'normal' && (
+          <div className="mb-5">
+            <div className="flex gap-2 justify-center flex-wrap">
+              {[1, 2, 3, 4, 5, 6].map(diff => {
+                const info = difficultyLabels[diff];
+                const isSelected = selectedDifficulty === diff;
+                return (
+                  <button
+                    key={diff}
+                    onClick={() => changeDifficulty(diff)}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                    style={{
+                      backgroundColor: isSelected ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
+                      color: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-text-muted)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
+                      boxShadow: isSelected ? 'var(--glow-gold)' : 'none',
+                      fontFamily: 'var(--vtes-font-body)'
+                    }}
+                  >
+                    {info.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-center text-[10px] mt-2" style={{ color: 'var(--vtes-text-dim)' }}>
+              {diffInfo.description} • {filteredCardsCount} cards
+            </p>
+          </div>
+        )}
+
+        {/* Card type selector - Hidden in Ranked Mode */}
+        {gameMode === 'normal' && (
+          <div className="flex gap-2 justify-center mb-6">
+            {(['library', 'crypt', 'all'] as const).map(type => {
+              const isSelected = cardType === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => { setCardType(type); setCurrentCard(null); setShowInitials(false); }}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                  style={{
+                    backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
+                    color: isSelected ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: isSelected ? 'var(--vtes-blood)' : 'transparent',
+                    fontFamily: 'var(--vtes-font-body)'
+                  }}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
                 </button>
               );
             })}
           </div>
-          <p className="text-center text-[10px] mt-2" style={{ color: 'var(--vtes-text-dim)' }}>
-            {diffInfo.description} • {filteredCardsCount} cards
-          </p>
-        </div>
-
-        {/* Card type selector */}
-        <div className="flex gap-2 justify-center mb-6">
-          {(['library', 'crypt', 'all'] as const).map(type => {
-            const isSelected = cardType === type;
-            return (
-              <button
-                key={type}
-                onClick={() => { setCardType(type); setCurrentCard(null); setShowInitials(false); }}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-                style={{
-                  backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
-                  color: isSelected ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: isSelected ? 'var(--vtes-blood)' : 'transparent',
-                  fontFamily: 'var(--vtes-font-body)'
-                }}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </button>
-            );
-          })}
-        </div>
-
+        )}
 
 
         {/* Progress bar */}
