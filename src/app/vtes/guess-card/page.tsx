@@ -241,13 +241,24 @@ export default function GuessCardPage() {
       const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(cardName)}`);
       if (response.ok) {
         const data = await response.json();
+
+        // Extract sect from card_text for crypt cards
+        let sect = undefined;
+        if (data.card_text && card.capacity !== undefined) {
+          const knownSects = ['Camarilla', 'Sabbat', 'Laibon', 'Independent', 'Anarch'];
+          const firstWord = data.card_text.split(/[\s:]/)[0];
+          if (knownSects.includes(firstWord)) {
+            sect = firstWord;
+          }
+        }
+
         const details: CardDetails = {
           name: data.name || cardName,
           slug: data.id ? String(data.id) : card.slug,
           type: data.types?.join(', '),
           disciplines: data.disciplines || card.disciplines || [],
           clan: data.clans?.[0] || card.clan,
-          sect: data.sect,
+          sect: sect,
           title: data.title,
           firstSet: data.ordered_sets?.[0],
           poolCost: data.pool_cost,
