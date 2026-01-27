@@ -57,45 +57,52 @@ const difficultyLabels: Record<number, { name: string; color: string; descriptio
 };
 
 // Normalize string for comparison
-function normalizeString(str: string): string {
-  return str
+function normalizeString(str: string, aggressive = false): string {
+  let normalized = str
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, '')
     .trim();
+
+  if (aggressive) {
+    // Remove common stop words and all spaces
+    normalized = normalized
+      .replace(/\b(the|and|of|a|an)\b/g, '')
+      .replace(/\s+/g, '');
+  }
+  return normalized;
 }
 
 // Check if guess matches the card (with fuzzy tolerance)
 function isCorrectGuess(guess: string, cardName: string): boolean {
+  if (!guess) return false;
+
   const normalizedGuess = normalizeString(guess);
   const normalizedAnswer = normalizeString(cardName);
 
-  // Exact match (normalized)
+  // 1. Exact match (normalized)
   if (normalizedGuess === normalizedAnswer) return true;
 
-  // For pattern matching, use lowercase original (keeps parentheses intact)
+  // 2. Super aggressive match (ignore stop words and spaces)
+  if (normalizeString(guess, true) === normalizeString(cardName, true)) return true;
+
   const lowerCardName = cardName.toLowerCase();
 
-  // Match without group notation: "Anson" should match "Anson (G1)"
+  // 3. Match without group notation: "Anson" should match "Anson (G1)"
   const baseNameMatch = lowerCardName.match(/^(.+?)\s*\(g\d+\)$/i);
   if (baseNameMatch) {
-    const baseName = normalizeString(baseNameMatch[1]);
-    if (normalizedGuess === baseName) return true;
+    const baseName = baseNameMatch[1];
+    if (normalizedGuess === normalizeString(baseName)) return true;
+    if (normalizeString(guess, true) === normalizeString(baseName, true)) return true;
   }
 
-  // Match without "The" prefix: "Unmasking" should match "The Unmasking"
-  const withoutThe = normalizedAnswer.replace(/^the\s+/, '');
-  if (normalizedGuess === withoutThe) return true;
-
-  const guessWithoutThe = normalizedGuess.replace(/^the\s+/, '');
-  if (guessWithoutThe === normalizedAnswer) return true;
-
-  // Match Advanced vampires: "Ankha" should match "Ankha (ADV)"
+  // 4. Match Advanced vampires: "Ankha" should match "Ankha (ADV)"
   const advMatch = lowerCardName.match(/^(.+?)\s*\(.*adv.*\)$/i);
   if (advMatch) {
-    const baseName = normalizeString(advMatch[1]);
-    if (normalizedGuess === baseName) return true;
+    const baseName = advMatch[1];
+    if (normalizedGuess === normalizeString(baseName)) return true;
+    if (normalizeString(guess, true) === normalizeString(baseName, true)) return true;
   }
 
   return false;
