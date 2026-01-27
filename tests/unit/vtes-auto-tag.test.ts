@@ -44,7 +44,7 @@ describe('autoTagDeck', () => {
         const deck = [
             { quantity: 10, card: mockCard(1, 'Kine', ['Political Action'], 'Vote') },
             { quantity: 5, card: mockCard(2, 'Con Boon', ['Political Action'], 'Vote') },
-            { quantity: 20, card: mockCard(3, 'Vamp', ['Vampire'], '', ['pre'], ['Justicar']) },
+            { quantity: 20, card: mockCard(3, 'Vamp', ['Vampire'], '', ['pre']) },
         ];
         // Total Lib: 15. Vote: 15 (100%).
         expect(autoTagDeck(deck)).toContain('Vote');

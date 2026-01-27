@@ -264,7 +264,7 @@ CREATE INDEX IF NOT EXISTS idx_games_bgg_id ON public.games(bgg_id);
 -- =====================================================
 
 -- Player stats view
-CREATE OR REPLACE VIEW public.player_stats AS
+CREATE OR REPLACE VIEW public.player_stats WITH (security_invoker = true) AS
 SELECT 
   sp.user_id,
   p.username,
@@ -283,7 +283,7 @@ JOIN public.profiles p ON sp.user_id = p.id
 GROUP BY sp.user_id, p.username, p.display_name, p.avatar_url;
 
 -- Game stats view
-CREATE OR REPLACE VIEW public.game_stats AS
+CREATE OR REPLACE VIEW public.game_stats WITH (security_invoker = true) AS
 SELECT 
   g.id as game_id,
   g.name,

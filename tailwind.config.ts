@@ -44,6 +44,7 @@ const config: Config = {
       fontFamily: {
         display: ['var(--font-display)', 'system-ui', 'sans-serif'],
         body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        vtes: ['var(--font-vtes)', 'serif'],
       },
       backgroundImage: {
         'noise': "url('/noise.svg')",
