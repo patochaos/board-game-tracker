@@ -58,6 +58,7 @@ const difficultyLabels: Record<number, { name: string; color: string; descriptio
 
 // Normalize string for comparison
 function normalizeString(str: string, aggressive = false): string {
+  if (!str) return '';
   let normalized = str
     .toLowerCase()
     .normalize('NFD')
@@ -76,7 +77,7 @@ function normalizeString(str: string, aggressive = false): string {
 
 // Check if guess matches the card (with fuzzy tolerance)
 function isCorrectGuess(guess: string, cardName: string): boolean {
-  if (!guess) return false;
+  if (!guess || !cardName) return false;
 
   const normalizedGuess = normalizeString(guess);
   const normalizedAnswer = normalizeString(cardName);
@@ -109,14 +110,17 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
 }
 
 // Score calculation (adjusted for hints used)
-function calculateScore(hintsUsed: number, currentStreak: number, difficulty: number): number {
+function calculateScore(hintsUsed: number, initialsUsed: boolean, currentStreak: number, difficulty: number): number {
   const baseByDifficulty: Record<number, number> = {
     1: 20, 2: 50, 3: 100, 4: 150, 5: 250, 6: 400
   };
   let base = baseByDifficulty[difficulty] || 100;
 
   // Reduce score based on hints used
-  base = Math.max(base - (hintsUsed * 10), 10);
+  base = base - (hintsUsed * 10);
+  if (initialsUsed) base = base - 25; // More severe penalty for initials
+
+  base = Math.max(base, 10);
 
   let multiplier = 1;
   if (currentStreak >= 10) multiplier = 3;
@@ -146,6 +150,22 @@ export default function GuessCardPage() {
   const [hintsRevealed, setHintsRevealed] = useState(0); // 0-4 hints revealed
   const [showLargeCard, setShowLargeCard] = useState(false);
   const [autoAdvanceProgress, setAutoAdvanceProgress] = useState(0);
+  const [showInitials, setShowInitials] = useState(false);
+
+  // Helper to generate initials hint
+  const generateInitialsHint = useCallback((name: string) => {
+    if (!name) return '';
+    const prepositions = ['the', 'of', 'and', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'to'];
+    return name.split(' ').map(word => {
+      if (!word) return '';
+      // Clean word for check (ignore punctuation)
+      const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (prepositions.includes(cleanWord)) {
+        return '.'.repeat(word.length);
+      }
+      return word[0] + '.'.repeat(Math.max(0, word.length - 1));
+    }).join(' ');
+  }, []);
 
   // Stats
   const [streak, setStreak] = useState(0);
@@ -160,22 +180,27 @@ export default function GuessCardPage() {
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create Fuse instance for fuzzy search
-  const fuse = useMemo(() => {
-    if (!gameData) return null;
-    const allCards = [...gameData.crypt, ...gameData.library];
-    return new Fuse(allCards, {
-      keys: ['name'],
-      threshold: 0.4,
-      includeScore: true,
-    });
-  }, [gameData]);
+  // TEMPORARILY DISABLED TO DEBUG HANG
+  const fuse = null;
+  // const fuse = useMemo(() => {
+  //   if (!gameData) return null;
+  //   const allCards = [...gameData.crypt, ...gameData.library];
+  //   return new Fuse(allCards, {
+  //     keys: ['name'],
+  //     threshold: 0.4,
+  //     includeScore: true,
+  //   });
+  // }, [gameData]);
 
   // Load game data
   useEffect(() => {
     async function loadGameData() {
+      console.log('Fetching game data...');
       try {
         const response = await fetch('/vtes_guess_data.json');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: GameData = await response.json();
+        console.log('Game data loaded:', data.metadata);
         setGameData(data);
         setLoading(false);
       } catch (error) {
@@ -301,6 +326,7 @@ export default function GuessCardPage() {
     setLastPoints(0);
     setAutoAdvanceProgress(0);
     setShowLargeCard(false);
+    setShowInitials(false);
   }, [pickRandomCard, fetchCardDetails]);
 
   const revealNextHint = () => {
@@ -316,7 +342,7 @@ export default function GuessCardPage() {
 
     if (isCorrectGuess(guess, currentCard.name)) {
       const newStreak = streak + 1;
-      const points = calculateScore(hintsRevealed, newStreak, selectedDifficulty);
+      const points = calculateScore(hintsRevealed, showInitials, newStreak, selectedDifficulty);
 
       setResult('correct');
       setRevealed(true);
@@ -416,64 +442,105 @@ export default function GuessCardPage() {
   const hasMoreHints = hintsRevealed < hintContent.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 p-4 sm:p-8">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen p-4 sm:p-8 relative" style={{
+      background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)',
+      fontFamily: 'var(--vtes-font-body)'
+    }}>
+      {/* Grain texture overlay */}
+      <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+      }} />
+
+      {/* Vignette */}
+      <div className="fixed inset-0 pointer-events-none z-0" style={{
+        background: 'radial-gradient(ellipse at center, transparent 0%, rgba(10, 10, 15, 0.4) 100%)'
+      }} />
+
+      <div className="max-w-md mx-auto relative z-10">
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-xl font-bold text-white">Guess the Card</h1>
-            <p className="text-slate-500 text-xs">VTES Edition</p>
+        <div className="flex justify-between items-start mb-6">
+          <div className="relative">
+            <h1 className="text-3xl font-bold mb-1" style={{
+              fontFamily: 'var(--vtes-font-display)',
+              color: 'var(--vtes-text-primary)',
+              textShadow: '0 2px 10px rgba(0,0,0,0.5)'
+            }}>
+              Guess the Card
+            </h1>
+            <div className="h-0.5 w-16 bg-gradient-to-r from-[var(--vtes-gold)] to-transparent" />
+            <p className="text-xs mt-1" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
           </div>
           <div className="flex gap-2 text-center">
-            <div className="bg-slate-800/50 px-2 py-1 rounded-lg">
-              <p className="text-lg font-bold text-amber-500">{streak}</p>
-              <p className="text-[10px] text-slate-500">Streak</p>
+            <div className="px-3 py-2 rounded-lg border" style={{
+              backgroundColor: 'var(--vtes-bg-tertiary)',
+              borderColor: 'var(--vtes-burgundy-dark)'
+            }}>
+              <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{streak}</p>
+              <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
             </div>
-            <div className="bg-slate-800/50 px-2 py-1 rounded-lg">
-              <p className="text-lg font-bold text-green-500">{score}</p>
-              <p className="text-[10px] text-slate-500">Score</p>
+            <div className="px-3 py-2 rounded-lg border" style={{
+              backgroundColor: 'var(--vtes-bg-tertiary)',
+              borderColor: 'var(--vtes-burgundy-dark)'
+            }}>
+              <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{score}</p>
+              <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
             </div>
           </div>
         </div>
 
         {/* Difficulty selector */}
-        <div className="mb-4">
-          <div className="flex gap-1 justify-center flex-wrap">
+        <div className="mb-5">
+          <div className="flex gap-2 justify-center flex-wrap">
             {[1, 2, 3, 4, 5, 6].map(diff => {
               const info = difficultyLabels[diff];
+              const isSelected = selectedDifficulty === diff;
               return (
                 <button
                   key={diff}
                   onClick={() => changeDifficulty(diff)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${selectedDifficulty === diff
-                    ? `${info.color} text-white`
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                    }`}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                  style={{
+                    backgroundColor: isSelected ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
+                    color: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-text-muted)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
+                    boxShadow: isSelected ? 'var(--glow-gold)' : 'none',
+                    fontFamily: 'var(--vtes-font-body)'
+                  }}
                 >
                   {info.name}
                 </button>
               );
             })}
           </div>
-          <p className="text-center text-slate-500 text-[10px] mt-1">
+          <p className="text-center text-[10px] mt-2" style={{ color: 'var(--vtes-text-dim)' }}>
             {diffInfo.description} • {filteredCardsCount} cards
           </p>
         </div>
 
         {/* Card type selector */}
-        <div className="flex gap-1 justify-center mb-4">
-          {(['library', 'crypt', 'all'] as const).map(type => (
-            <button
-              key={type}
-              onClick={() => { setCardType(type); setCurrentCard(null); }}
-              className={`px-3 py-1 rounded text-xs transition ${cardType === type
-                ? 'bg-amber-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-          ))}
+        <div className="flex gap-2 justify-center mb-6">
+          {(['library', 'crypt', 'all'] as const).map(type => {
+            const isSelected = cardType === type;
+            return (
+              <button
+                key={type}
+                onClick={() => { setCardType(type); setCurrentCard(null); }}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                style={{
+                  backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
+                  color: isSelected ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: isSelected ? 'var(--vtes-blood)' : 'transparent',
+                  fontFamily: 'var(--vtes-font-body)'
+                }}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            );
+          })}
         </div>
 
 
@@ -543,8 +610,8 @@ export default function GuessCardPage() {
                       </div>
                     )}
                     {cardDetails.poolCost && (
-                      <div className="flex items-center gap-1 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
-                        <div className="w-4 h-4 bg-amber-500 rotate-45" />
+                      <div className="flex items-center gap-1 bg-slate-700/40 px-2 py-0.5 rounded border border-slate-600/50">
+                        <div className="w-4 h-4 bg-white rotate-45" />
                         <span className="text-white font-bold text-lg ml-1">{cardDetails.poolCost}</span>
                       </div>
                     )}
@@ -634,6 +701,50 @@ export default function GuessCardPage() {
             )}
             */}
 
+            {/* Hint Section */}
+            {!revealed && (
+              <div className="flex flex-col items-center gap-3 mb-4">
+                {showInitials ? (
+                  <div className="px-5 py-3 rounded-lg border" style={{
+                    backgroundColor: 'var(--vtes-bg-tertiary)',
+                    borderColor: 'var(--vtes-gold)',
+                    boxShadow: 'var(--glow-gold)'
+                  }}>
+                    <p className="font-mono text-lg tracking-[0.2em] font-bold" style={{
+                      color: 'var(--vtes-gold)',
+                      fontFamily: 'var(--vtes-font-display)'
+                    }}>
+                      {generateInitialsHint(currentCard.name)}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowInitials(true)}
+                    className="text-xs uppercase tracking-wider flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200"
+                    style={{
+                      backgroundColor: 'var(--vtes-bg-secondary)',
+                      color: 'var(--vtes-text-muted)',
+                      borderColor: 'var(--vtes-gold-dark)',
+                      fontFamily: 'var(--vtes-font-body)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--vtes-gold)';
+                      e.currentTarget.style.color = 'var(--vtes-gold)';
+                      e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--vtes-gold-dark)';
+                      e.currentTarget.style.color = 'var(--vtes-text-muted)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <span>💡</span>
+                    <span>Mostrar Iniciales <span style={{ color: 'var(--vtes-gold-dark)' }}>(-25 pts)</span></span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Input */}
             <div className="flex gap-2">
               <input
@@ -647,14 +758,45 @@ export default function GuessCardPage() {
                 autoCapitalize="off"
                 spellCheck="false"
                 autoFocus
-                className="flex-1 px-4 py-3 rounded-xl bg-slate-800 text-white
-                  border-2 border-slate-700 focus:border-amber-500
-                  focus:outline-none placeholder:text-slate-600"
+                className="flex-1 px-4 py-3 rounded-xl transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--vtes-bg-tertiary)',
+                  color: 'var(--vtes-text-primary)',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--vtes-burgundy-dark)',
+                  fontFamily: 'var(--vtes-font-body)',
+                  outline: 'none'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--vtes-gold)';
+                  e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
               <button
                 onClick={skipCard}
-                className="px-3 py-3 bg-slate-700 hover:bg-slate-600 text-slate-400
-                  rounded-xl transition text-sm"
+                className="px-4 py-3 rounded-xl transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--vtes-bg-secondary)',
+                  color: 'var(--vtes-text-muted)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--vtes-burgundy-dark)',
+                  fontFamily: 'var(--vtes-font-body)',
+                  fontSize: '14px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--vtes-bg-tertiary)';
+                  e.currentTarget.style.color = 'var(--vtes-text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--vtes-bg-secondary)';
+                  e.currentTarget.style.color = 'var(--vtes-text-muted)';
+                }}
               >
                 Skip
               </button>
@@ -663,8 +805,31 @@ export default function GuessCardPage() {
             <button
               onClick={checkGuess}
               disabled={!guess.trim()}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700
-                disabled:cursor-not-allowed text-white font-semibold rounded-xl transition"
+              className="w-full py-3 font-semibold rounded-xl transition-all duration-200"
+              style={{
+                backgroundColor: guess.trim() ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
+                color: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-text-dim)',
+                borderWidth: '2px',
+                borderStyle: 'solid',
+                borderColor: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
+                boxShadow: guess.trim() ? 'var(--glow-gold)' : 'none',
+                cursor: guess.trim() ? 'pointer' : 'not-allowed',
+                fontFamily: 'var(--vtes-font-display)',
+                fontSize: '16px',
+                letterSpacing: '0.05em'
+              }}
+              onMouseEnter={(e) => {
+                if (guess.trim()) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(212, 175, 55, 0.5), 0 0 60px rgba(212, 175, 55, 0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                if (guess.trim()) {
+                  e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                }
+              }}
             >
               Submit Answer
             </button>

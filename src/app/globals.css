@@ -1,12 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  /* Original fonts for other pages */
   --font-display: 'Outfit', system-ui, sans-serif;
   --font-body: 'Space Grotesk', system-ui, sans-serif;
+  --font-vtes: 'Sorts Mill Goudy', serif;
+
+  /* Gothic Vampire Theme for VTES Guess Game */
+  --vtes-font-display: 'Crimson Pro', serif;
+  --vtes-font-body: 'Outfit', sans-serif;
+  --vtes-bg-primary: #0a0a0f;
+  --vtes-bg-secondary: #151520;
+  --vtes-bg-tertiary: #1a1a28;
+  --vtes-burgundy: #8b1538;
+  --vtes-burgundy-dark: #6b0f2a;
+  --vtes-blood: #dc143c;
+  --vtes-gold: #d4af37;
+  --vtes-gold-dark: #b8941f;
+  --vtes-text-primary: #f5f5f0;
+  --vtes-text-muted: #9a9a8f;
+  --vtes-text-dim: #6a6a5f;
+  --shadow-dramatic: 0 20px 60px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.7);
+  --glow-gold: 0 0 20px rgba(212, 175, 55, 0.3), 0 0 40px rgba(212, 175, 55, 0.1);
+  --glow-blood: 0 0 20px rgba(220, 20, 60, 0.4), 0 0 40px rgba(220, 20, 60, 0.2);
 }
 
 @layer base {
@@ -16,13 +37,18 @@
 
   body {
     @apply bg-slate-950 text-slate-100 font-body antialiased;
-    background-image: 
+    background-image:
       radial-gradient(ellipse at top, rgba(217, 139, 43, 0.05) 0%, transparent 50%),
       radial-gradient(ellipse at bottom right, rgba(22, 163, 45, 0.03) 0%, transparent 50%);
     min-height: 100vh;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-display font-bold tracking-tight;
   }
 
@@ -59,21 +85,15 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium 
-           transition-all duration-200 focus:outline-none focus:ring-2 
-           focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 
-           disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-primary {
-    @apply btn bg-gradient-to-r from-wood-500 to-wood-600 text-white 
-           hover:from-wood-400 hover:to-wood-500 focus:ring-wood-500
-           shadow-lg shadow-wood-500/20 hover:shadow-wood-500/40;
+    @apply btn bg-gradient-to-r from-wood-500 to-wood-600 text-white hover:from-wood-400 hover:to-wood-500 focus:ring-wood-500 shadow-lg shadow-wood-500/20 hover:shadow-wood-500/40;
   }
 
   .btn-secondary {
-    @apply btn bg-slate-800 text-slate-100 hover:bg-slate-700 
-           focus:ring-slate-500 border border-slate-700;
+    @apply btn bg-slate-800 text-slate-100 hover:bg-slate-700 focus:ring-slate-500 border border-slate-700;
   }
 
   .btn-ghost {
@@ -93,10 +113,7 @@
   }
 
   .input {
-    @apply w-full rounded-xl bg-slate-800/50 border border-slate-700 px-4 py-3
-           text-slate-100 placeholder:text-slate-500 
-           focus:outline-none focus:ring-2 focus:ring-wood-500/50 focus:border-wood-500
-           transition-all duration-200;
+    @apply w-full rounded-xl bg-slate-800/50 border border-slate-700 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-wood-500/50 focus:border-wood-500 transition-all duration-200;
   }
 
   .label {
@@ -104,9 +121,7 @@
   }
 
   .card-game {
-    @apply relative overflow-hidden rounded-2xl bg-slate-900/60 border border-slate-800
-           transition-all duration-300 hover:border-wood-500/50 hover:shadow-glow
-           cursor-pointer;
+    @apply relative overflow-hidden rounded-2xl bg-slate-900/60 border border-slate-800 transition-all duration-300 hover:border-wood-500/50 hover:shadow-glow cursor-pointer;
   }
 
   .stat-card {
@@ -115,8 +130,7 @@
 
   .stat-card::before {
     content: '';
-    @apply absolute inset-0 bg-gradient-to-br from-wood-500/5 to-transparent 
-           opacity-0 transition-opacity duration-300;
+    @apply absolute inset-0 bg-gradient-to-br from-wood-500/5 to-transparent opacity-0 transition-opacity duration-300;
   }
 
   .stat-card:hover::before {
@@ -169,8 +183,7 @@
 
   .winner-glow::before {
     content: '👑';
-    @apply absolute -top-3 left-1/2 -translate-x-1/2 text-lg 
-           animate-bounce opacity-0 transition-opacity duration-300;
+    @apply absolute -top-3 left-1/2 -translate-x-1/2 text-lg animate-bounce opacity-0 transition-opacity duration-300;
   }
 
   .winner-glow:hover::before {
@@ -188,11 +201,25 @@
   }
 
   /* Stagger animation delays for lists */
-  .stagger-1 { animation-delay: 0.1s; }
-  .stagger-2 { animation-delay: 0.2s; }
-  .stagger-3 { animation-delay: 0.3s; }
-  .stagger-4 { animation-delay: 0.4s; }
-  .stagger-5 { animation-delay: 0.5s; }
+  .stagger-1 {
+    animation-delay: 0.1s;
+  }
+
+  .stagger-2 {
+    animation-delay: 0.2s;
+  }
+
+  .stagger-3 {
+    animation-delay: 0.3s;
+  }
+
+  .stagger-4 {
+    animation-delay: 0.4s;
+  }
+
+  .stagger-5 {
+    animation-delay: 0.5s;
+  }
 
   /* Noise texture overlay */
   .noise-overlay {
