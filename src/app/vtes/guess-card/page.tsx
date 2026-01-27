@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Fuse from 'fuse.js';
+import { VtesIcon } from '@/components/vtes/VtesIcon';
+import { MaskedCard } from '@/components/vtes/MaskedCard';
+import { Droplet } from 'lucide-react';
 
 // Card data from JSON
 interface CardData {
@@ -39,46 +42,19 @@ interface CardDetails {
   requirements?: string;
   poolCost?: string;
   bloodCost?: string;
+  convictionCost?: string;
   artists?: string[];
   flavorText?: string;
 }
 
-// Card type icons
-const cardTypeIcons: Record<string, string> = {
-  'Master': '👑',
-  'Action': '⚔️',
-  'Action Modifier': '🎯',
-  'Reaction': '🛡️',
-  'Combat': '💥',
-  'Retainer': '🧛',
-  'Equipment': '🗡️',
-  'Political Action': '🏛️',
-  'Ally': '🤝',
-  'Event': '⚡',
-  'Power': '✨',
-  'Conviction': '✝️',
-  'Vampire': '🧛',
-  'Imbued': '✝️',
-};
-
 const difficultyLabels: Record<number, { name: string; color: string; description: string }> = {
-  1: { name: 'Tutorial', color: 'bg-green-600', description: 'Top 1% staples' },
-  2: { name: 'Easy', color: 'bg-blue-600', description: 'Top 2-20%' },
-  3: { name: 'Medium', color: 'bg-yellow-600', description: 'Top 21-60%' },
-  4: { name: 'Hard', color: 'bg-orange-600', description: 'Rarely used' },
-  5: { name: 'Impossible', color: 'bg-red-600', description: 'Never in TWDA' },
+  1: { name: 'Staple', color: 'bg-green-600', description: 'Top 10%' },
+  2: { name: 'Common', color: 'bg-blue-600', description: 'Next 15%' },
+  3: { name: 'Uncommon', color: 'bg-cyan-600', description: 'Next 25%' },
+  4: { name: 'Rare', color: 'bg-yellow-600', description: 'Next 35%' },
+  5: { name: 'Obscure', color: 'bg-orange-600', description: 'Bottom 15%' },
+  6: { name: 'Unknown', color: 'bg-red-600', description: 'Never Used' },
 };
-
-function getCardTypeIcon(types: string[]): string {
-  for (const type of types) {
-    for (const [key, icon] of Object.entries(cardTypeIcons)) {
-      if (type.toLowerCase().includes(key.toLowerCase())) {
-        return icon;
-      }
-    }
-  }
-  return '🎴';
-}
 
 // Normalize string for comparison
 function normalizeString(str: string): string {
@@ -95,11 +71,14 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
   const normalizedGuess = normalizeString(guess);
   const normalizedAnswer = normalizeString(cardName);
 
-  // Exact match
+  // Exact match (normalized)
   if (normalizedGuess === normalizedAnswer) return true;
 
+  // For pattern matching, use lowercase original (keeps parentheses intact)
+  const lowerCardName = cardName.toLowerCase();
+
   // Match without group notation: "Anson" should match "Anson (G1)"
-  const baseNameMatch = normalizedAnswer.match(/^(.+?)\s*\(g\d+\)$/i);
+  const baseNameMatch = lowerCardName.match(/^(.+?)\s*\(g\d+\)$/i);
   if (baseNameMatch) {
     const baseName = normalizeString(baseNameMatch[1]);
     if (normalizedGuess === baseName) return true;
@@ -113,7 +92,7 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
   if (guessWithoutThe === normalizedAnswer) return true;
 
   // Match Advanced vampires: "Ankha" should match "Ankha (ADV)"
-  const advMatch = normalizedAnswer.match(/^(.+?)\s*\(.*adv.*\)$/i);
+  const advMatch = lowerCardName.match(/^(.+?)\s*\(.*adv.*\)$/i);
   if (advMatch) {
     const baseName = normalizeString(advMatch[1]);
     if (normalizedGuess === baseName) return true;
@@ -125,12 +104,12 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
 // Score calculation (adjusted for hints used)
 function calculateScore(hintsUsed: number, currentStreak: number, difficulty: number): number {
   const baseByDifficulty: Record<number, number> = {
-    1: 50, 2: 100, 3: 150, 4: 200, 5: 300,
+    1: 20, 2: 50, 3: 100, 4: 150, 5: 250, 6: 400
   };
   let base = baseByDifficulty[difficulty] || 100;
 
   // Reduce score based on hints used
-  base = Math.max(base - (hintsUsed * 25), 10);
+  base = Math.max(base - (hintsUsed * 10), 10);
 
   let multiplier = 1;
   if (currentStreak >= 10) multiplier = 3;
@@ -140,7 +119,7 @@ function calculateScore(hintsUsed: number, currentStreak: number, difficulty: nu
   return Math.round(base * multiplier);
 }
 
-const AUTO_ADVANCE_DELAY = 3000;
+const AUTO_ADVANCE_DELAY = 2000;
 const HOVER_DELAY = 1000;
 const MAX_HINTS = 4;
 
@@ -160,7 +139,6 @@ export default function GuessCardPage() {
   const [hintsRevealed, setHintsRevealed] = useState(0); // 0-4 hints revealed
   const [showLargeCard, setShowLargeCard] = useState(false);
   const [autoAdvanceProgress, setAutoAdvanceProgress] = useState(0);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   // Stats
   const [streak, setStreak] = useState(0);
@@ -229,13 +207,14 @@ export default function GuessCardPage() {
         const data = await response.json();
         const details: CardDetails = {
           name: data.name || cardName,
-          slug: card.slug,
+          slug: data.id ? String(data.id) : card.slug,
           type: data.types?.join(', '),
           disciplines: data.disciplines || card.disciplines || [],
           clan: data.clans?.[0] || card.clan,
           firstSet: data.ordered_sets?.[0],
           poolCost: data.pool_cost,
           bloodCost: data.blood_cost,
+          convictionCost: data.conviction_cost,
           artists: data.artists || [],
           flavorText: data.flavor_text,
         };
@@ -280,22 +259,13 @@ export default function GuessCardPage() {
         if (progressRef.current) clearInterval(progressRef.current);
       };
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed]);
 
   useEffect(() => {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
 
-  // Update suggestions as user types
-  useEffect(() => {
-    if (!fuse || guess.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    const results = fuse.search(guess).slice(0, 5);
-    setSuggestions(results.map(r => r.item.name));
-  }, [guess, fuse]);
 
   const handleMouseEnter = () => {
     hoverTimeoutRef.current = setTimeout(() => setShowLargeCard(true), HOVER_DELAY);
@@ -324,7 +294,6 @@ export default function GuessCardPage() {
     setLastPoints(0);
     setAutoAdvanceProgress(0);
     setShowLargeCard(false);
-    setSuggestions([]);
   }, [pickRandomCard, fetchCardDetails]);
 
   const revealNextHint = () => {
@@ -354,7 +323,6 @@ export default function GuessCardPage() {
       setRevealed(true);
       setStreak(0);
     }
-    setSuggestions([]);
   };
 
   const skipCard = () => {
@@ -362,18 +330,12 @@ export default function GuessCardPage() {
     setRevealed(true);
     setStreak(0);
     setTotalPlayed(prev => prev + 1);
-    setSuggestions([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && guess.trim()) {
       checkGuess();
     }
-  };
-
-  const selectSuggestion = (name: string) => {
-    setGuess(name);
-    setSuggestions([]);
   };
 
   const changeDifficulty = (diff: number) => {
@@ -406,8 +368,15 @@ export default function GuessCardPage() {
   const filteredCardsCount = getFilteredCards().length;
   const diffInfo = difficultyLabels[selectedDifficulty];
 
+  const isCrypt = currentCard.capacity !== undefined;
+
+  // Dimensions
+  // Crypt: Full card vertical (Ratio ~0.71)
+  // Library: Cropped box (Current logic)
   const displayWidth = 300;
-  const displayHeight = 260;
+  const displayHeight = isCrypt ? 420 : 260;
+
+  // Logic for Library Crop (Legacy)
   const scaledCardWidth = displayWidth / 0.72;
   const scaledCardHeight = scaledCardWidth * 1.4;
   const offsetX = scaledCardWidth * 0.21;
@@ -463,17 +432,16 @@ export default function GuessCardPage() {
         {/* Difficulty selector */}
         <div className="mb-4">
           <div className="flex gap-1 justify-center flex-wrap">
-            {[1, 2, 3, 4, 5].map(diff => {
+            {[1, 2, 3, 4, 5, 6].map(diff => {
               const info = difficultyLabels[diff];
               return (
                 <button
                   key={diff}
                   onClick={() => changeDifficulty(diff)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    selectedDifficulty === diff
-                      ? `${info.color} text-white`
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${selectedDifficulty === diff
+                    ? `${info.color} text-white`
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
                 >
                   {info.name}
                 </button>
@@ -491,35 +459,25 @@ export default function GuessCardPage() {
             <button
               key={type}
               onClick={() => { setCardType(type); setCurrentCard(null); }}
-              className={`px-3 py-1 rounded text-xs transition ${
-                cardType === type
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={`px-3 py-1 rounded text-xs transition ${cardType === type
+                ? 'bg-amber-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* Card type badge */}
-        <div className="flex justify-center mb-3">
-          <div className="inline-flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full">
-            <span className="text-lg">{getCardTypeIcon(currentCard.types)}</span>
-            <span className="text-slate-300 font-medium uppercase tracking-wider text-xs">
-              {currentCard.types.join(', ')}
-            </span>
-          </div>
-        </div>
+
 
         {/* Progress bar */}
         {revealed && (
           <div className="mb-2 h-1 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-75 ${
-                result === 'correct' ? 'bg-green-500' :
+              className={`h-full transition-all duration-75 ${result === 'correct' ? 'bg-green-500' :
                 result === 'incorrect' ? 'bg-red-500' : 'bg-slate-500'
-              }`}
+                }`}
               style={{ width: `${autoAdvanceProgress}%` }}
             />
           </div>
@@ -528,107 +486,171 @@ export default function GuessCardPage() {
         {/* Art display */}
         <div className="flex justify-center mb-4">
           <div
-            className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${
-              result === 'correct' ? 'ring-4 ring-green-500' :
+            className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${result === 'correct' ? 'ring-4 ring-green-500' :
               result === 'incorrect' ? 'ring-4 ring-red-500' :
-              result === 'skipped' ? 'ring-4 ring-slate-500' :
-              'ring-2 ring-slate-700'
-            }`}
+                result === 'skipped' ? 'ring-4 ring-slate-500' :
+                  'ring-2 ring-slate-700'
+              }`}
             style={{ width: displayWidth, height: displayHeight }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt="VTES Card Art"
-              style={{
-                position: 'absolute',
-                width: scaledCardWidth,
-                height: scaledCardHeight,
-                left: -offsetX,
-                top: -offsetY,
-                maxWidth: 'none',
-              }}
-            />
+            {isCrypt ? (
+              <MaskedCard
+                imageUrl={imageUrl}
+                name={currentCard.name}
+                isCrypt={true}
+                isRevealed={revealed}
+              />
+            ) : (
+              /* Legacy crop for Library */
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt="VTES Card Art"
+                style={{
+                  position: 'absolute',
+                  width: scaledCardWidth,
+                  height: scaledCardHeight,
+                  left: -offsetX,
+                  top: -offsetY,
+                  maxWidth: 'none',
+                }}
+              />
+            )}
           </div>
         </div>
+
+        {/* Card Info Line */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex items-center gap-4 bg-slate-800 border border-slate-700 px-5 py-2.5 rounded-full shadow-lg">
+
+            {!isCrypt ? (
+              // Library: [Cost] / [Req] / [Type]
+              <>
+                {/* Cost */}
+                {(cardDetails?.bloodCost || cardDetails?.poolCost || cardDetails?.convictionCost) && (
+                  <div className="flex items-center gap-3">
+                    {cardDetails.bloodCost && (
+                      <div className="flex items-center gap-1 bg-red-950/40 px-2 py-0.5 rounded border border-red-900/50">
+                        <Droplet className="w-5 h-5 fill-red-500 text-red-500" />
+                        <span className="text-white font-bold text-lg">{cardDetails.bloodCost}</span>
+                      </div>
+                    )}
+                    {cardDetails.poolCost && (
+                      <div className="flex items-center gap-1 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                        <div className="w-4 h-4 bg-amber-500 rotate-45" />
+                        <span className="text-white font-bold text-lg ml-1">{cardDetails.poolCost}</span>
+                      </div>
+                    )}
+                    {cardDetails.convictionCost && (
+                      <div className="flex items-center gap-1">
+                        <VtesIcon name="conviction" type="cost" size="sm" />
+                        <span className="text-white font-bold text-lg">{cardDetails.convictionCost}</span>
+                      </div>
+                    )}
+                    <span className="text-slate-600 text-xl mx-1">/</span>
+                  </div>
+                )}
+
+                {/* Requirement (Clan or Discipline) */}
+                {((cardDetails?.clan && !isCrypt) || (cardDetails?.disciplines && cardDetails.disciplines.length > 0)) && (
+                  <div className="flex items-center gap-1">
+                    {cardDetails?.clan && (
+                      <VtesIcon name={cardDetails.clan} type="clan" size="md" />
+                    )}
+                    {cardDetails?.disciplines?.map(d => (
+                      <VtesIcon key={d} name={d} type="discipline" size="md" />
+                    ))}
+                    <span className="text-slate-600 text-xl mx-2">/</span>
+                  </div>
+                )}
+
+                {/* Type (Text THEN Icon, Hiding Master/Vampire/Imbued Icons) */}
+                <div className="flex items-center gap-3">
+                  <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
+                    {currentCard.types.join(' / ')}
+                  </span>
+                  <div className="flex -space-x-1">
+                    {currentCard.types
+                      .filter(t => !['master', 'vampire', 'imbued'].includes(t.toLowerCase()))
+                      .map(t => (
+                        <VtesIcon key={t} name={t} type="type" size="md" />
+                      ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Crypt: Just Type
+              <>
+                <div className="flex -space-x-1">
+                  {currentCard.types.map(t => (
+                    <VtesIcon key={t} name={t} type="type" size="md" />
+                  ))}
+                </div>
+                <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
+                  {currentCard.types.join(' / ')}
+                </span>
+              </>
+            )}
+
+          </div>
+        </div>
+
+        {/* Card Metadata: Flavor Text, Artist, Set */}
+        {(cardDetails?.artists?.length || cardDetails?.firstSet || cardDetails?.flavorText) && (
+          <div className="flex flex-col items-center mb-6 -mt-4 space-y-2">
+            {cardDetails?.flavorText && (
+              <div className="text-slate-400 italic text-sm md:text-base max-w-lg text-center px-6 font-serif opacity-90 leading-relaxed">
+                &quot;{cardDetails.flavorText.replace(/\n/g, ' ')}&quot;
+              </div>
+            )}
+            <div className="text-slate-500 text-sm flex gap-4 opacity-80">
+              {cardDetails.artists && cardDetails.artists.length > 0 && (
+                <span>Art by <span className="text-slate-400 font-medium">{cardDetails.artists.join(', ')}</span></span>
+              )}
+              {cardDetails.firstSet && (
+                <span>Set: <span className="text-slate-400 font-medium">{cardDetails.firstSet}</span></span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Game area */}
         {!revealed ? (
           <div className="space-y-4">
             <p className="text-center text-slate-300 text-lg">What card is this?</p>
 
-            {/* Multi-step hints */}
+            {/* Multi-step hints (DEPRECATED: User requested removal 2026-01-26)
             {hintContent.length > 0 && (
               <div className="space-y-2">
-                {/* Revealed hints */}
-                {hintsRevealed > 0 && (
-                  <div className="p-3 bg-slate-800/50 rounded-lg border border-amber-600/30 space-y-1.5">
-                    {hintContent.slice(0, hintsRevealed).map((hint, i) => hint && (
-                      <p key={i} className="text-sm">
-                        <span className="mr-1">{hint.icon}</span>
-                        <span className="text-slate-500">{hint.label}:</span>{' '}
-                        <span className="text-amber-400 font-medium">{hint.value}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {/* Hint button */}
-                {hasMoreHints && (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={revealNextHint}
-                      className="text-xs text-slate-500 hover:text-slate-300 transition flex items-center gap-1"
-                    >
-                      <span>▼</span>
-                      <span>
-                        Reveal hint {hintsRevealed + 1}/{hintContent.length}
-                        <span className="text-amber-600 ml-1">(-25 pts)</span>
-                      </span>
-                    </button>
-                  </div>
-                )}
+                 ... hints code ...
               </div>
             )}
+            */}
 
-            {/* Input with suggestions */}
-            <div className="relative">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={guess}
-                  onChange={(e) => setGuess(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type the card name..."
-                  autoComplete="off"
-                  autoFocus
-                  className="flex-1 px-4 py-3 rounded-xl bg-slate-800 text-white
-                    border-2 border-slate-700 focus:border-amber-500
-                    focus:outline-none placeholder:text-slate-600"
-                />
-                <button
-                  onClick={skipCard}
-                  className="px-3 py-3 bg-slate-700 hover:bg-slate-600 text-slate-400
-                    rounded-xl transition text-sm"
-                >
-                  Skip
-                </button>
-              </div>
-
-              {/* Suggestions dropdown */}
-              {suggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
-                  {suggestions.map((name, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectSuggestion(name)}
-                      className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 transition text-sm"
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={guess}
+                onChange={(e) => setGuess(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type the card name..."
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                autoFocus
+                className="flex-1 px-4 py-3 rounded-xl bg-slate-800 text-white
+                  border-2 border-slate-700 focus:border-amber-500
+                  focus:outline-none placeholder:text-slate-600"
+              />
+              <button
+                onClick={skipCard}
+                className="px-3 py-3 bg-slate-700 hover:bg-slate-600 text-slate-400
+                  rounded-xl transition text-sm"
+              >
+                Skip
+              </button>
             </div>
 
             <button

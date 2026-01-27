@@ -34,7 +34,7 @@ const NAME_MAP: Record<string, string> = {
     'spirit of the fray': 'spiritofthefray',
 
     // Standard Clans - Trigram mapping
-    'abo': 'abomination', // Just in case
+    'abo': 'abomination',
     'ahrimane': 'ahrimane',
     'ahr': 'ahrimane',
     'akunanse': 'akunanse',
@@ -91,7 +91,7 @@ const NAME_MAP: Record<string, string> = {
     'sal': 'salubri',
     'salubri antitribu': 'salubriantitribu',
     'sa!': 'salubriantitribu',
-    'setite': 'followerset', // Legacy
+    'setite': 'followerset',
     'toreador': 'toreador',
     'tor': 'toreador',
     'toreador antitribu': 'toreadorantitribu',
@@ -108,7 +108,7 @@ const NAME_MAP: Record<string, string> = {
     'ven': 'ventrue',
     'ventrue antitribu': 'ventrueantitribu',
     've!': 'ventrueantitribu',
-    'avenge': 'avenger', // Imbued
+    'avenge': 'avenger',
     'defend': 'defender',
     'innoc': 'innocent',
     'judge': 'judge',
@@ -116,7 +116,7 @@ const NAME_MAP: Record<string, string> = {
     'rdeem': 'redeemer',
     'visio': 'visionary',
 
-    // Disciplines (Full name to Trigram if needed)
+    // Disciplines
     'abombwe': 'abo',
     'animalism': 'ani',
     'auspex': 'aus',
@@ -144,16 +144,19 @@ const NAME_MAP: Record<string, string> = {
     'vicissitude': 'vic',
     'visceratika': 'vis',
     'dementation': 'dem',
-    // V5 / New
-    'blood sorcery': 'tha', // Mapping to Thaumaturgy icon
-    'oblivion': 'obt',      // Mapping to Obtenebration icon (or obl?) KRCG might have obl.
+    'blood sorcery': 'tha',
+    'oblivion': 'obt',
     'thin-blood alchemy': 'tba',
+
+    // Cost Icons
+    'blood': 'blood',
+    'pool': 'pool',
 };
 
 // Update size mapping
 const sizeMap = {
     xs: 16,
-    sm: 22, // Adjusted per plan (was 20/24)
+    sm: 22,
     md: 28,
     lg: 36,
 };
@@ -163,38 +166,34 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
 
     if (!name) return null;
 
-
     const lowerName = name.toLowerCase().trim();
-    let filename = NAME_MAP[lowerName] || lowerName.replace(/[^a-z0-9]/g, ''); // Default strip special chars
+    let filename = NAME_MAP[lowerName] || lowerName.replace(/[^a-z0-9]/g, '');
 
     // Logic to determine URL
-    // Use WEBP for disciplines (filled icons), SVG for others
     let url = '';
     const svgBaseUrl = 'https://static.krcg.org/svg';
     const webpBaseUrl = 'https://static.krcg.org/webp_wb';
 
     if (type === 'discipline') {
-        // Superior check: If input was uppercase ("DOM"), it's superior.
+        // Superior check
         const isSuperior = name === name.toUpperCase() && /[A-Z]/.test(name);
         const folder = isSuperior ? 'sup' : 'inf';
 
-        // Handle mappings
         if (lowerName === 'blood sorcery') filename = 'tha';
         if (lowerName === 'oblivion') filename = 'obl';
 
-        // Use WEBP for filled discipline icons
         url = `${webpBaseUrl}/disc/${folder}/${filename}.webp`;
 
     } else if (type === 'clan') {
         url = `${webpBaseUrl}/clan/${filename}.webp`;
+    } else if (type === 'cost') {
+        // Use SVG for cost icons
+        url = `${svgBaseUrl}/icon/${filename}.svg`;
     } else {
-        // Use WEBP icons for types/icons to ensure they are raster and proxyable
-        // Previously used SVG from /type/ or /icon/, but SVG isn't proxied and fails SSL check
-        // Also fixed path: KRCG docs/testing confirm /icon/ is correct, /type/ is not.
+        // Types/Other icons
         url = `${webpBaseUrl}/icon/${filename}.webp`;
     }
 
-    // Size mapping
     const pxSize = sizeMap[size as keyof typeof sizeMap] || sizeMap.md;
 
     if (error) {
@@ -209,7 +208,6 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
         );
     }
 
-    // Improved filter: remove harsh invert, add subtle drop shadow and brightness control
     const isColoredType = type === 'discipline' || type === 'clan';
     const filterClass = isColoredType
         ? 'drop-shadow-[1px_1px_1px_rgba(0,0,0,0.5)] dark:brightness-90'
@@ -228,7 +226,7 @@ export function VtesIcon({ name, type, size = 'md', className = '' }: VtesIconPr
                 height={pxSize}
                 className={`object-contain ${filterClass}`}
                 onError={() => setError(true)}
-                unoptimized={false} // Force proxying to bypass local SSL issues
+                unoptimized={false}
             />
         </div>
     );
