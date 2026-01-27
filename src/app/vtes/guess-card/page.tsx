@@ -155,8 +155,10 @@ export default function GuessCardPage() {
   // Helper to generate initials hint
   const generateInitialsHint = useCallback((name: string) => {
     if (!name) return '';
+    // Strip group notation like (G1), (G2), etc. and Advanced notation (ADV)
+    const cleanName = name.replace(/\s*\([Gg]\d+\)\s*$/, '').replace(/\s*\(.*[Aa][Dd][Vv].*\)\s*$/, '').trim();
     const prepositions = ['the', 'of', 'and', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'to'];
-    return name.split(' ').map(word => {
+    return cleanName.split(' ').map(word => {
       if (!word) return '';
       // Clean word for check (ignore punctuation)
       const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -526,7 +528,7 @@ export default function GuessCardPage() {
             return (
               <button
                 key={type}
-                onClick={() => { setCardType(type); setCurrentCard(null); }}
+                onClick={() => { setCardType(type); setCurrentCard(null); setShowInitials(false); }}
                 className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
                 style={{
                   backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
@@ -655,11 +657,6 @@ export default function GuessCardPage() {
             ) : (
               // Crypt: Just Type
               <>
-                <div className="flex -space-x-1">
-                  {currentCard.types.map(t => (
-                    <VtesIcon key={t} name={t} type="type" size="md" />
-                  ))}
-                </div>
                 <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
                   {currentCard.types.join(' / ')}
                 </span>
@@ -739,7 +736,7 @@ export default function GuessCardPage() {
                     }}
                   >
                     <span>💡</span>
-                    <span>Mostrar Iniciales <span style={{ color: 'var(--vtes-gold-dark)' }}>(-25 pts)</span></span>
+                    <span>Show Initials <span style={{ color: 'var(--vtes-gold-dark)' }}>(-25 pts)</span></span>
                   </button>
                 )}
               </div>
