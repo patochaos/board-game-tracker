@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import Fuse from 'fuse.js';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { MaskedCard } from '@/components/vtes/MaskedCard';
 import { Droplet } from 'lucide-react';
@@ -34,7 +33,7 @@ interface GameData {
 // Card details from API
 interface CardDetails {
   name: string;
-  slug: string;
+  imageUrl: string; // actual KRCG image URL from API
   type?: string;
   disciplines?: string[];
   clan?: string;
@@ -69,7 +68,6 @@ function normalizeString(str: string, aggressive = false): string {
     .trim();
 
   if (aggressive) {
-    // Remove common stop words and all spaces
     normalized = normalized
       .replace(/\b(the|and|of|a|an)\b/g, '')
       .replace(/\s+/g, '');
@@ -111,18 +109,17 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
   return false;
 }
 
-// Score calculation (adjusted for hints used)
-function calculateScore(hintsUsed: number, initialsUsed: boolean, currentStreak: number, difficulty: number): number {
+// Score calculation: hints = 50% points
+function calculateScore(hintsUsed: boolean, currentStreak: number, difficulty: number): number {
   const baseByDifficulty: Record<number, number> = {
     1: 20, 2: 50, 3: 100, 4: 150, 5: 250, 6: 400
   };
   let base = baseByDifficulty[difficulty] || 100;
 
-  // Reduce score based on hints used
-  base = base - (hintsUsed * 10);
-  if (initialsUsed) base = base - 25; // More severe penalty for initials
-
-  base = Math.max(base, 10);
+  // Hints = 50% points
+  if (hintsUsed) {
+    base = Math.round(base * 0.5);
+  }
 
   let multiplier = 1;
   if (currentStreak >= 10) multiplier = 3;
@@ -134,7 +131,55 @@ function calculateScore(hintsUsed: number, initialsUsed: boolean, currentStreak:
 
 const AUTO_ADVANCE_DELAY = 2000;
 const HOVER_DELAY = 1000;
-const MAX_HINTS = 4;
+
+// Generate 3 wrong options for crypt multiple choice
+function generateCryptOptions(
+  correctCard: CardData,
+  allCrypt: CardData[]
+): CardData[] {
+  const clan = correctCard.clan;
+  const cap = correctCard.capacity ?? 5;
+
+  // Find candidates: same clan, similar capacity (+/- 2)
+  let candidates = allCrypt.filter(c =>
+    c.id !== correctCard.id &&
+    c.clan === clan &&
+    c.capacity !== undefined &&
+    Math.abs((c.capacity ?? 0) - cap) <= 2
+  );
+
+  // If not enough same-clan candidates, expand to any clan with similar capacity
+  if (candidates.length < 3) {
+    const moreCandidates = allCrypt.filter(c =>
+      c.id !== correctCard.id &&
+      c.capacity !== undefined &&
+      Math.abs((c.capacity ?? 0) - cap) <= 2 &&
+      !candidates.some(existing => existing.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // If still not enough, just grab any crypt card
+  if (candidates.length < 3) {
+    const moreCandidates = allCrypt.filter(c =>
+      c.id !== correctCard.id &&
+      !candidates.some(existing => existing.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Shuffle and pick 3
+  const shuffled = candidates.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
+
+// Strip group/adv notation for display: "Anson (G1)" -> "Anson"
+function displayName(name: string): string {
+  return name
+    .replace(/\s*\([Gg]\d+\)\s*$/, '')
+    .replace(/\s*\(.*[Aa][Dd][Vv].*\)\s*$/, '')
+    .trim();
+}
 
 export default function GuessCardPage() {
   // Game data
@@ -149,20 +194,20 @@ export default function GuessCardPage() {
   const [revealed, setRevealed] = useState(false);
   const [guess, setGuess] = useState('');
   const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | null>(null);
-  const [hintsRevealed, setHintsRevealed] = useState(0); // 0-4 hints revealed
   const [showLargeCard, setShowLargeCard] = useState(false);
   const [autoAdvanceProgress, setAutoAdvanceProgress] = useState(0);
   const [showInitials, setShowInitials] = useState(false);
 
+  // Multiple choice for crypt
+  const [cryptOptions, setCryptOptions] = useState<string[]>([]);
+
   // Helper to generate initials hint
   const generateInitialsHint = useCallback((name: string) => {
     if (!name) return '';
-    // Strip group notation like (G1), (G2), etc. and Advanced notation (ADV)
     const cleanName = name.replace(/\s*\([Gg]\d+\)\s*$/, '').replace(/\s*\(.*[Aa][Dd][Vv].*\)\s*$/, '').trim();
     const prepositions = ['the', 'of', 'and', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'to'];
     return cleanName.split(' ').map(word => {
       if (!word) return '';
-      // Clean word for check (ignore punctuation)
       const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (prepositions.includes(cleanWord)) {
         return '.'.repeat(word.length);
@@ -190,28 +235,18 @@ export default function GuessCardPage() {
   const progressRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Create Fuse instance for fuzzy search
-  // TEMPORARILY DISABLED TO DEBUG HANG
-  const fuse = null;
-  // const fuse = useMemo(() => {
-  //   if (!gameData) return null;
-  //   const allCards = [...gameData.crypt, ...gameData.library];
-  //   return new Fuse(allCards, {
-  //     keys: ['name'],
-  //     threshold: 0.4,
-  //     includeScore: true,
-  //   });
-  // }, [gameData]);
+  // Obfuscated image URL: uses proxy API with card ID
+  const getImageUrl = useCallback((card: CardData) => {
+    return `/api/vtes/card-image?id=${card.id}`;
+  }, []);
 
   // Load game data
   useEffect(() => {
     async function loadGameData() {
-      console.log('Fetching game data...');
       try {
         const response = await fetch('/vtes_guess_data.json');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: GameData = await response.json();
-        console.log('Game data loaded:', data.metadata);
         setGameData(data);
         setLoading(false);
       } catch (error) {
@@ -242,6 +277,22 @@ export default function GuessCardPage() {
     return cards[Math.floor(Math.random() * cards.length)];
   }, [getFilteredCards]);
 
+  // Setup multiple choice options for crypt cards
+  const setupCryptOptions = useCallback((card: CardData) => {
+    if (!gameData || card.capacity === undefined) {
+      setCryptOptions([]);
+      return;
+    }
+    const wrongOptions = generateCryptOptions(card, gameData.crypt);
+    const allOptions = [
+      displayName(card.name),
+      ...wrongOptions.map(c => displayName(c.name))
+    ];
+    // Shuffle options
+    const shuffled = allOptions.sort(() => Math.random() - 0.5);
+    setCryptOptions(shuffled);
+  }, [gameData]);
+
   // Fetch card details
   const fetchCardDetails = useCallback(async (cardName: string, card: CardData) => {
     try {
@@ -261,7 +312,7 @@ export default function GuessCardPage() {
 
         const details: CardDetails = {
           name: data.name || cardName,
-          slug: data.id ? String(data.id) : card.slug,
+          imageUrl: data.url || `https://static.krcg.org/card/${card.slug}.jpg`,
           type: data.types?.join(', '),
           disciplines: data.disciplines || card.disciplines || [],
           clan: data.clans?.[0] || card.clan,
@@ -280,7 +331,7 @@ export default function GuessCardPage() {
       console.error('Error fetching card details:', error);
       setCardDetails({
         name: card.name,
-        slug: card.slug,
+        imageUrl: `/api/vtes/card-image?id=${card.id}`,
         type: card.types?.join(', '),
         disciplines: card.disciplines,
         clan: card.clan,
@@ -313,19 +364,10 @@ export default function GuessCardPage() {
 
   const generateRankedPlaylist = useCallback((data: GameData): CardData[] => {
     const playlist: CardData[] = [];
-
-    // Phase 1: 8 cards, Level 1
     playlist.push(...generatePhaseCards(1, 8, data));
-
-    // Phase 2: 7 cards, Level 2
     playlist.push(...generatePhaseCards(2, 7, data));
-
-    // Phase 3: 4 cards, Level 3
     playlist.push(...generatePhaseCards(3, 4, data));
-
-    // Phase 4: 1 card, Level 4
     playlist.push(...generatePhaseCards(4, 1, data));
-
     return playlist;
   }, [generatePhaseCards]);
 
@@ -333,10 +375,6 @@ export default function GuessCardPage() {
     const values: Record<number, number> = { 1: 2, 2: 5, 3: 10, 4: 20 };
     return values[difficulty] || 0;
   }, []);
-
-  const getRankedHintCost = useCallback((difficulty: number): number => {
-    return Math.round(getRankedCardValue(difficulty) * 0.5);
-  }, [getRankedCardValue]);
 
   const startRankedGame = useCallback(() => {
     if (!gameData) return;
@@ -347,12 +385,12 @@ export default function GuessCardPage() {
     setShowFinalScore(false);
     setGameMode('ranked');
 
-    // Load first card
     if (playlist[0]) {
       setCurrentCard(playlist[0]);
       fetchCardDetails(playlist[0].name, playlist[0]);
+      setupCryptOptions(playlist[0]);
     }
-  }, [gameData, generateRankedPlaylist, fetchCardDetails]);
+  }, [gameData, generateRankedPlaylist, fetchCardDetails, setupCryptOptions]);
 
   const resetRankedGame = useCallback(() => {
     startRankedGame();
@@ -365,11 +403,9 @@ export default function GuessCardPage() {
   const startNormalGame = useCallback(() => {
     setGameMode('normal');
     setShowFinalScore(false);
-    // Reset to normal mode defaults
     setSelectedDifficulty(1);
     setCardType('library');
   }, []);
-
 
   // Start game
   useEffect(() => {
@@ -378,9 +414,10 @@ export default function GuessCardPage() {
       if (card) {
         setCurrentCard(card);
         fetchCardDetails(card.name, card);
+        setupCryptOptions(card);
       }
     }
-  }, [gameData, currentCard, pickRandomCard, fetchCardDetails]);
+  }, [gameData, currentCard, pickRandomCard, fetchCardDetails, setupCryptOptions]);
 
   // Auto-advance timer
   useEffect(() => {
@@ -405,7 +442,6 @@ export default function GuessCardPage() {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
 
-
   const handleMouseEnter = () => {
     hoverTimeoutRef.current = setTimeout(() => setShowLargeCard(true), HOVER_DELAY);
   };
@@ -421,7 +457,6 @@ export default function GuessCardPage() {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
 
     if (gameMode === 'ranked') {
-      // Ranked mode: Load next card from playlist
       const nextIndex = rankedCardIndex + 1;
       if (nextIndex < rankedPlaylist.length) {
         const card = rankedPlaylist[nextIndex];
@@ -429,57 +464,48 @@ export default function GuessCardPage() {
         setCurrentCard(card);
         setCardDetails(null);
         fetchCardDetails(card.name, card);
+        setupCryptOptions(card);
       } else if (nextIndex === rankedPlaylist.length) {
-        // Game complete
         setShowFinalScore(true);
       }
     } else {
-      // Normal mode: Pick random card
       const card = pickRandomCard();
       if (card) {
         setCurrentCard(card);
         setCardDetails(null);
         fetchCardDetails(card.name, card);
+        setupCryptOptions(card);
       }
     }
 
     setRevealed(false);
     setGuess('');
     setResult(null);
-    setHintsRevealed(0);
     setLastPoints(0);
     setAutoAdvanceProgress(0);
     setShowLargeCard(false);
     setShowInitials(false);
-  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails]);
+  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails, setupCryptOptions]);
 
-  const revealNextHint = () => {
-    if (hintsRevealed < MAX_HINTS) {
-      setHintsRevealed(prev => prev + 1);
-    }
-  };
-
-  const checkGuess = () => {
+  // Handle scoring for correct/incorrect
+  const handleAnswer = useCallback((correct: boolean) => {
     if (!currentCard) return;
 
     setTotalPlayed(prev => prev + 1);
 
-    if (isCorrectGuess(guess, currentCard.name)) {
+    if (correct) {
       setResult('correct');
       setRevealed(true);
       setTotalCorrect(prev => prev + 1);
 
       if (gameMode === 'ranked') {
-        // Ranked mode scoring
         const cardValue = getRankedCardValue(currentCard.difficulty);
-        const hintPenalty = showInitials ? getRankedHintCost(currentCard.difficulty) : 0;
-        const points = Math.max(0, cardValue - hintPenalty);
+        const points = showInitials ? Math.round(cardValue * 0.5) : cardValue;
         setRankedScore(prev => prev + points);
         setLastPoints(points);
       } else {
-        // Normal mode scoring
         const newStreak = streak + 1;
-        const points = calculateScore(hintsRevealed, showInitials, newStreak, selectedDifficulty);
+        const points = calculateScore(showInitials, newStreak, selectedDifficulty);
         setStreak(newStreak);
         setBestStreak(prev => Math.max(prev, newStreak));
         setScore(prev => prev + points);
@@ -492,6 +518,17 @@ export default function GuessCardPage() {
         setStreak(0);
       }
     }
+  }, [currentCard, gameMode, getRankedCardValue, showInitials, streak, selectedDifficulty]);
+
+  const checkGuess = () => {
+    if (!currentCard) return;
+    handleAnswer(isCorrectGuess(guess, currentCard.name));
+  };
+
+  const handleCryptChoice = (chosenName: string) => {
+    if (!currentCard) return;
+    const correct = chosenName === displayName(currentCard.name);
+    handleAnswer(correct);
   };
 
   const skipCard = () => {
@@ -514,12 +551,13 @@ export default function GuessCardPage() {
     setRevealed(false);
     setGuess('');
     setResult(null);
-    setHintsRevealed(0);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)'
+      }}>
         <div className="text-white text-xl">Loading card database...</div>
       </div>
     );
@@ -527,58 +565,35 @@ export default function GuessCardPage() {
 
   if (!gameData || !currentCard) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)'
+      }}>
         <div className="text-white text-xl">No cards found for this difficulty level.</div>
       </div>
     );
   }
 
-  const imageUrl = `https://static.krcg.org/card/${currentCard.slug}.jpg`;
+  // Use obfuscated proxy URL (hides card name, fixes THE slugs)
+  const imageUrl = getImageUrl(currentCard);
+  // For revealed state, use the KRCG direct URL from API (correct slug)
+  const revealedImageUrl = cardDetails?.imageUrl || imageUrl;
   const filteredCardsCount = getFilteredCards().length;
   const diffInfo = difficultyLabels[selectedDifficulty];
 
   const isCrypt = currentCard.capacity !== undefined;
 
-  // Dimensions
-  // Crypt: Full card vertical (Ratio ~0.71)
-  // Library: Cropped box (Current logic)
-  const displayWidth = 300;
-  const displayHeight = isCrypt ? 420 : 260;
+  // Dimensions - fixed height to prevent layout jump between crypt/library
+  const displayWidth = 280;
+  const displayHeight = isCrypt ? 390 : 240;
 
-  // Logic for Library Crop (Legacy)
+  // Logic for Library Crop
   const scaledCardWidth = displayWidth / 0.72;
   const scaledCardHeight = scaledCardWidth * 1.4;
   const offsetX = scaledCardWidth * 0.21;
   const offsetY = scaledCardHeight * 0.115;
 
-  // Hint content
-  const hintContent = [
-    // Hint 1: Artist
-    cardDetails?.artists && cardDetails.artists.length > 0
-      ? { label: 'Artist', value: cardDetails.artists.join(', '), icon: '🎨' }
-      : null,
-    // Hint 2: Expansion
-    cardDetails?.firstSet
-      ? { label: 'First Set', value: cardDetails.firstSet, icon: '📦' }
-      : null,
-    // Hint 3: Disciplines
-    cardDetails?.disciplines && cardDetails.disciplines.length > 0
-      ? { label: 'Disciplines', value: cardDetails.disciplines.map(d => d.toUpperCase()).join(', '), icon: '🔮' }
-      : currentCard.disciplines && currentCard.disciplines.length > 0
-        ? { label: 'Disciplines', value: currentCard.disciplines.map(d => d.toUpperCase()).join(', '), icon: '🔮' }
-        : null,
-    // Hint 4: Clan/Type
-    cardDetails?.clan
-      ? { label: 'Clan', value: cardDetails.clan, icon: '🏰' }
-      : currentCard.clan
-        ? { label: 'Clan', value: currentCard.clan, icon: '🏰' }
-        : null,
-  ].filter(Boolean);
-
-  const hasMoreHints = hintsRevealed < hintContent.length;
-
   return (
-    <div className="min-h-screen p-4 sm:p-8 relative" style={{
+    <div className="min-h-screen min-h-[100dvh] p-3 sm:p-6 relative overflow-hidden" style={{
       background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)',
       fontFamily: 'var(--vtes-font-body)'
     }}>
@@ -592,7 +607,7 @@ export default function GuessCardPage() {
         background: 'radial-gradient(ellipse at center, transparent 0%, rgba(10, 10, 15, 0.4) 100%)'
       }} />
 
-      {/* Ranked Game Completion Message */}
+      {/* Ranked Game Completion */}
       {showFinalScore && gameMode === 'ranked' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(10, 10, 15, 0.95)' }}>
           <div className="max-w-md w-full p-8 rounded-2xl border-2 text-center" style={{
@@ -600,13 +615,13 @@ export default function GuessCardPage() {
             borderColor: 'var(--vtes-gold)',
             boxShadow: 'var(--glow-gold)'
           }}>
-            <h2 className="text-4xl font-bold mb-2" style={{
+            <h2 className="text-3xl font-bold mb-2" style={{
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-gold)'
             }}>
-              🏆 Ranked Complete!
+              Ranked Complete!
             </h2>
-            <p className="text-6xl font-bold my-6" style={{ color: 'var(--vtes-blood)' }}>
+            <p className="text-5xl font-bold my-6" style={{ color: 'var(--vtes-blood)' }}>
               {rankedScore}
             </p>
             <p className="text-sm mb-6" style={{ color: 'var(--vtes-text-muted)' }}>
@@ -615,13 +630,11 @@ export default function GuessCardPage() {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={resetRankedGame}
-                className="px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                className="px-5 py-3 rounded-xl font-semibold transition-all duration-200"
                 style={{
                   backgroundColor: 'var(--vtes-burgundy)',
                   color: 'var(--vtes-gold)',
-                  borderWidth: '2px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--vtes-gold)',
+                  border: '2px solid var(--vtes-gold)',
                   fontFamily: 'var(--vtes-font-display)'
                 }}
               >
@@ -635,15 +648,14 @@ export default function GuessCardPage() {
                   if (card) {
                     setCurrentCard(card);
                     fetchCardDetails(card.name, card);
+                    setupCryptOptions(card);
                   }
                 }}
-                className="px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                className="px-5 py-3 rounded-xl font-semibold transition-all duration-200"
                 style={{
                   backgroundColor: 'var(--vtes-bg-tertiary)',
                   color: 'var(--vtes-text-muted)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--vtes-burgundy-dark)',
+                  border: '1px solid var(--vtes-burgundy-dark)',
                   fontFamily: 'var(--vtes-font-body)'
                 }}
               >
@@ -654,20 +666,20 @@ export default function GuessCardPage() {
         </div>
       )}
 
-      <div className="max-w-md mx-auto relative z-10">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-6">
+      <div className="max-w-md mx-auto relative z-10 flex flex-col" style={{ minHeight: 'calc(100dvh - 2rem)' }}>
+        {/* Header - Fixed height */}
+        <div className="flex justify-between items-start mb-3 flex-shrink-0">
           <div className="relative">
-            <h1 className="text-3xl font-bold mb-1" style={{
+            <h1 className="text-2xl sm:text-3xl font-bold" style={{
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
               textShadow: '0 2px 10px rgba(0,0,0,0.5)'
             }}>
               Guess the Card
             </h1>
-            <div className="h-0.5 w-16 bg-gradient-to-r from-[var(--vtes-gold)] to-transparent" />
+            <div className="h-0.5 w-12 bg-gradient-to-r from-[var(--vtes-gold)] to-transparent mt-0.5" />
             <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
+              <p className="text-[10px]" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
               {gameMode && (
                 <button
                   onClick={() => {
@@ -679,6 +691,7 @@ export default function GuessCardPage() {
                       if (card) {
                         setCurrentCard(card);
                         fetchCardDetails(card.name, card);
+                        setupCryptOptions(card);
                       }
                     }
                   }}
@@ -686,62 +699,58 @@ export default function GuessCardPage() {
                   style={{
                     backgroundColor: gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-bg-tertiary)',
                     color: gameMode === 'ranked' ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-burgundy-dark)',
+                    border: `1px solid ${gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-burgundy-dark)'}`,
                     fontFamily: 'var(--vtes-font-body)'
                   }}
                 >
-                  {gameMode === 'ranked' ? '🏆 RANKED' : 'Normal'}
+                  {gameMode === 'ranked' ? 'RANKED' : 'Normal'}
                 </button>
               )}
             </div>
           </div>
           <div className="flex gap-2 text-center">
             {gameMode === 'ranked' ? (
-              // Ranked Mode: Show Progress and Score
               <>
-                <div className="px-3 py-2 rounded-lg border" style={{
+                <div className="px-2.5 py-1.5 rounded-lg" style={{
                   backgroundColor: 'var(--vtes-bg-tertiary)',
-                  borderColor: 'var(--vtes-blood)'
+                  border: '1px solid var(--vtes-blood)'
                 }}>
-                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{rankedCardIndex + 1}/20</p>
-                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Progress</p>
+                  <p className="text-base font-bold" style={{ color: 'var(--vtes-blood)' }}>{rankedCardIndex + 1}/20</p>
+                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Progress</p>
                 </div>
-                <div className="px-3 py-2 rounded-lg border" style={{
+                <div className="px-2.5 py-1.5 rounded-lg" style={{
                   backgroundColor: 'var(--vtes-bg-tertiary)',
-                  borderColor: 'var(--vtes-gold)'
+                  border: '1px solid var(--vtes-gold)'
                 }}>
-                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{rankedScore}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
+                  <p className="text-base font-bold" style={{ color: 'var(--vtes-gold)' }}>{rankedScore}</p>
+                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
                 </div>
               </>
             ) : (
-              // Normal Mode: Show Streak and Score
               <>
-                <div className="px-3 py-2 rounded-lg border" style={{
+                <div className="px-2.5 py-1.5 rounded-lg" style={{
                   backgroundColor: 'var(--vtes-bg-tertiary)',
-                  borderColor: 'var(--vtes-burgundy-dark)'
+                  border: '1px solid var(--vtes-burgundy-dark)'
                 }}>
-                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-gold)' }}>{streak}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
+                  <p className="text-base font-bold" style={{ color: 'var(--vtes-gold)' }}>{streak}</p>
+                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
                 </div>
-                <div className="px-3 py-2 rounded-lg border" style={{
+                <div className="px-2.5 py-1.5 rounded-lg" style={{
                   backgroundColor: 'var(--vtes-bg-tertiary)',
-                  borderColor: 'var(--vtes-burgundy-dark)'
+                  border: '1px solid var(--vtes-burgundy-dark)'
                 }}>
-                  <p className="text-lg font-bold" style={{ color: 'var(--vtes-blood)' }}>{score}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
+                  <p className="text-base font-bold" style={{ color: 'var(--vtes-blood)' }}>{score}</p>
+                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
                 </div>
               </>
             )}
           </div>
         </div>
 
-        {/* Difficulty selector - Hidden in Ranked Mode */}
+        {/* Difficulty selector - Normal mode only */}
         {gameMode === 'normal' && (
-          <div className="mb-5">
-            <div className="flex gap-2 justify-center flex-wrap">
+          <div className="mb-3 flex-shrink-0">
+            <div className="flex gap-1.5 justify-center overflow-x-auto pb-1 scrollbar-hide">
               {[1, 2, 3, 4, 5, 6].map(diff => {
                 const info = difficultyLabels[diff];
                 const isSelected = selectedDifficulty === diff;
@@ -749,13 +758,11 @@ export default function GuessCardPage() {
                   <button
                     key={diff}
                     onClick={() => changeDifficulty(diff)}
-                    className="px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0"
                     style={{
                       backgroundColor: isSelected ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
                       color: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-text-muted)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
+                      border: `1px solid ${isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)'}`,
                       boxShadow: isSelected ? 'var(--glow-gold)' : 'none',
                       fontFamily: 'var(--vtes-font-body)'
                     }}
@@ -765,28 +772,26 @@ export default function GuessCardPage() {
                 );
               })}
             </div>
-            <p className="text-center text-[10px] mt-2" style={{ color: 'var(--vtes-text-dim)' }}>
-              {diffInfo.description} • {filteredCardsCount} cards
+            <p className="text-center text-[10px] mt-1" style={{ color: 'var(--vtes-text-dim)' }}>
+              {diffInfo.description} &middot; {filteredCardsCount} cards
             </p>
           </div>
         )}
 
-        {/* Card type selector - Hidden in Ranked Mode */}
+        {/* Card type selector - Normal mode only */}
         {gameMode === 'normal' && (
-          <div className="flex gap-2 justify-center mb-6">
+          <div className="flex gap-1.5 justify-center mb-3 flex-shrink-0">
             {(['library', 'crypt', 'all'] as const).map(type => {
               const isSelected = cardType === type;
               return (
                 <button
                   key={type}
                   onClick={() => { setCardType(type); setCurrentCard(null); setShowInitials(false); }}
-                  className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                  className="px-3 py-1 rounded-lg text-[11px] font-medium transition-all duration-200"
                   style={{
                     backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
                     color: isSelected ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: isSelected ? 'var(--vtes-blood)' : 'transparent',
+                    border: `1px solid ${isSelected ? 'var(--vtes-blood)' : 'transparent'}`,
                     fontFamily: 'var(--vtes-font-body)'
                   }}
                 >
@@ -797,27 +802,28 @@ export default function GuessCardPage() {
           </div>
         )}
 
-
         {/* Progress bar */}
         {revealed && (
-          <div className="mb-2 h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div className="mb-2 h-1 rounded-full overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
             <div
-              className={`h-full transition-all duration-75 ${result === 'correct' ? 'bg-green-500' :
-                result === 'incorrect' ? 'bg-red-500' : 'bg-slate-500'
-                }`}
-              style={{ width: `${autoAdvanceProgress}%` }}
+              className="h-full transition-all duration-75"
+              style={{
+                width: `${autoAdvanceProgress}%`,
+                backgroundColor: result === 'correct' ? '#22c55e' : result === 'incorrect' ? '#ef4444' : '#64748b'
+              }}
             />
           </div>
         )}
 
         {/* Art display */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-3 flex-shrink-0">
           <div
-            className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${result === 'correct' ? 'ring-4 ring-green-500' :
+            className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${
+              result === 'correct' ? 'ring-4 ring-green-500' :
               result === 'incorrect' ? 'ring-4 ring-red-500' :
-                result === 'skipped' ? 'ring-4 ring-slate-500' :
-                  'ring-2 ring-slate-700'
-              }`}
+              result === 'skipped' ? 'ring-4 ring-slate-500' :
+              'ring-2 ring-slate-700'
+            }`}
             style={{ width: displayWidth, height: displayHeight }}
           >
             {isCrypt ? (
@@ -828,7 +834,6 @@ export default function GuessCardPage() {
                 isRevealed={revealed}
               />
             ) : (
-              /* Legacy crop for Library */
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={imageUrl}
@@ -847,133 +852,85 @@ export default function GuessCardPage() {
         </div>
 
         {/* Card Info Line */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-4 bg-slate-800 border border-slate-700 px-5 py-2.5 rounded-full shadow-lg">
-
+        <div className="flex justify-center mb-3 flex-shrink-0">
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full shadow-lg" style={{
+            backgroundColor: 'var(--vtes-bg-tertiary)',
+            border: '1px solid var(--vtes-burgundy-dark)'
+          }}>
             {!isCrypt ? (
-              // Library: [Cost] / [Req] / [Type]
               <>
-                {/* Cost */}
                 {(cardDetails?.bloodCost || cardDetails?.poolCost || cardDetails?.convictionCost) && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {cardDetails.bloodCost && (
-                      <div className="flex items-center gap-1 bg-red-950/40 px-2 py-0.5 rounded border border-red-900/50">
-                        <Droplet className="w-5 h-5 fill-red-500 text-red-500" />
-                        <span className="text-white font-bold text-lg">{cardDetails.bloodCost}</span>
+                      <div className="flex items-center gap-1 bg-red-950/40 px-1.5 py-0.5 rounded border border-red-900/50">
+                        <Droplet className="w-4 h-4 fill-red-500 text-red-500" />
+                        <span className="text-white font-bold text-sm">{cardDetails.bloodCost}</span>
                       </div>
                     )}
                     {cardDetails.poolCost && (
-                      <div className="flex items-center gap-1 bg-slate-700/40 px-2 py-0.5 rounded border border-slate-600/50">
-                        <div className="w-4 h-4 bg-white rotate-45" />
-                        <span className="text-white font-bold text-lg ml-1">{cardDetails.poolCost}</span>
+                      <div className="flex items-center gap-1 bg-slate-700/40 px-1.5 py-0.5 rounded border border-slate-600/50">
+                        <div className="w-3 h-3 bg-white rotate-45" />
+                        <span className="text-white font-bold text-sm ml-0.5">{cardDetails.poolCost}</span>
                       </div>
                     )}
                     {cardDetails.convictionCost && (
                       <div className="flex items-center gap-1">
                         <VtesIcon name="conviction" type="cost" size="sm" />
-                        <span className="text-white font-bold text-lg">{cardDetails.convictionCost}</span>
+                        <span className="text-white font-bold text-sm">{cardDetails.convictionCost}</span>
                       </div>
                     )}
-                    <span className="text-slate-600 text-xl mx-1">/</span>
+                    <span className="text-slate-600 text-lg">/</span>
                   </div>
                 )}
-
-                {/* Requirement (Clan or Discipline) */}
                 {((cardDetails?.clan && !isCrypt) || (cardDetails?.disciplines && cardDetails.disciplines.length > 0)) && (
                   <div className="flex items-center gap-1">
-                    {cardDetails?.clan && (
-                      <VtesIcon name={cardDetails.clan} type="clan" size="md" />
-                    )}
+                    {cardDetails?.clan && <VtesIcon name={cardDetails.clan} type="clan" size="md" />}
                     {cardDetails?.disciplines?.map(d => (
                       <VtesIcon key={d} name={d} type="discipline" size="md" />
                     ))}
-                    <span className="text-slate-600 text-xl mx-2">/</span>
+                    <span className="text-slate-600 text-lg mx-1">/</span>
                   </div>
                 )}
-
-                {/* Type (Text THEN Icon, Hiding Master/Vampire/Imbued Icons) */}
-                <div className="flex items-center gap-3">
-                  <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
-                    {currentCard.types.join(' / ')}
-                  </span>
-                  <div className="flex -space-x-1">
-                    {currentCard.types
-                      .filter(t => !['master', 'vampire', 'imbued'].includes(t.toLowerCase()))
-                      .map(t => (
-                        <VtesIcon key={t} name={t} type="type" size="md" />
-                      ))}
-                  </div>
-                </div>
+                <span className="text-sm font-semibold tracking-wider capitalize" style={{
+                  color: 'var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)'
+                }}>
+                  {currentCard.types.join(' / ')}
+                </span>
               </>
             ) : (
-              // Crypt: Type + Sect + Title
-              <>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
-                    {currentCard.types.join(' / ')}
-                  </span>
-                  {(cardDetails?.sect || cardDetails?.title) && (
-                    <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--vtes-text-muted)', fontFamily: 'var(--vtes-font-body)' }}>
-                      {cardDetails.sect && (
-                        <span className="uppercase tracking-wider">{cardDetails.sect}</span>
-                      )}
-                      {cardDetails.sect && cardDetails.title && (
-                        <span style={{ color: 'var(--vtes-burgundy)' }}>•</span>
-                      )}
-                      {cardDetails.title && (
-                        <span className="uppercase tracking-wider">{cardDetails.title}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-sm font-semibold tracking-wider capitalize" style={{
+                  color: 'var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)'
+                }}>
+                  {currentCard.types.join(' / ')}
+                </span>
+                {(cardDetails?.sect || cardDetails?.title) && (
+                  <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--vtes-text-muted)' }}>
+                    {cardDetails.sect && <span className="uppercase tracking-wider">{cardDetails.sect}</span>}
+                    {cardDetails.sect && cardDetails.title && <span style={{ color: 'var(--vtes-burgundy)' }}>&bull;</span>}
+                    {cardDetails.title && <span className="uppercase tracking-wider">{cardDetails.title}</span>}
+                  </div>
+                )}
+              </div>
             )}
-
           </div>
         </div>
 
-        {/* Card Metadata: Flavor Text, Artist, Set */}
-        {(cardDetails?.artists?.length || cardDetails?.firstSet || cardDetails?.flavorText) && (
-          <div className="flex flex-col items-center mb-6 -mt-4 space-y-2">
-            {cardDetails?.flavorText && (
-              <div className="text-slate-400 italic text-sm md:text-base max-w-lg text-center px-6 font-serif opacity-90 leading-relaxed">
-                &quot;{cardDetails.flavorText.replace(/\n/g, ' ')}&quot;
-              </div>
-            )}
-            <div className="text-slate-500 text-sm flex gap-4 opacity-80">
-              {cardDetails.artists && cardDetails.artists.length > 0 && (
-                <span>Art by <span className="text-slate-400 font-medium">{cardDetails.artists.join(', ')}</span></span>
-              )}
-              {cardDetails.firstSet && (
-                <span>Set: <span className="text-slate-400 font-medium">{cardDetails.firstSet}</span></span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Game area */}
-        {!revealed ? (
-          <div className="space-y-4">
-            <p className="text-center text-slate-300 text-lg">What card is this?</p>
-
-            {/* Multi-step hints (DEPRECATED: User requested removal 2026-01-26)
-            {hintContent.length > 0 && (
-              <div className="space-y-2">
-                 ... hints code ...
-              </div>
-            )}
-            */}
-
-            {/* Hint Section */}
-            {!revealed && (
-              <div className="flex flex-col items-center gap-3 mb-4">
+        {/* Game area - flexible grow */}
+        <div className="flex-1 flex flex-col justify-center">
+          {!revealed ? (
+            <div className="space-y-3">
+              {/* Hint Section */}
+              <div className="flex flex-col items-center gap-2">
                 {showInitials ? (
-                  <div className="px-5 py-3 rounded-lg border" style={{
+                  <div className="px-4 py-2 rounded-lg" style={{
                     backgroundColor: 'var(--vtes-bg-tertiary)',
-                    borderColor: 'var(--vtes-gold)',
+                    border: '1px solid var(--vtes-gold)',
                     boxShadow: 'var(--glow-gold)'
                   }}>
-                    <p className="font-mono text-lg tracking-[0.2em] font-bold" style={{
+                    <p className="font-mono text-base tracking-[0.15em] font-bold" style={{
                       color: 'var(--vtes-gold)',
                       fontFamily: 'var(--vtes-font-display)'
                     }}>
@@ -983,214 +940,232 @@ export default function GuessCardPage() {
                 ) : (
                   <button
                     onClick={() => setShowInitials(true)}
-                    className="text-xs uppercase tracking-wider flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200"
+                    className="text-[11px] uppercase tracking-wider flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200"
                     style={{
                       backgroundColor: 'var(--vtes-bg-secondary)',
                       color: 'var(--vtes-text-muted)',
-                      borderColor: 'var(--vtes-gold-dark)',
+                      border: '1px solid var(--vtes-gold-dark)',
                       fontFamily: 'var(--vtes-font-body)'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--vtes-gold)';
-                      e.currentTarget.style.color = 'var(--vtes-gold)';
-                      e.currentTarget.style.boxShadow = 'var(--glow-gold)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--vtes-gold-dark)';
-                      e.currentTarget.style.color = 'var(--vtes-text-muted)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
                   >
-                    <span>💡</span>
-                    <span>Show Initials <span style={{ color: 'var(--vtes-gold-dark)' }}>(-25 pts)</span></span>
+                    Show Initials <span style={{ color: 'var(--vtes-gold-dark)' }}>(50% pts)</span>
                   </button>
                 )}
               </div>
-            )}
 
-            {/* Input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type the card name..."
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                autoFocus
-                className="flex-1 px-4 py-3 rounded-xl transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  color: 'var(--vtes-text-primary)',
-                  borderWidth: '2px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--vtes-burgundy-dark)',
-                  fontFamily: 'var(--vtes-font-body)',
-                  outline: 'none'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--vtes-gold)';
-                  e.currentTarget.style.boxShadow = 'var(--glow-gold)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
+              {/* Crypt: Multiple choice buttons */}
+              {isCrypt && cryptOptions.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-center text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Who is this vampire?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {cryptOptions.map((option, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleCryptChoice(option)}
+                        className="px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left"
+                        style={{
+                          backgroundColor: 'var(--vtes-bg-tertiary)',
+                          color: 'var(--vtes-text-primary)',
+                          border: '2px solid var(--vtes-burgundy-dark)',
+                          fontFamily: 'var(--vtes-font-body)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--vtes-gold)';
+                          e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={skipCard}
+                      className="text-[11px] px-3 py-1 rounded transition-all duration-200"
+                      style={{
+                        color: 'var(--vtes-text-dim)',
+                        fontFamily: 'var(--vtes-font-body)'
+                      }}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Library: Text input */
+                <div className="space-y-2">
+                  <p className="text-center text-sm" style={{ color: 'var(--vtes-text-secondary, #c0bfb8)' }}>What card is this?</p>
+                  <input
+                    type="text"
+                    value={guess}
+                    onChange={(e) => setGuess(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type the card name..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    autoFocus
+                    className="w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: 'var(--vtes-bg-tertiary)',
+                      color: 'var(--vtes-text-primary)',
+                      border: '2px solid var(--vtes-burgundy-dark)',
+                      fontFamily: 'var(--vtes-font-body)',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--vtes-gold)';
+                      e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={checkGuess}
+                      disabled={!guess.trim()}
+                      className="flex-1 py-2.5 font-semibold rounded-xl transition-all duration-200"
+                      style={{
+                        backgroundColor: guess.trim() ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
+                        color: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-text-dim)',
+                        border: `2px solid ${guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)'}`,
+                        boxShadow: guess.trim() ? 'var(--glow-gold)' : 'none',
+                        cursor: guess.trim() ? 'pointer' : 'not-allowed',
+                        fontFamily: 'var(--vtes-font-display)',
+                        fontSize: '14px',
+                        letterSpacing: '0.05em'
+                      }}
+                    >
+                      Submit
+                    </button>
+                    <button
+                      onClick={skipCard}
+                      className="px-4 py-2.5 rounded-xl text-xs transition-all duration-200"
+                      style={{
+                        backgroundColor: 'var(--vtes-bg-secondary)',
+                        color: 'var(--vtes-text-muted)',
+                        border: '1px solid var(--vtes-burgundy-dark)',
+                        fontFamily: 'var(--vtes-font-body)'
+                      }}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Revealed state */
+            <div className="text-center space-y-3">
+              {result === 'correct' ? (
+                <div className="space-y-0.5">
+                  <p className="font-bold text-lg" style={{ color: '#22c55e' }}>Correct!</p>
+                  <p className="text-sm" style={{ color: '#4ade80' }}>+{lastPoints} points</p>
+                  {!showInitials && <p className="text-[10px]" style={{ color: 'var(--vtes-gold)' }}>No hints bonus!</p>}
+                </div>
+              ) : result === 'incorrect' ? (
+                <div className="space-y-0.5">
+                  <p className="font-bold text-lg" style={{ color: '#ef4444' }}>Incorrect</p>
+                  <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Streak lost</p>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-muted)' }}>Skipped</p>
+                  <p className="text-sm" style={{ color: 'var(--vtes-text-dim)' }}>Streak lost</p>
+                </div>
+              )}
+
+              <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
+
+              <div className="flex justify-center">
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={revealedImageUrl}
+                    alt={currentCard.name}
+                    className="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
+                    style={{ width: 140 }}
+                  />
+                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--vtes-text-dim)' }}>Hover to enlarge</p>
+                </div>
+              </div>
+
+              {cardDetails && (
+                <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
+                  {cardDetails.type && <p>{cardDetails.type}</p>}
+                  {cardDetails.artists && cardDetails.artists.length > 0 && (
+                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
+                  )}
+                  {currentCard.count > 0 && (
+                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Used in {currentCard.count} TWDA decks</p>
+                  )}
+                </div>
+              )}
+
               <button
-                onClick={skipCard}
-                className="px-4 py-3 rounded-xl transition-all duration-200"
+                onClick={nextCard}
+                className="w-full py-2.5 font-semibold rounded-xl transition-all duration-200"
                 style={{
-                  backgroundColor: 'var(--vtes-bg-secondary)',
-                  color: 'var(--vtes-text-muted)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--vtes-burgundy-dark)',
-                  fontFamily: 'var(--vtes-font-body)',
+                  backgroundColor: 'var(--vtes-burgundy)',
+                  color: 'var(--vtes-gold)',
+                  border: '2px solid var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)',
                   fontSize: '14px'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--vtes-bg-tertiary)';
-                  e.currentTarget.style.color = 'var(--vtes-text-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--vtes-bg-secondary)';
-                  e.currentTarget.style.color = 'var(--vtes-text-muted)';
-                }}
               >
-                Skip
+                Next Card
               </button>
             </div>
+          )}
+        </div>
 
-            <button
-              onClick={checkGuess}
-              disabled={!guess.trim()}
-              className="w-full py-3 font-semibold rounded-xl transition-all duration-200"
-              style={{
-                backgroundColor: guess.trim() ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
-                color: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-text-dim)',
-                borderWidth: '2px',
-                borderStyle: 'solid',
-                borderColor: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)',
-                boxShadow: guess.trim() ? 'var(--glow-gold)' : 'none',
-                cursor: guess.trim() ? 'pointer' : 'not-allowed',
-                fontFamily: 'var(--vtes-font-display)',
-                fontSize: '16px',
-                letterSpacing: '0.05em'
-              }}
-              onMouseEnter={(e) => {
-                if (guess.trim()) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 0 30px rgba(212, 175, 55, 0.5), 0 0 60px rgba(212, 175, 55, 0.2)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                if (guess.trim()) {
-                  e.currentTarget.style.boxShadow = 'var(--glow-gold)';
-                }
-              }}
-            >
-              Submit Answer
-            </button>
-          </div>
-        ) : (
-          /* Revealed state */
-          <div className="text-center space-y-4">
-            {result === 'correct' ? (
-              <div className="space-y-1">
-                <p className="text-green-400 font-bold text-xl">✓ Correct!</p>
-                <p className="text-green-500 text-sm">+{lastPoints} points</p>
-                {hintsRevealed === 0 && <p className="text-amber-400 text-xs">No hints bonus!</p>}
-              </div>
-            ) : result === 'incorrect' ? (
-              <div className="space-y-1">
-                <p className="text-red-400 font-bold text-xl">✗ Incorrect</p>
-                <p className="text-slate-400 text-sm">Streak lost</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-slate-400 font-bold text-xl">Skipped</p>
-                <p className="text-slate-500 text-sm">Streak lost</p>
-              </div>
-            )}
-
-            <p className="text-2xl text-white font-bold">{currentCard.name}</p>
-
-            <div className="flex justify-center">
-              <div
-                className="relative cursor-pointer"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt={currentCard.name}
-                  className="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
-                  style={{ width: 160 }}
-                />
-                <p className="text-slate-600 text-[10px] mt-1">Hover to enlarge</p>
-              </div>
-            </div>
-
-            {cardDetails && (
-              <div className="text-slate-500 text-sm space-y-0.5">
-                {cardDetails.type && <p>{cardDetails.type}</p>}
-                {cardDetails.artists && cardDetails.artists.length > 0 && (
-                  <p className="text-slate-600 text-xs">Art by {cardDetails.artists.join(', ')}</p>
-                )}
-                {currentCard.count > 0 && (
-                  <p className="text-slate-600 text-xs">Used in {currentCard.count} TWDA decks</p>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={nextCard}
-              className="w-full py-3 bg-red-700 hover:bg-red-600 text-white font-semibold rounded-xl transition"
-            >
-              Next Card →
-            </button>
-          </div>
-        )}
-
-        {/* Stats footer */}
-        <div className="mt-8 p-3 bg-slate-800/30 rounded-lg">
-          <div className="flex justify-around text-center text-xs">
+        {/* Stats footer - Fixed at bottom */}
+        <div className="mt-4 p-2.5 rounded-lg flex-shrink-0" style={{
+          backgroundColor: 'rgba(30, 30, 40, 0.5)',
+          border: '1px solid var(--vtes-burgundy-dark)'
+        }}>
+          <div className="flex justify-around text-center text-[11px]">
             <div>
-              <p className="text-slate-300 font-bold">{totalPlayed}</p>
-              <p className="text-slate-500">Played</p>
+              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{totalPlayed}</p>
+              <p style={{ color: 'var(--vtes-text-dim)' }}>Played</p>
             </div>
             <div>
-              <p className="text-slate-300 font-bold">{totalCorrect}</p>
-              <p className="text-slate-500">Correct</p>
+              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{totalCorrect}</p>
+              <p style={{ color: 'var(--vtes-text-dim)' }}>Correct</p>
             </div>
             <div>
-              <p className="text-slate-300 font-bold">
+              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>
                 {totalPlayed > 0 ? Math.round((totalCorrect / totalPlayed) * 100) : 0}%
               </p>
-              <p className="text-slate-500">Accuracy</p>
+              <p style={{ color: 'var(--vtes-text-dim)' }}>Accuracy</p>
             </div>
             <div>
-              <p className="text-amber-500 font-bold">{bestStreak}</p>
-              <p className="text-slate-500">Best</p>
+              <p className="font-bold" style={{ color: 'var(--vtes-gold)' }}>{bestStreak}</p>
+              <p style={{ color: 'var(--vtes-text-dim)' }}>Best</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 text-center text-slate-600 text-[10px]">
-          <p>Artwork only • Fuzzy matching enabled • Images: KRCG.org</p>
+        <div className="mt-2 text-center flex-shrink-0">
+          <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
         </div>
       </div>
 
       {showLargeCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={currentCard.name} className="max-h-[80vh] rounded-xl shadow-2xl" />
+          <img src={revealedImageUrl} alt={currentCard.name} className="max-h-[80vh] rounded-xl shadow-2xl" />
         </div>
       )}
     </div>
