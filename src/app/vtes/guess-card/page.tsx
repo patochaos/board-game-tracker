@@ -38,6 +38,8 @@ interface CardDetails {
   type?: string;
   disciplines?: string[];
   clan?: string;
+  sect?: string;
+  title?: string;
   firstSet?: string;
   requirements?: string;
   poolCost?: string;
@@ -245,6 +247,8 @@ export default function GuessCardPage() {
           type: data.types?.join(', '),
           disciplines: data.disciplines || card.disciplines || [],
           clan: data.clans?.[0] || card.clan,
+          sect: data.sect,
+          title: data.title,
           firstSet: data.ordered_sets?.[0],
           poolCost: data.pool_cost,
           bloodCost: data.blood_cost,
@@ -655,11 +659,26 @@ export default function GuessCardPage() {
                 </div>
               </>
             ) : (
-              // Crypt: Just Type
+              // Crypt: Type + Sect + Title
               <>
-                <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
-                  {currentCard.types.join(' / ')}
-                </span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-amber-500 font-vtes text-xl tracking-widest capitalize drop-shadow-md">
+                    {currentCard.types.join(' / ')}
+                  </span>
+                  {(cardDetails?.sect || cardDetails?.title) && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--vtes-text-muted)', fontFamily: 'var(--vtes-font-body)' }}>
+                      {cardDetails.sect && (
+                        <span className="uppercase tracking-wider">{cardDetails.sect}</span>
+                      )}
+                      {cardDetails.sect && cardDetails.title && (
+                        <span style={{ color: 'var(--vtes-burgundy)' }}>•</span>
+                      )}
+                      {cardDetails.title && (
+                        <span className="uppercase tracking-wider">{cardDetails.title}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
