@@ -112,7 +112,18 @@ Ver `.env.local.example`:
  
 ## Changelog
 
-### 2026-01-24
+### 2026-01-28
+- **UX/UI Analysis & Improvement Plan:**
+  - Created comprehensive UX/UI improvement plan in `/plans/ux-ui-improvement-plan.md`
+  - Analyzed design system, components, and user experience across all pages
+  - Identified opportunities for visual consistency, microinteractions, and accessibility
+- **VTES Guess Card Game Improvements:**
+  - Added localStorage persistence for game stats (score, bestStreak, totalPlayed, totalCorrect)
+  - Stats persist across page refreshes using key `vtes-guess-stats`
+  - Added mobile touch support: tap to toggle large card preview on mobile devices
+  - Added image preloading for next card to eliminate loading delay between cards
+  - Fixed duplicate card image bug on incorrect/skipped results
+  - Changes deployed to Vercel
 - **Expansion Support:**
   - Modified `/api/bgg/game` to detect and return available expansions from BGG
   - Created `/api/bgg/expansions` endpoint to import expansions with `base_game_id`
