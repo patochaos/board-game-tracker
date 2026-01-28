@@ -2,9 +2,22 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { MaskedCard } from '@/components/vtes/MaskedCard';
 import { Droplet, Send, SkipForward, Lightbulb, ArrowRight } from 'lucide-react';
+
+// Blood burst effect for correct guesses
+const triggerBloodBurst = () => {
+  confetti({
+    particleCount: 100,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#8a0303', '#ff0000', '#2b0000'],
+    shapes: ['circle'],
+    disableForReducedMotion: true
+  });
+};
 
 // Card data from JSON
 interface CardData {
@@ -16,8 +29,13 @@ interface CardData {
   clan?: string;
   capacity?: number;
   group?: string;
+  gender?: string;
   count: number;
   difficulty: number;
+  poolCost?: string;
+  bloodCost?: string;
+  convictionCost?: string;
+  requirements?: string;
 }
 
 interface GameData {
@@ -50,12 +68,11 @@ interface CardDetails {
 }
 
 const difficultyLabels: Record<number, { name: string; color: string; description: string }> = {
-  1: { name: 'Staple', color: 'bg-green-600', description: 'Top 10%' },
-  2: { name: 'Common', color: 'bg-blue-600', description: 'Next 15%' },
-  3: { name: 'Uncommon', color: 'bg-cyan-600', description: 'Next 25%' },
-  4: { name: 'Rare', color: 'bg-yellow-600', description: 'Next 35%' },
-  5: { name: 'Obscure', color: 'bg-orange-600', description: 'Bottom 15%' },
-  6: { name: 'Unknown', color: 'bg-red-600', description: 'Never Used' },
+  1: { name: 'Staple', color: 'bg-green-600', description: 'Top 20%' },
+  2: { name: 'Common', color: 'bg-blue-600', description: '20-50%' },
+  3: { name: 'Uncommon', color: 'bg-yellow-600', description: '50-80%' },
+  4: { name: 'Rare', color: 'bg-orange-600', description: 'Bottom 20%' },
+  5: { name: 'Never Used', color: 'bg-red-600', description: '0 TWDA' },
 };
 
 // Normalize string for comparison
@@ -113,7 +130,7 @@ function isCorrectGuess(guess: string, cardName: string): boolean {
 // Score calculation: hints = 50% points
 function calculateScore(hintsUsed: boolean, currentStreak: number, difficulty: number): number {
   const baseByDifficulty: Record<number, number> = {
-    1: 20, 2: 50, 3: 100, 4: 150, 5: 250, 6: 400
+    1: 20, 2: 50, 3: 100, 4: 200, 5: 400
   };
   let base = baseByDifficulty[difficulty] || 100;
 
@@ -130,48 +147,279 @@ function calculateScore(hintsUsed: boolean, currentStreak: number, difficulty: n
   return Math.round(base * multiplier);
 }
 
-const AUTO_ADVANCE_DELAY = 2000;
+const AUTO_ADVANCE_DELAY = 2000; // 2000ms for all results (show full card before auto-advance)
 const HOVER_DELAY = 1000;
 
-// Generate 3 wrong options for crypt multiple choice
+// Check if two clans are related (same clan or antitribu variant)
+function areClanRelated(clan1?: string, clan2?: string): boolean {
+  if (!clan1 || !clan2) return false;
+  if (clan1 === clan2) return true;
+  const base1 = clan1.replace(' antitribu', '');
+  const base2 = clan2.replace(' antitribu', '');
+  return base1 === base2;
+}
+
+// Generate 2 wrong options for crypt multiple choice (3 total with correct)
 function generateCryptOptions(
   correctCard: CardData,
   allCrypt: CardData[]
 ): CardData[] {
   const clan = correctCard.clan;
   const cap = correctCard.capacity ?? 5;
+  const gender = correctCard.gender;
+  const difficulty = correctCard.difficulty;
 
-  // Find candidates: same clan, similar capacity (+/- 2)
-  let candidates = allCrypt.filter(c =>
+  // Helper to check if card name is too similar (avoid obvious answers)
+  const isNameTooSimilar = (card1: CardData, card2: CardData): boolean => {
+    const name1 = displayName(card1.name).toLowerCase();
+    const name2 = displayName(card2.name).toLowerCase();
+    
+    // Exact match (already filtered)
+    if (name1 === name2) return true;
+    
+    // One name contains the other
+    if (name1.includes(name2) || name2.includes(name1)) return true;
+    
+    // Check for shared significant words (3+ characters)
+    const words1 = name1.split(/\s+/).filter(w => w.length >= 3);
+    const words2 = name2.split(/\s+/).filter(w => w.length >= 3);
+    
+    for (const w1 of words1) {
+      for (const w2 of words2) {
+        if (w1 === w2) return true;
+        if (w1.includes(w2) || w2.includes(w1)) return true;
+      }
+    }
+    
+    return false;
+  };
+
+  // Base filter: different card, same gender, similar capacity (+/- 2)
+  const baseFilter = (c: CardData) =>
     c.id !== correctCard.id &&
-    c.clan === clan &&
     c.capacity !== undefined &&
-    Math.abs((c.capacity ?? 0) - cap) <= 2
+    Math.abs((c.capacity ?? 0) - cap) <= 2 &&
+    (!gender || gender === '?' || c.gender === gender) &&
+    !isNameTooSimilar(correctCard, c);
+
+  // Priority 1: Same gender + same difficulty + same/antitribu clan + similar capacity
+  let candidates = allCrypt.filter(c =>
+    baseFilter(c) &&
+    c.difficulty === difficulty &&
+    areClanRelated(c.clan, clan)
   );
 
-  // If not enough same-clan candidates, expand to any clan with similar capacity
-  if (candidates.length < 3) {
+  // Priority 2: Same gender + same difficulty + similar capacity (any clan)
+  if (candidates.length < 2) {
     const moreCandidates = allCrypt.filter(c =>
-      c.id !== correctCard.id &&
-      c.capacity !== undefined &&
-      Math.abs((c.capacity ?? 0) - cap) <= 2 &&
-      !candidates.some(existing => existing.id === c.id)
+      baseFilter(c) &&
+      c.difficulty === difficulty &&
+      !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // If still not enough, just grab any crypt card
-  if (candidates.length < 3) {
+  // Priority 3: Same gender + same difficulty, any capacity
+  if (candidates.length < 2) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
-      !candidates.some(existing => existing.id === c.id)
+      c.difficulty === difficulty &&
+      (!gender || gender === '?' || c.gender === gender) &&
+      !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Shuffle and pick 3
+  // Priority 4: Same gender + any difficulty + similar capacity
+  if (candidates.length < 2) {
+    const moreCandidates = allCrypt.filter(c =>
+      baseFilter(c) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Priority 5: Same gender, any difficulty, any capacity
+  if (candidates.length < 2) {
+    const moreCandidates = allCrypt.filter(c =>
+      c.id !== correctCard.id &&
+      (!gender || gender === '?' || c.gender === gender) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Fallback: any crypt card
+  if (candidates.length < 2) {
+    const moreCandidates = allCrypt.filter(c =>
+      c.id !== correctCard.id &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Shuffle and pick 2
   const shuffled = candidates.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 3);
+  return shuffled.slice(0, 2);
+}
+
+// Generate 2 wrong options for library multiple choice (3 total with correct)
+function generateLibraryOptions(
+  correctCard: CardData,
+  allLibrary: CardData[],
+  details?: CardDetails
+): CardData[] {
+  const targetTypes = correctCard.types;
+  const targetDifficulty = correctCard.difficulty;
+  
+  // Get discipline requirement from details (API) or fallback to card data
+  const targetDisciplines = details?.disciplines?.map(d => d.toLowerCase()) || 
+                           correctCard.disciplines?.map(d => d.toLowerCase()) || 
+                           [];
+  
+  // Get cost from details (API) - this is the key missing piece
+  const targetBloodCost = details?.bloodCost || correctCard.bloodCost;
+  const targetPoolCost = details?.poolCost || correctCard.poolCost;
+  const targetConvictionCost = details?.convictionCost || correctCard.convictionCost;
+  
+  // Check if card is indiscriminate (no discipline requirement)
+  const isIndiscriminate = targetDisciplines.length === 0;
+
+  // Helper to check if indiscriminate
+  const isCardIndiscriminate = (c: CardData): boolean => {
+    return !c.disciplines || c.disciplines.length === 0;
+  };
+
+  // Helper to check cost similarity
+  const hasSimilarCost = (c: CardData, cDetails?: CardDetails): boolean => {
+    const bloodCost = cDetails?.bloodCost || c.bloodCost;
+    const poolCost = cDetails?.poolCost || c.poolCost;
+    const convictionCost = cDetails?.convictionCost || c.convictionCost;
+    
+    // If target costs blood, prefer blood cards
+    if (targetBloodCost && bloodCost === targetBloodCost) return true;
+    // If target costs pool, prefer pool cards
+    if (targetPoolCost && poolCost === targetPoolCost) return true;
+    // If target costs conviction, prefer conviction cards
+    if (targetConvictionCost && convictionCost === targetConvictionCost) return true;
+    // Free cards (no cost) should match other free cards
+    if (!targetBloodCost && !targetPoolCost && !targetConvictionCost &&
+        !bloodCost && !poolCost && !convictionCost) return true;
+    return false;
+  };
+
+  // Helper to check if card name is too similar (avoid obvious answers)
+  const isNameTooSimilar = (card1: CardData, card2: CardData): boolean => {
+    const name1 = displayName(card1.name).toLowerCase();
+    const name2 = displayName(card2.name).toLowerCase();
+    
+    // Exact match (already filtered)
+    if (name1 === name2) return true;
+    
+    // One name contains the other
+    if (name1.includes(name2) || name2.includes(name1)) return true;
+    
+    // Check for shared significant words (3+ characters)
+    const words1 = name1.split(/\s+/).filter(w => w.length >= 3);
+    const words2 = name2.split(/\s+/).filter(w => w.length >= 3);
+    
+    for (const w1 of words1) {
+      for (const w2 of words2) {
+        // Exact word match
+        if (w1 === w2) return true;
+        // Partial match (one word contains the other)
+        if (w1.includes(w2) || w2.includes(w1)) return true;
+      }
+    }
+    
+    return false;
+  };
+
+  // Base filter: different card, same type
+  const baseFilter = (c: CardData) =>
+    c.id !== correctCard.id &&
+    c.types.length === targetTypes.length &&
+    c.types.every(t => targetTypes.includes(t)) &&
+    !isNameTooSimilar(correctCard, c);
+
+  // Priority 1: Same type + same difficulty + same discipline + same cost type
+  let candidates = allLibrary.filter(c =>
+    baseFilter(c) &&
+    c.difficulty === targetDifficulty &&
+    (isIndiscriminate ? isCardIndiscriminate(c) :
+      (c.disciplines && c.disciplines.length > 0 &&
+       targetDisciplines.length > 0 &&
+       c.disciplines.some(d => targetDisciplines.includes(d)))) &&
+    hasSimilarCost(c)
+  );
+
+  // Priority 2: Same type + same difficulty + same discipline (any cost)
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      baseFilter(c) &&
+      c.difficulty === targetDifficulty &&
+      (isIndiscriminate ? isCardIndiscriminate(c) :
+        (c.disciplines && c.disciplines.length > 0 &&
+         targetDisciplines.length > 0 &&
+         c.disciplines.some(d => targetDisciplines.includes(d)))) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Priority 3: Same type + same difficulty + same discipline requirement status
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      baseFilter(c) &&
+      c.difficulty === targetDifficulty &&
+      isIndiscriminate === isCardIndiscriminate(c) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Priority 4: Same type + same difficulty (any discipline)
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      baseFilter(c) &&
+      c.difficulty === targetDifficulty &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Priority 5: Same type (any difficulty) - fallback
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      baseFilter(c) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Fallback: any library card with same types count
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      c.id !== correctCard.id &&
+      c.types.length === targetTypes.length &&
+      c.types.every(t => targetTypes.includes(t)) &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Last resort: any library card
+  if (candidates.length < 2) {
+    const moreCandidates = allLibrary.filter(c =>
+      c.id !== correctCard.id &&
+      !candidates.some(e => e.id === c.id)
+    );
+    candidates = [...candidates, ...moreCandidates];
+  }
+
+  // Shuffle and pick 2
+  const shuffled = candidates.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 2);
 }
 
 // Strip group/adv notation for display: "Anson (G1)" -> "Anson"
@@ -193,6 +441,7 @@ export default function GuessCardPage() {
   const [currentCard, setCurrentCard] = useState<CardData | null>(null);
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [showUnblurred, setShowUnblurred] = useState(false); // For incorrect/skipped - shows full HD card
   const [guess, setGuess] = useState('');
   const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | null>(null);
   const [showLargeCard, setShowLargeCard] = useState(false);
@@ -201,6 +450,12 @@ export default function GuessCardPage() {
 
   // Multiple choice for crypt
   const [cryptOptions, setCryptOptions] = useState<string[]>([]);
+  
+  // Multiple choice for library
+  const [libraryOptions, setLibraryOptions] = useState<string[]>([]);
+
+  // Choice tracking - prevents multiple selections
+  const [choiceMade, setChoiceMade] = useState(false);
 
   // Animation state
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -300,6 +555,22 @@ export default function GuessCardPage() {
     setCryptOptions(shuffled);
   }, [gameData]);
 
+  // Setup multiple choice options for library cards
+  const setupLibraryOptions = useCallback((card: CardData, details?: CardDetails) => {
+    if (!gameData) {
+      setLibraryOptions([]);
+      return;
+    }
+    const wrongOptions = generateLibraryOptions(card, gameData.library, details);
+    const allOptions = [
+      displayName(card.name),
+      ...wrongOptions.map(c => displayName(c.name))
+    ];
+    // Shuffle options
+    const shuffled = allOptions.sort(() => Math.random() - 0.5);
+    setLibraryOptions(shuffled);
+  }, [gameData]);
+
   // Fetch card details
   const fetchCardDetails = useCallback(async (cardName: string, card: CardData) => {
     try {
@@ -333,6 +604,9 @@ export default function GuessCardPage() {
           flavorText: data.flavor_text,
         };
         setCardDetails(details);
+        // Setup options after getting card details
+        setupCryptOptions(card);
+        setupLibraryOptions(card, details);
       }
     } catch (error) {
       console.error('Error fetching card details:', error);
@@ -343,8 +617,10 @@ export default function GuessCardPage() {
         disciplines: card.disciplines,
         clan: card.clan,
       });
+      setupCryptOptions(card);
+      setupLibraryOptions(card);
     }
-  }, []);
+  }, [setupCryptOptions, setupLibraryOptions]);
 
   // Ranked Mode Helper Functions
   const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
@@ -395,9 +671,9 @@ export default function GuessCardPage() {
     if (playlist[0]) {
       setCurrentCard(playlist[0]);
       fetchCardDetails(playlist[0].name, playlist[0]);
-      setupCryptOptions(playlist[0]);
+      // Note: setupLibraryOptions will be called after cardDetails is set
     }
-  }, [gameData, generateRankedPlaylist, fetchCardDetails, setupCryptOptions]);
+  }, [gameData, generateRankedPlaylist, fetchCardDetails]);
 
   const resetRankedGame = useCallback(() => {
     startRankedGame();
@@ -421,14 +697,14 @@ export default function GuessCardPage() {
       if (card) {
         setCurrentCard(card);
         fetchCardDetails(card.name, card);
-        setupCryptOptions(card);
+        // Note: setupLibraryOptions will be called after cardDetails is set
       }
     }
-  }, [gameData, currentCard, pickRandomCard, fetchCardDetails, setupCryptOptions]);
+  }, [gameData, currentCard, pickRandomCard, fetchCardDetails]);
 
-  // Auto-advance timer
+  // Auto-advance timer - only for CORRECT guesses (not incorrect/skipped)
   useEffect(() => {
-    if (revealed) {
+    if (revealed && result === 'correct') {
       const startTime = Date.now();
       progressRef.current = setInterval(() => {
         const elapsed = Date.now() - startTime;
@@ -443,7 +719,7 @@ export default function GuessCardPage() {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed]);
+  }, [revealed, result]);
 
   useEffect(() => {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
@@ -471,7 +747,7 @@ export default function GuessCardPage() {
         setCurrentCard(card);
         setCardDetails(null);
         fetchCardDetails(card.name, card);
-        setupCryptOptions(card);
+        // Note: setupLibraryOptions will be called after cardDetails is set
       } else if (nextIndex === rankedPlaylist.length) {
         setShowFinalScore(true);
       }
@@ -481,11 +757,12 @@ export default function GuessCardPage() {
         setCurrentCard(card);
         setCardDetails(null);
         fetchCardDetails(card.name, card);
-        setupCryptOptions(card);
+        // Note: setupLibraryOptions will be called after cardDetails is set
       }
     }
 
     setRevealed(false);
+    setShowUnblurred(false);
     setGuess('');
     setResult(null);
     setLastPoints(0);
@@ -493,6 +770,7 @@ export default function GuessCardPage() {
     setShowLargeCard(false);
     setShowInitials(false);
     setFeedback(null);
+    setChoiceMade(false);
     setCardKey(prev => prev + 1);
 
     // Auto-focus input after transition
@@ -507,9 +785,13 @@ export default function GuessCardPage() {
 
     if (correct) {
       setResult('correct');
-      setRevealed(true);
       setFeedback('correct');
+      setRevealed(true);
+      setShowUnblurred(true); // Show full card for 1 second before auto-advance
       setTotalCorrect(prev => prev + 1);
+      
+      // Trigger blood burst effect
+      triggerBloodBurst();
 
       if (gameMode === 'ranked') {
         const cardValue = getRankedCardValue(currentCard.difficulty);
@@ -531,8 +813,10 @@ export default function GuessCardPage() {
       }
     } else {
       setResult('incorrect');
-      setRevealed(true);
       setFeedback('incorrect');
+      setRevealed(true);
+      setShowUnblurred(true); // Show full card for 2 seconds before auto-advance
+      setShowInitials(false);
       if (gameMode !== 'ranked') {
         setStreak(0);
       }
@@ -550,19 +834,33 @@ export default function GuessCardPage() {
   };
 
   const handleCryptChoice = (chosenName: string) => {
-    if (!currentCard) return;
+    if (!currentCard || choiceMade) return;
+    setChoiceMade(true);
+    const correct = chosenName === displayName(currentCard.name);
+    handleAnswer(correct);
+  };
+
+  const handleLibraryChoice = (chosenName: string) => {
+    if (!currentCard || choiceMade) return;
+    setChoiceMade(true);
     const correct = chosenName === displayName(currentCard.name);
     handleAnswer(correct);
   };
 
   const skipCard = () => {
     setResult('skipped');
-    setRevealed(true);
+    setShowUnblurred(true); // REVEAL card in full HD
     setStreak(0);
     setTotalPlayed(prev => prev + 1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // When card is revealed and incorrect/skipped, Enter goes to next card
+    if (e.key === 'Enter' && revealed && (result === 'incorrect' || result === 'skipped')) {
+      nextCard();
+      return;
+    }
+    // Normal guess submission
     if (e.key === 'Enter' && guess.trim()) {
       checkGuess();
     }
@@ -606,11 +904,14 @@ export default function GuessCardPage() {
 
   const isCrypt = currentCard.capacity !== undefined;
 
-  // Dimensions - fixed height to prevent layout jump between crypt/library
-  const displayWidth = 280;
-  const displayHeight = isCrypt ? 390 : 240;
-
-  // Logic for Library Crop
+  // For library cards: show art crop (obfuscated) until revealed, then show full card
+  const showArtCrop = !isCrypt && !revealed;
+  
+  // Dimensions - larger when revealed for better visibility
+  const displayWidth = revealed ? 340 : 280;
+  const displayHeight = isCrypt ? (revealed ? 470 : 390) : (revealed ? 320 : 240);
+  
+  // Library crop dimensions (for art-only view)
   const scaledCardWidth = displayWidth / 0.72;
   const scaledCardHeight = scaledCardWidth * 1.4;
   const offsetX = scaledCardWidth * 0.21;
@@ -796,7 +1097,7 @@ export default function GuessCardPage() {
         {gameMode === 'normal' && (
           <div className="mb-3 flex-shrink-0">
             <div className="flex gap-1.5 justify-center overflow-x-auto pb-1 scrollbar-hide">
-              {[1, 2, 3, 4, 5, 6].map(diff => {
+              {[1, 2, 3, 4, 5].map(diff => {
                 const info = difficultyLabels[diff];
                 const isSelected = selectedDifficulty === diff;
                 return (
@@ -847,15 +1148,12 @@ export default function GuessCardPage() {
           </div>
         )}
 
-        {/* Progress bar */}
-        {revealed && (
+        {/* Progress bar - only for CORRECT guesses (auto-advance) */}
+        {revealed && result === 'correct' && (
           <div className="mb-2 h-1 rounded-full overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
             <div
-              className="h-full transition-all duration-75"
-              style={{
-                width: `${autoAdvanceProgress}%`,
-                backgroundColor: result === 'correct' ? '#22c55e' : result === 'incorrect' ? '#ef4444' : '#64748b'
-              }}
+              className="h-full transition-all duration-75 bg-green-500"
+              style={{ width: `${autoAdvanceProgress}%` }}
             />
           </div>
         )}
@@ -917,17 +1215,26 @@ export default function GuessCardPage() {
                     isRevealed={revealed}
                   />
                 ) : (
+                  // Library card - show art only when blurred, full card when revealed
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={imageUrl}
-                    alt="VTES Card Art"
+                    src={showArtCrop ? imageUrl : revealedImageUrl}
+                    alt="VTES Card"
                     style={{
-                      position: 'absolute',
-                      width: scaledCardWidth,
-                      height: scaledCardHeight,
-                      left: -offsetX,
-                      top: -offsetY,
-                      maxWidth: 'none',
+                      // For art-only: crop to show only the art (no blur needed)
+                      ...(showArtCrop ? {
+                        position: 'absolute',
+                        width: scaledCardWidth,
+                        height: scaledCardHeight,
+                        left: -offsetX,
+                        top: -offsetY,
+                        maxWidth: 'none',
+                      } : {
+                        // For revealed: show full card at natural size
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                      }),
                     }}
                   />
                 )}
@@ -950,6 +1257,23 @@ export default function GuessCardPage() {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Card details - shown below card when revealed (for crypt cards that need the info) */}
+        {revealed && isCrypt && cardDetails && (
+          <div className="mb-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
+            <div className="flex flex-col items-center gap-1">
+              {cardDetails.type && (
+                <p className="text-xs font-medium" style={{ color: 'var(--vtes-gold)' }}>{cardDetails.type}</p>
+              )}
+              {cardDetails.artists && cardDetails.artists.length > 0 && (
+                <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
+              )}
+              {currentCard.count > 0 && (
+                <p className="text-[10px] font-medium" style={{ color: 'var(--vtes-blood)' }}>Used in {currentCard.count.toLocaleString()} TWDA decks</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Card Info Line */}
         <div className="flex justify-center mb-3 flex-shrink-0">
@@ -1020,39 +1344,42 @@ export default function GuessCardPage() {
 
         {/* Game area - flexible grow */}
         <div className="flex-1 flex flex-col justify-center">
-          {!revealed ? (
+          {/* Before choice - show options */}
+          {!revealed && !choiceMade && (
             <div className="space-y-3">
-              {/* Hint Section */}
-              <div className="flex flex-col items-center gap-2">
-                {showInitials ? (
-                  <div className="px-4 py-2 rounded-lg" style={{
-                    backgroundColor: 'var(--vtes-bg-tertiary)',
-                    border: '1px solid var(--vtes-gold)',
-                    boxShadow: 'var(--glow-gold)'
-                  }}>
-                    <p className="font-mono text-base tracking-[0.15em] font-bold" style={{
-                      color: 'var(--vtes-gold)',
-                      fontFamily: 'var(--vtes-font-display)'
+              {/* Hint Section - only for library text input mode */}
+              {!isCrypt && libraryOptions.length === 0 && (
+                <div className="flex flex-col items-center gap-2">
+                  {showInitials ? (
+                    <div className="px-4 py-2 rounded-lg" style={{
+                      backgroundColor: 'var(--vtes-bg-tertiary)',
+                      border: '1px solid var(--vtes-gold)',
+                      boxShadow: 'var(--glow-gold)'
                     }}>
-                      {generateInitialsHint(currentCard.name)}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowInitials(true)}
-                    className="text-[11px] uppercase tracking-wider flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 hover:opacity-80"
-                    style={{
-                      backgroundColor: 'var(--vtes-bg-secondary)',
-                      color: 'var(--vtes-text-muted)',
-                      border: '1px solid var(--vtes-gold-dark)',
-                      fontFamily: 'var(--vtes-font-body)'
-                    }}
-                  >
-                    <Lightbulb className="w-3.5 h-3.5" style={{ color: 'var(--vtes-gold-dark)' }} />
-                    Show Initials <span style={{ color: 'var(--vtes-gold-dark)' }}>(50% pts)</span>
-                  </button>
-                )}
-              </div>
+                      <p className="font-mono text-base tracking-[0.15em] font-bold" style={{
+                        color: 'var(--vtes-gold)',
+                        fontFamily: 'var(--vtes-font-display)'
+                      }}>
+                        {generateInitialsHint(currentCard.name)}
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowInitials(true)}
+                      className="text-[11px] uppercase tracking-wider flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 hover:opacity-80"
+                      style={{
+                        backgroundColor: 'var(--vtes-bg-secondary)',
+                        color: 'var(--vtes-text-muted)',
+                        border: '1px solid var(--vtes-gold-dark)',
+                        fontFamily: 'var(--vtes-font-body)'
+                      }}
+                    >
+                      <Lightbulb className="w-3.5 h-3.5" style={{ color: 'var(--vtes-gold-dark)' }} />
+                      Show Initials <span style={{ color: 'var(--vtes-gold-dark)' }}>(50% pts)</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Crypt: Multiple choice buttons */}
               {isCrypt && cryptOptions.length > 0 ? (
@@ -1097,8 +1424,51 @@ export default function GuessCardPage() {
                     </button>
                   </div>
                 </div>
+              ) : !isCrypt && libraryOptions.length > 0 ? (
+                /* Library: Multiple choice buttons */
+                <div className="space-y-2">
+                  <p className="text-center text-sm" style={{ color: 'var(--vtes-text-secondary, #c0bfb8)' }}>What card is this?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {libraryOptions.map((option, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleLibraryChoice(option)}
+                        className="px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left"
+                        style={{
+                          backgroundColor: 'var(--vtes-bg-tertiary)',
+                          color: 'var(--vtes-text-primary)',
+                          border: '2px solid var(--vtes-burgundy-dark)',
+                          fontFamily: 'var(--vtes-font-body)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--vtes-gold)';
+                          e.currentTarget.style.boxShadow = 'var(--glow-gold)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={skipCard}
+                      className="text-[11px] px-3 py-1 rounded transition-all duration-200 flex items-center gap-1 hover:opacity-80"
+                      style={{
+                        color: 'var(--vtes-text-dim)',
+                        fontFamily: 'var(--vtes-font-body)'
+                      }}
+                    >
+                      <SkipForward className="w-3 h-3" />
+                      Skip
+                    </button>
+                  </div>
+                </div>
               ) : (
-                /* Library: Text input */
+                /* Library: Text input (fallback) */
                 <div className="space-y-2">
                   <p className="text-center text-sm" style={{ color: 'var(--vtes-text-secondary, #c0bfb8)' }}>What card is this?</p>
                   <input
@@ -1166,45 +1536,21 @@ export default function GuessCardPage() {
                 </div>
               )}
             </div>
-          ) : (
-            /* Revealed state */
+          )}
+
+          {/* After choice made - show result */}
+          {(revealed || choiceMade) && result === 'incorrect' ? (
+            /* INCORRECT: Show large SKIP button, keep blur */
             <div className="text-center space-y-3">
-              {result === 'correct' ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="space-y-0.5"
-                >
-                  <p className="font-bold text-lg" style={{ color: '#22c55e' }}>Correct!</p>
-                  <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="text-sm" style={{ color: '#4ade80' }}
-                  >+{lastPoints} points</motion.p>
-                  {!showInitials && <p className="text-[10px]" style={{ color: 'var(--vtes-gold)' }}>No hints bonus!</p>}
-                </motion.div>
-              ) : result === 'incorrect' ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="space-y-0.5"
-                >
-                  <p className="font-bold text-lg" style={{ color: '#ef4444' }}>Incorrect</p>
-                  <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Streak lost</p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-0.5"
-                >
-                  <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-muted)' }}>Skipped</p>
-                  <p className="text-sm" style={{ color: 'var(--vtes-text-dim)' }}>Streak lost</p>
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="space-y-0.5"
+              >
+                <p className="font-bold text-lg" style={{ color: '#ef4444' }}>Incorrect</p>
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Streak lost</p>
+              </motion.div>
 
               <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
 
@@ -1239,20 +1585,80 @@ export default function GuessCardPage() {
 
               <button
                 onClick={nextCard}
-                className="w-full py-2.5 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full py-4 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   backgroundColor: 'var(--vtes-burgundy)',
                   color: 'var(--vtes-gold)',
                   border: '2px solid var(--vtes-gold)',
                   fontFamily: 'var(--vtes-font-display)',
-                  fontSize: '14px'
+                  fontSize: '16px'
                 }}
               >
-                Next Card
-                <ArrowRight className="w-4 h-4" />
+                <SkipForward className="w-5 h-5" />
+                Skip / Next Card
               </button>
             </div>
-          )}
+          ) : result === 'skipped' ? (
+            /* SKIPPED: Same as incorrect but different message */
+            <div className="text-center space-y-3">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-0.5"
+              >
+                <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-muted)' }}>Skipped</p>
+                <p className="text-sm" style={{ color: 'var(--vtes-text-dim)' }}>Streak lost</p>
+              </motion.div>
+
+              <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
+
+              <div className="flex justify-center">
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={revealedImageUrl}
+                    alt={currentCard.name}
+                    className="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
+                    style={{ width: 140 }}
+                  />
+                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--vtes-text-dim)' }}>Hover to enlarge</p>
+                </div>
+              </div>
+
+              {cardDetails && (
+                <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
+                  {cardDetails.type && <p>{cardDetails.type}</p>}
+                  {cardDetails.artists && cardDetails.artists.length > 0 && (
+                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
+                  )}
+                  {currentCard.count > 0 && (
+                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Used in {currentCard.count} TWDA decks</p>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={nextCard}
+                className="w-full py-4 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  backgroundColor: 'var(--vtes-burgundy)',
+                  color: 'var(--vtes-gold)',
+                  border: '2px solid var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)',
+                  fontSize: '16px'
+                }}
+              >
+                <SkipForward className="w-5 h-5" />
+                Next Card
+              </button>
+            </div>
+          ) : null
+          /* Note: Correct answer auto-advances, no additional UI needed */
+          }
         </div>
 
         {/* Stats footer - Fixed at bottom */}
