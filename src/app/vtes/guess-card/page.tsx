@@ -1554,23 +1554,6 @@ export default function GuessCardPage() {
 
               <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
 
-              <div className="flex justify-center">
-                <div
-                  className="relative cursor-pointer"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={revealedImageUrl}
-                    alt={currentCard.name}
-                    className="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
-                    style={{ width: 140 }}
-                  />
-                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--vtes-text-dim)' }}>Hover to enlarge</p>
-                </div>
-              </div>
-
               {cardDetails && (
                 <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
                   {cardDetails.type && <p>{cardDetails.type}</p>}
@@ -1611,23 +1594,6 @@ export default function GuessCardPage() {
               </motion.div>
 
               <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
-
-              <div className="flex justify-center">
-                <div
-                  className="relative cursor-pointer"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={revealedImageUrl}
-                    alt={currentCard.name}
-                    className="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
-                    style={{ width: 140 }}
-                  />
-                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--vtes-text-dim)' }}>Hover to enlarge</p>
-                </div>
-              </div>
 
               {cardDetails && (
                 <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
