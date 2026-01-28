@@ -146,9 +146,41 @@ export default function DecksPage() {
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-10 text-slate-500">Loading archives...</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 animate-pulse">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="h-6 w-3/4 bg-slate-700 rounded" />
+                                    <div className="h-5 w-5 bg-slate-700 rounded" />
+                                </div>
+                                <div className="space-y-2 mb-4">
+                                    <div className="h-4 w-full bg-slate-700/60 rounded" />
+                                    <div className="h-4 w-2/3 bg-slate-700/60 rounded" />
+                                </div>
+                                <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                                    <div className="h-3 w-24 bg-slate-700/40 rounded" />
+                                    <div className="h-3 w-20 bg-slate-700/40 rounded" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : filteredDecks.length === 0 ? (
-                    <div className="text-center py-10 text-slate-500">No decks found.</div>
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                            <FileText className="w-8 h-8 text-slate-600" />
+                        </div>
+                        <h3 className="text-lg font-medium text-slate-300 mb-1">No decks found</h3>
+                        <p className="text-slate-500 mb-4">
+                            {search ? 'Try a different search term.' : 'Import your first deck to get started.'}
+                        </p>
+                        {!search && (
+                            <Link href="/vtes/decks/import">
+                                <Button className="bg-red-600 hover:bg-red-700 text-white" leftIcon={<Plus className="h-4 w-4" />}>
+                                    Import Deck
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredDecks.map((deck) => (

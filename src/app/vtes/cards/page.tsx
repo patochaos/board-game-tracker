@@ -7,13 +7,14 @@ import { Search, Filter, Loader2, Info, X, ChevronLeft, ChevronRight } from 'luc
 import { useState, useEffect } from 'react';
 import { searchKrcg, VtesCard } from '@/lib/krcg';
 
-// Constants
-const CLANS = [
-    'Assamite', 'Brujah', 'Followers of Set', 'Gangrel', 'Giovanni', 'Lasombra',
-    'Malkavian', 'Nosferatu', 'Ravnos', 'Toreador', 'Tremere', 'Tzimisce', 'Ventrue',
-    'Caitiff', 'Pander', 'Baali', 'Blood Brothers', 'Gargoyles', 'Harbingers of Skulls',
-    'Nagaraja', 'Salubri', 'Samedi', 'True Brujah', 'Daughters of Cacophony',
-    'Kiasyd', 'Osebo', 'Akunanse', 'Guruhi', 'Ishtarri'
+// Constants - Clans grouped by sect
+const CLAN_GROUPS = [
+    { label: 'Camarilla', clans: ['Brujah', 'Gangrel', 'Malkavian', 'Nosferatu', 'Toreador', 'Tremere', 'Ventrue'] },
+    { label: 'Sabbat', clans: ['Lasombra', 'Tzimisce', 'Pander'] },
+    { label: 'Independent', clans: ['Assamite', 'Followers of Set', 'Giovanni', 'Ravnos'] },
+    { label: 'Laibon', clans: ['Akunanse', 'Guruhi', 'Ishtarri', 'Osebo'] },
+    { label: 'Bloodlines', clans: ['Baali', 'Blood Brothers', 'Daughters of Cacophony', 'Gargoyles', 'Harbingers of Skulls', 'Kiasyd', 'Nagaraja', 'Salubri', 'Samedi', 'True Brujah'] },
+    { label: 'Other', clans: ['Caitiff'] },
 ];
 
 const LIBRARY_TYPES = [
@@ -161,7 +162,11 @@ export default function CardSearchPage() {
                                 onChange={(e) => setClanFilter(e.target.value)}
                             >
                                 <option value="">Any Clan</option>
-                                {CLANS.map(c => <option key={c} value={c}>{c}</option>)}
+                                {CLAN_GROUPS.map(group => (
+                                    <optgroup key={group.label} label={group.label}>
+                                        {group.clans.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                ))}
                             </select>
 
                             {/* Crypt Specific: Capacity */}
@@ -201,8 +206,16 @@ export default function CardSearchPage() {
 
                 {/* RESULTS GRID */}
                 {loading ? (
-                    <div className="py-20 flex justify-center text-slate-500">
-                        <Loader2 className="h-8 w-8 animate-spin" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {[...Array(8)].map((_, i) => (
+                            <div key={i} className="relative aspect-[358/500] bg-slate-800 rounded-xl overflow-hidden border border-slate-700 animate-pulse">
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-700/50 to-transparent" />
+                                <div className="absolute bottom-4 left-4 right-4 space-y-2">
+                                    <div className="h-5 w-3/4 bg-slate-600 rounded" />
+                                    <div className="h-3 w-1/2 bg-slate-700 rounded" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : results.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -238,14 +251,20 @@ export default function CardSearchPage() {
                         ))}
                     </div>
                 ) : hasSearched ? (
-                    <div className="text-center py-20 text-slate-500">
-                        <Info className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No cards found matching your criteria.</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                            <Info className="w-8 h-8 text-slate-600" />
+                        </div>
+                        <h3 className="text-lg font-medium text-slate-300 mb-1">No cards found</h3>
+                        <p className="text-slate-500">Try different search terms or adjust your filters.</p>
                     </div>
                 ) : (
-                    <div className="text-center py-20 text-slate-500">
-                        <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Search via name, text, or filters above.</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                            <Search className="w-8 h-8 text-slate-600" />
+                        </div>
+                        <h3 className="text-lg font-medium text-slate-300 mb-1">Search the archives</h3>
+                        <p className="text-slate-500">Use card name, text, or filters above to find cards.</p>
                     </div>
                 )}
             </div>

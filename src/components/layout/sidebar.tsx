@@ -18,6 +18,7 @@ import {
   Swords,
   Search,
   FileText,
+  HelpCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -36,6 +37,7 @@ const vtesNavItems = [
   { label: 'Sessions', href: '/vtes/sessions', icon: FileText },
   { label: 'Leaderboard', href: '/vtes/leaderboard', icon: Trophy },
   { label: 'Search Cards', href: '/vtes/cards', icon: Search },
+  { label: 'Guess Card', href: '/vtes/guess-card', icon: HelpCircle },
 ];
 
 const bottomItems = [

@@ -18,6 +18,13 @@ export default function PortalPage() {
       {/* Intro Overlay for Mobile (Header) */}
       <div className="absolute top-0 w-full z-20 p-6 lg:hidden text-center">
         <h1 className="text-2xl font-bold text-slate-100 tracking-wider">GAME TRACKER</h1>
+        <p className="text-sm text-slate-400 mt-1 tracking-widest uppercase">Track. Compete. Dominate.</p>
+      </div>
+
+      {/* Desktop Title */}
+      <div className="hidden lg:block absolute top-8 left-1/2 -translate-x-1/2 z-20 text-center">
+        <h1 className="text-2xl font-bold text-slate-100 tracking-wider">GAME TRACKER</h1>
+        <p className="text-xs text-slate-500 mt-1 tracking-widest uppercase">Track. Compete. Dominate.</p>
       </div>
 
       {/* Board Games Section */}
