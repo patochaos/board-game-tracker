@@ -5,7 +5,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { MaskedCard } from '@/components/vtes/MaskedCard';
-import { Droplet, Send, SkipForward, Lightbulb, ArrowRight } from 'lucide-react';
+import { Droplet, Send, SkipForward, Lightbulb, ArrowRight, ChevronLeft, ChevronRight, Flame, Star, Info, Trophy, Zap, Target, Shield, Crown, BookOpen, Skull, Sparkles, Play } from 'lucide-react';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useVtesGuessLeaderboard } from '@/hooks/useVtesGuessLeaderboard';
+import {
+  normalizeString,
+  isCorrectGuess,
+  calculateScore,
+  displayName,
+  areClanRelated,
+  isNameTooSimilar,
+  generateCryptOptions,
+  generateLibraryOptions,
+  type GameCardData,
+  type GameCardDetails,
+  type PremiumDistractors
+} from '@/lib/vtes/guess-game';
 
 // Blood burst effect for correct guesses
 const triggerBloodBurst = () => {
@@ -19,25 +36,19 @@ const triggerBloodBurst = () => {
   });
 };
 
-// Card data from JSON
-interface CardData {
-  id: number;
-  name: string;
-  slug: string;
-  types: string[];
-  disciplines?: string[];
-  clan?: string;
-  capacity?: number;
-  group?: string;
-  gender?: string;
-  count: number;
-  difficulty: number;
-  poolCost?: string;
-  bloodCost?: string;
-  convictionCost?: string;
-  requirements?: string;
-}
+const difficultyLabels: Record<number, { name: string; color: string; description: string; icon: string; bgColor: string; borderColor: string }> = {
+  1: { name: 'Staple', color: 'text-emerald-400', description: 'Top 20%', icon: '🌟', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-500/50' },
+  2: { name: 'Common', color: 'text-blue-400', description: '20-50%', icon: '📦', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/50' },
+  3: { name: 'Uncommon', color: 'text-yellow-400', description: '50-80%', icon: '🔶', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/50' },
+  4: { name: 'Rare', color: 'text-orange-400', description: 'Bottom 20%', icon: '🔴', bgColor: 'bg-orange-500/20', borderColor: 'border-orange-500/50' },
+  5: { name: 'Never Used', color: 'text-red-400', description: '0 TWDA', icon: '💀', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/50' },
+};
 
+const AUTO_ADVANCE_DELAY = 1500; // 1500ms for correct answers (slower auto-advance)
+const HOVER_DELAY = 1000;
+const STATS_STORAGE_KEY = 'vtes-guess-stats';
+
+// Game data interface
 interface GameData {
   metadata: {
     total_decks_analyzed: number;
@@ -45,111 +56,9 @@ interface GameData {
     total_library_cards: number;
     difficulty_levels: Record<string, string>;
   };
-  crypt: CardData[];
-  library: CardData[];
+  crypt: GameCardData[];
+  library: GameCardData[];
 }
-
-// Card details from API
-interface CardDetails {
-  name: string;
-  imageUrl: string; // actual KRCG image URL from API
-  type?: string;
-  disciplines?: string[];
-  clan?: string;
-  sect?: string;
-  title?: string;
-  firstSet?: string;
-  requirements?: string;
-  poolCost?: string;
-  bloodCost?: string;
-  convictionCost?: string;
-  artists?: string[];
-  flavorText?: string;
-}
-
-const difficultyLabels: Record<number, { name: string; color: string; description: string }> = {
-  1: { name: 'Staple', color: 'bg-green-600', description: 'Top 20%' },
-  2: { name: 'Common', color: 'bg-blue-600', description: '20-50%' },
-  3: { name: 'Uncommon', color: 'bg-yellow-600', description: '50-80%' },
-  4: { name: 'Rare', color: 'bg-orange-600', description: 'Bottom 20%' },
-  5: { name: 'Never Used', color: 'bg-red-600', description: '0 TWDA' },
-};
-
-// Normalize string for comparison
-function normalizeString(str: string, aggressive = false): string {
-  if (!str) return '';
-  let normalized = str
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]/g, '')
-    .trim();
-
-  if (aggressive) {
-    normalized = normalized
-      .replace(/\b(the|and|of|a|an)\b/g, '')
-      .replace(/\s+/g, '');
-  }
-  return normalized;
-}
-
-// Check if guess matches the card (with fuzzy tolerance)
-function isCorrectGuess(guess: string, cardName: string): boolean {
-  if (!guess || !cardName) return false;
-
-  const normalizedGuess = normalizeString(guess);
-  const normalizedAnswer = normalizeString(cardName);
-
-  // 1. Exact match (normalized)
-  if (normalizedGuess === normalizedAnswer) return true;
-
-  // 2. Super aggressive match (ignore stop words and spaces)
-  if (normalizeString(guess, true) === normalizeString(cardName, true)) return true;
-
-  const lowerCardName = cardName.toLowerCase();
-
-  // 3. Match without group notation: "Anson" should match "Anson (G1)"
-  const baseNameMatch = lowerCardName.match(/^(.+?)\s*\(g\d+\)$/i);
-  if (baseNameMatch) {
-    const baseName = baseNameMatch[1];
-    if (normalizedGuess === normalizeString(baseName)) return true;
-    if (normalizeString(guess, true) === normalizeString(baseName, true)) return true;
-  }
-
-  // 4. Match Advanced vampires: "Ankha" should match "Ankha (ADV)"
-  const advMatch = lowerCardName.match(/^(.+?)\s*\(.*adv.*\)$/i);
-  if (advMatch) {
-    const baseName = advMatch[1];
-    if (normalizedGuess === normalizeString(baseName)) return true;
-    if (normalizeString(guess, true) === normalizeString(baseName, true)) return true;
-  }
-
-  return false;
-}
-
-// Score calculation: hints = 50% points
-function calculateScore(hintsUsed: boolean, currentStreak: number, difficulty: number): number {
-  const baseByDifficulty: Record<number, number> = {
-    1: 20, 2: 50, 3: 100, 4: 200, 5: 400
-  };
-  let base = baseByDifficulty[difficulty] || 100;
-
-  // Hints = 50% points
-  if (hintsUsed) {
-    base = Math.round(base * 0.5);
-  }
-
-  let multiplier = 1;
-  if (currentStreak >= 10) multiplier = 3;
-  else if (currentStreak >= 5) multiplier = 2;
-  else if (currentStreak >= 3) multiplier = 1.5;
-
-  return Math.round(base * multiplier);
-}
-
-const AUTO_ADVANCE_DELAY = 2000; // 2000ms for all results (show full card before auto-advance)
-const HOVER_DELAY = 1000;
-const STATS_STORAGE_KEY = 'vtes-guess-stats';
 
 // Stats interface for localStorage
 interface GameStats {
@@ -181,286 +90,6 @@ function saveStats(stats: GameStats): void {
   }
 }
 
-// Check if two clans are related (same clan or antitribu variant)
-function areClanRelated(clan1?: string, clan2?: string): boolean {
-  if (!clan1 || !clan2) return false;
-  if (clan1 === clan2) return true;
-  const base1 = clan1.replace(' antitribu', '');
-  const base2 = clan2.replace(' antitribu', '');
-  return base1 === base2;
-}
-
-// Generate 2 wrong options for crypt multiple choice (3 total with correct)
-function generateCryptOptions(
-  correctCard: CardData,
-  allCrypt: CardData[]
-): CardData[] {
-  const clan = correctCard.clan;
-  const cap = correctCard.capacity ?? 5;
-  const gender = correctCard.gender;
-  const difficulty = correctCard.difficulty;
-
-  // Helper to check if card name is too similar (avoid obvious answers)
-  const isNameTooSimilar = (card1: CardData, card2: CardData): boolean => {
-    const name1 = displayName(card1.name).toLowerCase();
-    const name2 = displayName(card2.name).toLowerCase();
-    
-    // Exact match (already filtered)
-    if (name1 === name2) return true;
-    
-    // One name contains the other
-    if (name1.includes(name2) || name2.includes(name1)) return true;
-    
-    // Check for shared significant words (3+ characters)
-    const words1 = name1.split(/\s+/).filter(w => w.length >= 3);
-    const words2 = name2.split(/\s+/).filter(w => w.length >= 3);
-    
-    for (const w1 of words1) {
-      for (const w2 of words2) {
-        if (w1 === w2) return true;
-        if (w1.includes(w2) || w2.includes(w1)) return true;
-      }
-    }
-    
-    return false;
-  };
-
-  // Base filter: different card, same gender, similar capacity (+/- 2)
-  const baseFilter = (c: CardData) =>
-    c.id !== correctCard.id &&
-    c.capacity !== undefined &&
-    Math.abs((c.capacity ?? 0) - cap) <= 2 &&
-    (!gender || gender === '?' || c.gender === gender) &&
-    !isNameTooSimilar(correctCard, c);
-
-  // Priority 1: Same gender + same difficulty + same/antitribu clan + similar capacity
-  let candidates = allCrypt.filter(c =>
-    baseFilter(c) &&
-    c.difficulty === difficulty &&
-    areClanRelated(c.clan, clan)
-  );
-
-  // Priority 2: Same gender + same difficulty + similar capacity (any clan)
-  if (candidates.length < 2) {
-    const moreCandidates = allCrypt.filter(c =>
-      baseFilter(c) &&
-      c.difficulty === difficulty &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 3: Same gender + same difficulty, any capacity
-  if (candidates.length < 2) {
-    const moreCandidates = allCrypt.filter(c =>
-      c.id !== correctCard.id &&
-      c.difficulty === difficulty &&
-      (!gender || gender === '?' || c.gender === gender) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 4: Same gender + any difficulty + similar capacity
-  if (candidates.length < 2) {
-    const moreCandidates = allCrypt.filter(c =>
-      baseFilter(c) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 5: Same gender, any difficulty, any capacity
-  if (candidates.length < 2) {
-    const moreCandidates = allCrypt.filter(c =>
-      c.id !== correctCard.id &&
-      (!gender || gender === '?' || c.gender === gender) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Fallback: any crypt card
-  if (candidates.length < 2) {
-    const moreCandidates = allCrypt.filter(c =>
-      c.id !== correctCard.id &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Shuffle and pick 2
-  const shuffled = candidates.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2);
-}
-
-// Generate 2 wrong options for library multiple choice (3 total with correct)
-function generateLibraryOptions(
-  correctCard: CardData,
-  allLibrary: CardData[],
-  details?: CardDetails
-): CardData[] {
-  const targetTypes = correctCard.types;
-  const targetDifficulty = correctCard.difficulty;
-  
-  // Get discipline requirement from details (API) or fallback to card data
-  const targetDisciplines = details?.disciplines?.map(d => d.toLowerCase()) || 
-                           correctCard.disciplines?.map(d => d.toLowerCase()) || 
-                           [];
-  
-  // Get cost from details (API) - this is the key missing piece
-  const targetBloodCost = details?.bloodCost || correctCard.bloodCost;
-  const targetPoolCost = details?.poolCost || correctCard.poolCost;
-  const targetConvictionCost = details?.convictionCost || correctCard.convictionCost;
-  
-  // Check if card is indiscriminate (no discipline requirement)
-  const isIndiscriminate = targetDisciplines.length === 0;
-
-  // Helper to check if indiscriminate
-  const isCardIndiscriminate = (c: CardData): boolean => {
-    return !c.disciplines || c.disciplines.length === 0;
-  };
-
-  // Helper to check cost similarity
-  const hasSimilarCost = (c: CardData, cDetails?: CardDetails): boolean => {
-    const bloodCost = cDetails?.bloodCost || c.bloodCost;
-    const poolCost = cDetails?.poolCost || c.poolCost;
-    const convictionCost = cDetails?.convictionCost || c.convictionCost;
-    
-    // If target costs blood, prefer blood cards
-    if (targetBloodCost && bloodCost === targetBloodCost) return true;
-    // If target costs pool, prefer pool cards
-    if (targetPoolCost && poolCost === targetPoolCost) return true;
-    // If target costs conviction, prefer conviction cards
-    if (targetConvictionCost && convictionCost === targetConvictionCost) return true;
-    // Free cards (no cost) should match other free cards
-    if (!targetBloodCost && !targetPoolCost && !targetConvictionCost &&
-        !bloodCost && !poolCost && !convictionCost) return true;
-    return false;
-  };
-
-  // Helper to check if card name is too similar (avoid obvious answers)
-  const isNameTooSimilar = (card1: CardData, card2: CardData): boolean => {
-    const name1 = displayName(card1.name).toLowerCase();
-    const name2 = displayName(card2.name).toLowerCase();
-    
-    // Exact match (already filtered)
-    if (name1 === name2) return true;
-    
-    // One name contains the other
-    if (name1.includes(name2) || name2.includes(name1)) return true;
-    
-    // Check for shared significant words (3+ characters)
-    const words1 = name1.split(/\s+/).filter(w => w.length >= 3);
-    const words2 = name2.split(/\s+/).filter(w => w.length >= 3);
-    
-    for (const w1 of words1) {
-      for (const w2 of words2) {
-        // Exact word match
-        if (w1 === w2) return true;
-        // Partial match (one word contains the other)
-        if (w1.includes(w2) || w2.includes(w1)) return true;
-      }
-    }
-    
-    return false;
-  };
-
-  // Base filter: different card, same type
-  const baseFilter = (c: CardData) =>
-    c.id !== correctCard.id &&
-    c.types.length === targetTypes.length &&
-    c.types.every(t => targetTypes.includes(t)) &&
-    !isNameTooSimilar(correctCard, c);
-
-  // Priority 1: Same type + same difficulty + same discipline + same cost type
-  let candidates = allLibrary.filter(c =>
-    baseFilter(c) &&
-    c.difficulty === targetDifficulty &&
-    (isIndiscriminate ? isCardIndiscriminate(c) :
-      (c.disciplines && c.disciplines.length > 0 &&
-       targetDisciplines.length > 0 &&
-       c.disciplines.some(d => targetDisciplines.includes(d)))) &&
-    hasSimilarCost(c)
-  );
-
-  // Priority 2: Same type + same difficulty + same discipline (any cost)
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      baseFilter(c) &&
-      c.difficulty === targetDifficulty &&
-      (isIndiscriminate ? isCardIndiscriminate(c) :
-        (c.disciplines && c.disciplines.length > 0 &&
-         targetDisciplines.length > 0 &&
-         c.disciplines.some(d => targetDisciplines.includes(d)))) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 3: Same type + same difficulty + same discipline requirement status
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      baseFilter(c) &&
-      c.difficulty === targetDifficulty &&
-      isIndiscriminate === isCardIndiscriminate(c) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 4: Same type + same difficulty (any discipline)
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      baseFilter(c) &&
-      c.difficulty === targetDifficulty &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Priority 5: Same type (any difficulty) - fallback
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      baseFilter(c) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Fallback: any library card with same types count
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      c.id !== correctCard.id &&
-      c.types.length === targetTypes.length &&
-      c.types.every(t => targetTypes.includes(t)) &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Last resort: any library card
-  if (candidates.length < 2) {
-    const moreCandidates = allLibrary.filter(c =>
-      c.id !== correctCard.id &&
-      !candidates.some(e => e.id === c.id)
-    );
-    candidates = [...candidates, ...moreCandidates];
-  }
-
-  // Shuffle and pick 2
-  const shuffled = candidates.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2);
-}
-
-// Strip group/adv notation for display: "Anson (G1)" -> "Anson"
-function displayName(name: string): string {
-  return name
-    .replace(/\s*\([Gg]\d+\)\s*$/, '')
-    .replace(/\s*\(.*[Aa][Dd][Vv].*\)\s*$/, '')
-    .trim();
-}
-
 export default function GuessCardPage() {
   // Game data
   const [gameData, setGameData] = useState<GameData | null>(null);
@@ -469,8 +98,8 @@ export default function GuessCardPage() {
   const [cardType, setCardType] = useState<'library' | 'crypt' | 'all'>('library');
 
   // Current card
-  const [currentCard, setCurrentCard] = useState<CardData | null>(null);
-  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
+  const [currentCard, setCurrentCard] = useState<GameCardData | null>(null);
+  const [cardDetails, setCardDetails] = useState<GameCardDetails | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [showUnblurred, setShowUnblurred] = useState(false); // For incorrect/skipped - shows full HD card
   const [guess, setGuess] = useState('');
@@ -488,8 +117,14 @@ export default function GuessCardPage() {
   // Multiple choice for library
   const [libraryOptions, setLibraryOptions] = useState<string[]>([]);
 
+  // Premium distractors loaded from JSON
+  const [premiumDistractors, setPremiumDistractors] = useState<PremiumDistractors>({});
+
   // Choice tracking - prevents multiple selections
   const [choiceMade, setChoiceMade] = useState(false);
+
+  // Details expandable (for incorrect/skipped screens)
+  const [showDetails, setShowDetails] = useState(false);
 
   // Animation state
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -520,22 +155,31 @@ export default function GuessCardPage() {
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [lastPoints, setLastPoints] = useState(0);
 
-  // Preloaded next card image URL
-  const [preloadedImageUrl, setPreloadedImageUrl] = useState<string | null>(null);
+  // Clean up unused preloadedImages state since we're doing silent preloading
+  const [_, setPreloadedImages] = useState<string[]>([]); // Keep for compatibility
 
   // Ranked Mode State
   const [gameMode, setGameMode] = useState<'normal' | 'ranked' | null>('normal');
-  const [rankedPlaylist, setRankedPlaylist] = useState<CardData[]>([]);
+  const [rankedPlaylist, setRankedPlaylist] = useState<GameCardData[]>([]);
   const [rankedCardIndex, setRankedCardIndex] = useState(0);
   const [rankedScore, setRankedScore] = useState(0);
   const [showFinalScore, setShowFinalScore] = useState(false);
+  
+  // Ranked stats tracking
+  const [rankedStats, setRankedStats] = useState({ correct: 0, total: 0, bestStreak: 0 });
+  
+  // Leaderboard state
+  const { user, profile } = useCurrentUser();
+  const { submitScore, loading: submittingScore } = useVtesGuessLeaderboard();
+  const [submittedRank, setSubmittedRank] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
   const progressRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Obfuscated image URL: uses proxy API with card ID
-  const getImageUrl = useCallback((card: CardData) => {
+  const getImageUrl = useCallback((card: GameCardData) => {
     return `/api/vtes/card-image?id=${card.id}`;
   }, []);
 
@@ -564,12 +208,26 @@ export default function GuessCardPage() {
     
     // Detect mobile device
     setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+    // Load premium distractors
+    async function loadPremiumDistractors() {
+      try {
+        const response = await fetch('/premium_distractors.json');
+        if (response.ok) {
+          const data = await response.json();
+          setPremiumDistractors(data);
+        }
+      } catch (error) {
+        console.log('No premium distractors loaded, using semantic algorithm');
+      }
+    }
+    loadPremiumDistractors();
   }, []);
 
   // Get filtered cards
-  const getFilteredCards = useCallback((): CardData[] => {
+  const getFilteredCards = useCallback((): GameCardData[] => {
     if (!gameData) return [];
-    let cards: CardData[] = [];
+    let cards: GameCardData[] = [];
     if (cardType === 'crypt' || cardType === 'all') {
       cards = [...cards, ...gameData.crypt.filter(c => c.difficulty === selectedDifficulty)];
     }
@@ -587,7 +245,7 @@ export default function GuessCardPage() {
   }, [getFilteredCards]);
 
   // Setup multiple choice options for crypt cards
-  const setupCryptOptions = useCallback((card: CardData) => {
+  const setupCryptOptions = useCallback((card: GameCardData) => {
     if (!gameData || card.capacity === undefined) {
       setCryptOptions([]);
       return;
@@ -597,29 +255,35 @@ export default function GuessCardPage() {
       displayName(card.name),
       ...wrongOptions.map(c => displayName(c.name))
     ];
-    // Shuffle options
-    const shuffled = allOptions.sort(() => Math.random() - 0.5);
-    setCryptOptions(shuffled);
+    // Shuffle options using Fisher-Yates algorithm (truly random)
+    for (let i = allOptions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allOptions[i], allOptions[j]] = [allOptions[j], allOptions[i]];
+    }
+    setCryptOptions(allOptions);
   }, [gameData]);
 
   // Setup multiple choice options for library cards
-  const setupLibraryOptions = useCallback((card: CardData, details?: CardDetails) => {
+  const setupLibraryOptions = useCallback((card: GameCardData, details?: GameCardDetails) => {
     if (!gameData) {
       setLibraryOptions([]);
       return;
     }
-    const wrongOptions = generateLibraryOptions(card, gameData.library, details);
+    const wrongOptions = generateLibraryOptions(card, gameData.library, details, premiumDistractors);
     const allOptions = [
       displayName(card.name),
       ...wrongOptions.map(c => displayName(c.name))
     ];
-    // Shuffle options
-    const shuffled = allOptions.sort(() => Math.random() - 0.5);
-    setLibraryOptions(shuffled);
-  }, [gameData]);
+    // Shuffle options using Fisher-Yates algorithm (truly random)
+    for (let i = allOptions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allOptions[i], allOptions[j]] = [allOptions[j], allOptions[i]];
+    }
+    setLibraryOptions(allOptions);
+  }, [gameData, premiumDistractors]);
 
   // Fetch card details
-  const fetchCardDetails = useCallback(async (cardName: string, card: CardData) => {
+  const fetchCardDetails = useCallback(async (cardName: string, card: GameCardData) => {
     try {
       const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(cardName)}`);
       if (response.ok) {
@@ -635,7 +299,7 @@ export default function GuessCardPage() {
           }
         }
 
-        const details: CardDetails = {
+        const details: GameCardDetails = {
           name: data.name || cardName,
           imageUrl: data.url || `https://static.krcg.org/card/${card.slug}.jpg`,
           type: data.types?.join(', '),
@@ -679,7 +343,7 @@ export default function GuessCardPage() {
     return shuffled;
   }, []);
 
-  const generatePhaseCards = useCallback((difficulty: number, count: number, data: GameData): CardData[] => {
+  const generatePhaseCards = useCallback((difficulty: number, count: number, data: GameData): GameCardData[] => {
     const libraryCount = Math.round(count * 0.8);
     const cryptCount = count - libraryCount;
 
@@ -692,18 +356,43 @@ export default function GuessCardPage() {
     return shuffleArray([...selectedLibrary, ...selectedCrypt]);
   }, [shuffleArray]);
 
-  const generateRankedPlaylist = useCallback((data: GameData): CardData[] => {
-    const playlist: CardData[] = [];
-    playlist.push(...generatePhaseCards(1, 8, data));
-    playlist.push(...generatePhaseCards(2, 7, data));
-    playlist.push(...generatePhaseCards(3, 4, data));
-    playlist.push(...generatePhaseCards(4, 1, data));
+  const generateRankedPlaylist = useCallback((data: GameData): GameCardData[] => {
+    // Ranked mode: 20 cards total - strictly sorted by difficulty for "Ramp-up" experience
+    // Cards 1-6: Level 1 (6 cards, 10 pts) - Staples, very common
+    // Cards 7-11: Level 2 (5 cards, 20 pts) - Common tournament cards
+    // Cards 12-15: Level 3 (4 cards, 30 pts) - Archetype-specific cards
+    // Cards 16-18: Level 4 (3 cards, 50 pts) - Niche/old cards
+    // Cards 19-20: Level 5 (2 cards, 80 pts) - "Boss Cards" - rare/bad/very obscure
+    const playlist: GameCardData[] = [];
+    
+    // Generate cards for each level and concatenate (already sorted by difficulty)
+    playlist.push(...generatePhaseCards(1, 6, data));  // 6 cards - 10 pts
+    playlist.push(...generatePhaseCards(2, 5, data));  // 5 cards - 20 pts
+    playlist.push(...generatePhaseCards(3, 4, data));  // 4 cards - 30 pts
+    playlist.push(...generatePhaseCards(4, 3, data));  // 3 cards - 50 pts
+    playlist.push(...generatePhaseCards(5, 2, data));  // 2 cards - 80 pts
+    
+    // Cards are already in difficulty order (1 -> 5) due to phase generation order
     return playlist;
   }, [generatePhaseCards]);
 
   const getRankedCardValue = useCallback((difficulty: number): number => {
-    const values: Record<number, number> = { 1: 2, 2: 5, 3: 10, 4: 20 };
+    // Base points by difficulty level for Ranked Mode
+    // Cards 1-6: 10 pts (Level 1 - Staples)
+    // Cards 7-11: 20 pts (Level 2 - Common)
+    // Cards 12-15: 30 pts (Level 3 - Archetype)
+    // Cards 16-18: 50 pts (Level 4 - Niche)
+    // Cards 19-20: 80 pts (Level 5 - Boss)
+    const values: Record<number, number> = { 1: 10, 2: 20, 3: 30, 4: 50, 5: 80 };
     return values[difficulty] || 0;
+  }, []);
+
+  // Calculate streak multiplier for ranked mode
+  const getStreakMultiplier = useCallback((streak: number): { multiplier: number; icon: string; color: string; label: string } => {
+    if (streak >= 15) return { multiplier: 1.3, icon: '🔥', color: 'text-yellow-400', label: 'INFERNO' };
+    if (streak >= 10) return { multiplier: 1.2, icon: '🔥', color: 'text-slate-300', label: 'FLAME' };
+    if (streak >= 5) return { multiplier: 1.1, icon: '✨', color: 'text-orange-400', label: 'SPARK' };
+    return { multiplier: 1.0, icon: '', color: '', label: '' };
   }, []);
 
   const startRankedGame = useCallback(() => {
@@ -720,6 +409,9 @@ export default function GuessCardPage() {
       fetchCardDetails(playlist[0].name, playlist[0]);
       // Note: setupLibraryOptions will be called after cardDetails is set
     }
+    
+    // Pre-fetch all 20 card images for smooth ranked gameplay
+    preFetchRankedImages(playlist);
   }, [gameData, generateRankedPlaylist, fetchCardDetails]);
 
   const resetRankedGame = useCallback(() => {
@@ -728,7 +420,43 @@ export default function GuessCardPage() {
     setGuess('');
     setResult(null);
     setShowInitials(false);
+    setSubmittedRank(null);
+    setIsSubmitting(false);
   }, [startRankedGame]);
+
+  // Submit score to leaderboard
+  const handleSubmitScore = useCallback(async () => {
+    if (!user || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    const result = await submitScore({
+      score: rankedScore,
+      mode: 'ranked',
+      cardsPlayed: rankedStats.total,
+      cardsCorrect: rankedStats.correct,
+      bestStreak: rankedStats.bestStreak,
+    });
+    
+    if (result) {
+      setSubmittedRank(result.rank);
+      if (result.updated) {
+        toast.success(`Score saved! You're now ranked #${result.rank}`);
+      } else {
+        toast.info(`Score submitted. Your best rank is #${result.rank}`);
+      }
+    } else {
+      toast.error('Failed to submit score. Please try again.');
+    }
+    
+    setIsSubmitting(false);
+  }, [user, isSubmitting, rankedScore, rankedStats, submitScore]);
+
+  // Skip submission and continue
+  const handleSkipSubmission = useCallback(() => {
+    setShowFinalScore(false);
+    resetRankedGame();
+  }, [resetRankedGame]);
 
   const startNormalGame = useCallback(() => {
     setGameMode('normal');
@@ -779,37 +507,90 @@ export default function GuessCardPage() {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
 
-  // Preload next card image when card is revealed
+  // Preload next cards (images and details) for instant transitions
+  const preloadNextCards = useCallback((count = 2) => {
+    if (!gameData) return;
+    
+    // Get filtered cards for normal mode
+    const getFiltered = (): GameCardData[] => {
+      let cards: GameCardData[] = [];
+      if (cardType === 'crypt' || cardType === 'all') {
+        cards = [...cards, ...gameData.crypt.filter(c => c.difficulty === selectedDifficulty)];
+      }
+      if (cardType === 'library' || cardType === 'all') {
+        cards = [...cards, ...gameData.library.filter(c => c.difficulty === selectedDifficulty)];
+      }
+      return cards;
+    };
+    
+    const filtered = getFiltered();
+    const usedIds = new Set([currentCard?.id].filter(Boolean));
+    
+    // Pick random cards that aren't the current card
+    const available = filtered.filter(c => !usedIds.has(c.id));
+    const shuffled = available.sort(() => Math.random() - 0.5);
+    const toLoad = shuffled.slice(0, count);
+    
+    toLoad.forEach(card => {
+      // Preload image
+      const img = new Image();
+      img.src = getImageUrl(card);
+      
+      // Preload card details
+      fetchCardDetailsForPreload(card.name, card);
+    });
+  }, [gameData, cardType, selectedDifficulty, currentCard, getImageUrl]);
+  
+  // Fetch card details for preloading (without setting state)
+  const fetchCardDetailsForPreload = useCallback(async (cardName: string, card: GameCardData) => {
+    try {
+      const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(cardName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Just cache this data, don't update state
+      }
+    } catch (error) {
+      // Silent fail for preloading
+    }
+  }, []);
+
+  // Pre-fetch card image (silent, no state)
+  const preFetchCardImage = useCallback((card: GameCardData) => {
+    const img = new Image();
+    img.src = getImageUrl(card);
+  }, [getImageUrl]);
+
+  // Pre-fetch all ranked playlist images for smooth gameplay
+  const preFetchRankedImages = useCallback((playlist: GameCardData[]) => {
+    playlist.forEach((card, index) => {
+      // Stagger preloading to avoid overwhelming the browser
+      setTimeout(() => {
+        preFetchCardImage(card);
+        // Also pre-fetch card details in background
+        fetchCardDetailsForPreload(card.name, card);
+      }, index * 100); // 100ms delay between each card
+    });
+  }, [preFetchCardImage, fetchCardDetailsForPreload]);
+
+  // Trigger preloading when card is revealed (normal mode only)
   useEffect(() => {
     if (revealed && gameMode === 'normal') {
-      // Pick a random next card and preload its image
-      const nextCard = pickRandomCard();
-      if (nextCard) {
-        const nextUrl = `/api/vtes/card-image?id=${nextCard.id}`;
-        const img = new Image();
-        img.src = nextUrl;
-        setPreloadedImageUrl(nextUrl);
-      }
-    } else if (!revealed) {
-      setPreloadedImageUrl(null);
+      preloadNextCards(2);
     }
-  }, [revealed, gameMode, pickRandomCard]);
+  }, [revealed, gameMode, preloadNextCards]);
 
   const handleMouseEnter = () => {
-    if (isMobile) return; // Skip hover on mobile
-    hoverTimeoutRef.current = setTimeout(() => setShowLargeCard(true), HOVER_DELAY);
+    // Mouse hover disabled to prevent cheating
+    // The card should only be revealed through correct guessing
   };
 
   const handleMouseLeave = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    if (!isMobile) setShowLargeCard(false);
+    // Mouse hover disabled
   };
 
-  // Mobile tap handler - toggle large card preview
+  // Mobile tap handler - disabled to prevent cheating
   const handleCardTap = () => {
-    if (isMobile && revealed) {
-      setShowLargeCard(prev => !prev);
-    }
+    // Tap to preview disabled to prevent cheating
   };
 
   const nextCard = useCallback(() => {
@@ -847,6 +628,7 @@ export default function GuessCardPage() {
     setAutoAdvanceProgress(0);
     setShowLargeCard(false);
     setShowInitials(false);
+    setShowDetails(false);
     setFeedback(null);
     setChoiceMade(false);
     setCardKey(prev => prev + 1);
@@ -873,9 +655,17 @@ export default function GuessCardPage() {
 
       if (gameMode === 'ranked') {
         const cardValue = getRankedCardValue(currentCard.difficulty);
-        const points = showInitials ? Math.round(cardValue * 0.5) : cardValue;
+        // Calculate streak multiplier
+        const streakInfo = getStreakMultiplier(rankedStats.correct);
+        const points = Math.round(cardValue * streakInfo.multiplier);
         setRankedScore(prev => prev + points);
         setLastPoints(points);
+        setRankedStats(prev => ({
+          ...prev,
+          correct: prev.correct + 1,
+          total: prev.total + 1,
+          bestStreak: Math.max(prev.bestStreak, prev.correct + 1),
+        }));
       } else {
         const newStreak = streak + 1;
         const points = calculateScore(showInitials, newStreak, selectedDifficulty);
@@ -884,10 +674,7 @@ export default function GuessCardPage() {
         setScore(prev => prev + points);
         setLastPoints(points);
 
-        // Streak milestones
-        if (newStreak === 5) setStreakMilestone('On Fire!');
-        else if (newStreak === 10) setStreakMilestone('Unstoppable!');
-        else if (newStreak === 20) setStreakMilestone('VTES Master!');
+        // Streak milestones removed
       }
     } else {
       setResult('incorrect');
@@ -895,7 +682,13 @@ export default function GuessCardPage() {
       setRevealed(true);
       setShowUnblurred(true); // Show full card for 2 seconds before auto-advance
       setShowInitials(false);
-      if (gameMode !== 'ranked') {
+      if (gameMode === 'ranked') {
+        setRankedStats(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          bestStreak: Math.max(prev.bestStreak, prev.correct),
+        }));
+      } else {
         setStreak(0);
       }
     }
@@ -926,6 +719,12 @@ export default function GuessCardPage() {
   };
 
   const skipCard = () => {
+    // SKIP is disabled in Ranked mode - player must answer
+    if (gameMode === 'ranked') {
+      toast.error('No puedes saltar cartas en modo Ranked');
+      return;
+    }
+    
     setResult('skipped');
     setShowUnblurred(true); // REVEAL card in full HD
     setStreak(0);
@@ -951,6 +750,16 @@ export default function GuessCardPage() {
     setRevealed(false);
     setGuess('');
     setResult(null);
+  };
+
+  const prevDifficulty = () => {
+    const newDiff = selectedDifficulty > 1 ? selectedDifficulty - 1 : 5;
+    changeDifficulty(newDiff);
+  };
+
+  const nextDifficulty = () => {
+    const newDiff = selectedDifficulty < 5 ? selectedDifficulty + 1 : 1;
+    changeDifficulty(newDiff);
   };
 
   if (loading) {
@@ -985,9 +794,9 @@ export default function GuessCardPage() {
   // For library cards: show art crop (obfuscated) until revealed, then show full card
   const showArtCrop = !isCrypt && !revealed;
   
-  // Dimensions - larger when revealed for better visibility
-  const displayWidth = revealed ? 340 : 280;
-  const displayHeight = isCrypt ? (revealed ? 470 : 390) : (revealed ? 320 : 240);
+  // Dimensions - consistent size for both revealed and unrevealed states
+  const displayWidth = 340;
+  const displayHeight = isCrypt ? 470 : 320;
   
   // Library crop dimensions (for art-only view)
   const scaledCardWidth = displayWidth / 0.72;
@@ -1024,55 +833,175 @@ export default function GuessCardPage() {
             }}>
               Ranked Complete!
             </h2>
-            <p className="text-5xl font-bold my-6" style={{ color: 'var(--vtes-blood)' }}>
+            
+            <p className="text-5xl font-bold my-4" style={{ color: 'var(--vtes-blood)' }}>
               {rankedScore}
             </p>
-            <p className="text-sm mb-6" style={{ color: 'var(--vtes-text-muted)' }}>
+            <p className="text-sm mb-4" style={{ color: 'var(--vtes-text-muted)' }}>
               Final Score
             </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={resetRankedGame}
-                className="px-5 py-3 rounded-xl font-semibold transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--vtes-burgundy)',
-                  color: 'var(--vtes-gold)',
-                  border: '2px solid var(--vtes-gold)',
-                  fontFamily: 'var(--vtes-font-display)'
-                }}
-              >
-                Play Again
-              </button>
-              <button
-                onClick={() => {
-                  startNormalGame();
-                  setShowFinalScore(false);
-                  const card = pickRandomCard();
-                  if (card) {
-                    setCurrentCard(card);
-                    fetchCardDetails(card.name, card);
-                    setupCryptOptions(card);
-                  }
-                }}
-                className="px-5 py-3 rounded-xl font-semibold transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  color: 'var(--vtes-text-muted)',
-                  border: '1px solid var(--vtes-burgundy-dark)',
-                  fontFamily: 'var(--vtes-font-body)'
-                }}
-              >
-                Normal Mode
-              </button>
+            
+            {/* Stats row */}
+            <div className="flex justify-center gap-6 mb-6 text-sm">
+              <div className="text-center">
+                <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-primary)' }}>
+                  {rankedStats.correct}/{rankedStats.total}
+                </p>
+                <p style={{ color: 'var(--vtes-text-muted)' }}>Correct</p>
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-lg text-orange-400">
+                  {rankedStats.bestStreak}
+                </p>
+                <p style={{ color: 'var(--vtes-text-muted)' }}>Best Streak</p>
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-primary)' }}>
+                  {rankedStats.total > 0 ? Math.round((rankedStats.correct / rankedStats.total) * 100) : 0}%
+                </p>
+                <p style={{ color: 'var(--vtes-text-muted)' }}>Accuracy</p>
+              </div>
             </div>
+            
+            {/* Submitted rank display */}
+            {submittedRank !== null && (
+              <div className="mb-4 p-3 rounded-lg bg-[var(--vtes-bg-tertiary)] border border-[var(--vtes-gold)]">
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Your Rank</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--vtes-gold)' }}>
+                  #{submittedRank}
+                </p>
+              </div>
+            )}
+            
+            {user ? (
+              <div className="space-y-3">
+                {!submittedRank ? (
+                  <>
+                    <button
+                      onClick={handleSubmitScore}
+                      disabled={isSubmitting}
+                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50"
+                      style={{
+                        backgroundColor: 'var(--vtes-gold)',
+                        color: 'var(--vtes-bg-primary)',
+                        border: '2px solid var(--vtes-gold)',
+                        fontFamily: 'var(--vtes-font-display)'
+                      }}
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Score'}
+                    </button>
+                    <button
+                      onClick={handleSkipSubmission}
+                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
+                      style={{
+                        backgroundColor: 'var(--vtes-bg-tertiary)',
+                        color: 'var(--vtes-text-muted)',
+                        border: '1px solid var(--vtes-burgundy-dark)',
+                        fontFamily: 'var(--vtes-font-body)'
+                      }}
+                    >
+                      Skip
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/vtes/leaderboard/guess"
+                      className="block w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
+                      style={{
+                        backgroundColor: 'var(--vtes-gold)',
+                        color: 'var(--vtes-bg-primary)',
+                        border: '2px solid var(--vtes-gold)',
+                        fontFamily: 'var(--vtes-font-display)'
+                      }}
+                    >
+                      View Leaderboard
+                    </Link>
+                    <button
+                      onClick={resetRankedGame}
+                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
+                      style={{
+                        backgroundColor: 'var(--vtes-burgundy)',
+                        color: 'var(--vtes-gold)',
+                        border: '2px solid var(--vtes-gold)',
+                        fontFamily: 'var(--vtes-font-display)'
+                      }}
+                    >
+                      Play Again
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>
+                  Sign in to save your score to the leaderboard
+                </p>
+                <Link
+                  href="/login"
+                  className="block w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
+                  style={{
+                    backgroundColor: 'var(--vtes-gold)',
+                    color: 'var(--vtes-bg-primary)',
+                    border: '2px solid var(--vtes-gold)',
+                    fontFamily: 'var(--vtes-font-display)'
+                  }}
+                >
+                  Sign In
+                </Link>
+                <div className="flex gap-3">
+                  <button
+                    onClick={resetRankedGame}
+                    className="flex-1 py-3 rounded-xl font-semibold transition-all duration-200"
+                    style={{
+                      backgroundColor: 'var(--vtes-burgundy)',
+                      color: 'var(--vtes-gold)',
+                      border: '2px solid var(--vtes-gold)',
+                      fontFamily: 'var(--vtes-font-display)'
+                    }}
+                  >
+                    Play Again
+                  </button>
+                  <button
+                    onClick={() => {
+                      startNormalGame();
+                      setShowFinalScore(false);
+                      const card = pickRandomCard();
+                      if (card) {
+                        setCurrentCard(card);
+                        fetchCardDetails(card.name, card);
+                        setupCryptOptions(card);
+                      }
+                    }}
+                    className="flex-1 py-3 rounded-xl font-semibold transition-all duration-200"
+                    style={{
+                      backgroundColor: 'var(--vtes-bg-tertiary)',
+                      color: 'var(--vtes-text-muted)',
+                      border: '1px solid var(--vtes-burgundy-dark)',
+                      fontFamily: 'var(--vtes-font-body)'
+                    }}
+                  >
+                    Normal Mode
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       <div className="max-w-md mx-auto relative z-10 flex flex-col" style={{ minHeight: 'calc(100dvh - 2rem)' }}>
-        {/* Header - Fixed height */}
-        <div className="flex justify-between items-start mb-3 flex-shrink-0">
-          <div className="relative">
+        {/* Header - Title with Leaderboard button */}
+        <div className="text-center mb-2 flex-shrink-0 flex items-center justify-center gap-3">
+          <Link
+            href="/vtes/leaderboard/guess"
+            className="p-2 rounded-lg transition-all duration-200 hover:bg-[var(--vtes-bg-tertiary)]"
+            style={{ color: 'var(--vtes-text-muted)' }}
+            aria-label="View Leaderboard"
+          >
+            <Trophy size={20} />
+          </Link>
+          <div>
             <h1 className="text-2xl sm:text-3xl font-bold" style={{
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
@@ -1080,146 +1009,284 @@ export default function GuessCardPage() {
             }}>
               Guess the Card
             </h1>
-            <div className="h-0.5 w-12 bg-gradient-to-r from-[var(--vtes-gold)] to-transparent mt-0.5" />
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-[10px]" style={{ color: 'var(--vtes-text-muted)' }}>VTES Edition</p>
-              {gameMode && (
-                <button
-                  onClick={() => {
-                    if (gameMode === 'normal') {
-                      startRankedGame();
-                    } else {
-                      startNormalGame();
-                      const card = pickRandomCard();
-                      if (card) {
-                        setCurrentCard(card);
-                        fetchCardDetails(card.name, card);
-                        setupCryptOptions(card);
-                      }
-                    }
-                  }}
-                  className="text-[10px] px-2 py-0.5 rounded transition-all duration-200"
-                  style={{
-                    backgroundColor: gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-bg-tertiary)',
-                    color: gameMode === 'ranked' ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
-                    border: `1px solid ${gameMode === 'ranked' ? 'var(--vtes-blood)' : 'var(--vtes-burgundy-dark)'}`,
-                    fontFamily: 'var(--vtes-font-body)'
-                  }}
-                >
-                  {gameMode === 'ranked' ? 'RANKED' : 'Normal'}
-                </button>
-              )}
-            </div>
+            <div className="h-0.5 w-12 mx-auto bg-gradient-to-r from-transparent via-[var(--vtes-gold)] to-transparent mt-0.5" />
           </div>
-          <div className="flex gap-2 text-center">
-            {gameMode === 'ranked' ? (
-              <>
-                <div className="px-2.5 py-1.5 rounded-lg" style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  border: '1px solid var(--vtes-blood)'
-                }}>
-                  <p className="text-base font-bold" style={{ color: 'var(--vtes-blood)' }}>{rankedCardIndex + 1}/20</p>
-                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Progress</p>
-                </div>
-                <div className="px-2.5 py-1.5 rounded-lg" style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  border: '1px solid var(--vtes-gold)'
-                }}>
-                  <motion.p
-                    key={`ranked-${rankedScore}`}
-                    initial={{ scale: 1.4 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                    className="text-base font-bold"
-                    style={{ color: 'var(--vtes-gold)' }}
-                  >{rankedScore}</motion.p>
-                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="px-2.5 py-1.5 rounded-lg" style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  border: '1px solid var(--vtes-burgundy-dark)'
-                }}>
-                  <motion.p
-                    key={`streak-${streak}`}
-                    initial={{ scale: 1.4 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                    className="text-base font-bold"
-                    style={{ color: 'var(--vtes-gold)' }}
-                  >{streak}</motion.p>
-                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Streak</p>
-                </div>
-                <div className="px-2.5 py-1.5 rounded-lg" style={{
-                  backgroundColor: 'var(--vtes-bg-tertiary)',
-                  border: '1px solid var(--vtes-burgundy-dark)'
-                }}>
-                  <motion.p
-                    key={`score-${score}`}
-                    initial={{ scale: 1.4 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                    className="text-base font-bold"
-                    style={{ color: 'var(--vtes-blood)' }}
-                  >{score}</motion.p>
-                  <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Score</p>
-                </div>
-              </>
-            )}
-          </div>
+          <div className="w-9" /> {/* Spacer to balance the leaderboard button */}
         </div>
 
-        {/* Difficulty selector - Normal mode only */}
+        {/* Segmented Mode Toggle */}
+        {gameMode && (
+          <div className="flex w-full rounded-xl overflow-hidden mb-3 flex-shrink-0 shadow-lg" style={{ border: '1px solid var(--vtes-burgundy-dark)' }}>
+            <button
+              onClick={() => {
+                if (gameMode !== 'normal') {
+                  startNormalGame();
+                  const card = pickRandomCard();
+                  if (card) {
+                    setCurrentCard(card);
+                    fetchCardDetails(card.name, card);
+                    setupCryptOptions(card);
+                  }
+                }
+              }}
+              className={`flex-1 py-3 px-4 text-sm font-bold transition-all duration-300 min-h-[48px] flex items-center justify-center gap-2 ${
+                gameMode === 'normal' 
+                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg' 
+                  : 'bg-[var(--vtes-bg-tertiary)] text-slate-400 hover:text-slate-200 hover:bg-[var(--vtes-bg-secondary)]'
+              }`}
+              style={{
+                fontFamily: 'var(--vtes-font-display)',
+                boxShadow: gameMode === 'normal' ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
+              }}
+            >
+              <Play className={`w-4 h-4 ${gameMode === 'normal' ? 'fill-current' : ''}`} />
+              CASUAL
+            </button>
+            <button
+              onClick={() => {
+                if (gameMode !== 'ranked') {
+                  startRankedGame();
+                }
+              }}
+              className={`flex-1 py-3 px-4 text-sm font-bold transition-all duration-300 min-h-[48px] flex items-center justify-center gap-2 ${
+                gameMode === 'ranked'
+                  ? 'bg-gradient-to-r from-amber-600 to-yellow-500 text-white shadow-lg'
+                  : 'bg-[var(--vtes-bg-tertiary)] text-slate-400 hover:text-slate-200 hover:bg-[var(--vtes-bg-secondary)]'
+              }`}
+              style={{
+                fontFamily: 'var(--vtes-font-display)',
+                boxShadow: gameMode === 'ranked' ? '0 0 20px rgba(245, 158, 11, 0.4)' : 'none'
+              }}
+            >
+              <Trophy className={`w-4 h-4 ${gameMode === 'ranked' ? 'fill-current' : ''}`} />
+              RANKED
+            </button>
+          </div>
+        )}
+
+        {/* Score/Streak Display - Enhanced for Ranked with Streak Multiplier */}
+        <div className="flex justify-center gap-4 py-2 mb-3 flex-shrink-0">
+          {gameMode === 'ranked' ? (
+            <>
+              <div className="relative group">
+                <motion.div 
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--vtes-bg-tertiary)] border border-[var(--vtes-gold)]/30"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div className="p-1.5 rounded-lg bg-[var(--vtes-gold)]/20">
+                    <Target className="w-5 h-5" style={{ color: 'var(--vtes-gold)' }} />
+                  </div>
+                  <div>
+                    <motion.span 
+                      key={`ranked-idx-${rankedCardIndex}`}
+                      initial={{ scale: 1.3 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="text-xl font-bold block"
+                      style={{ color: 'var(--vtes-text-primary)' }}
+                    >
+                      {rankedCardIndex + 1}/20
+                    </motion.span>
+                    <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-muted)' }}>Card</span>
+                  </div>
+                </motion.div>
+              </div>
+              
+              {/* Streak display with multiplier feedback */}
+              <div className="relative group">
+                <motion.div 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--vtes-gold)]/20 to-[var(--vtes-gold)]/10 border border-[var(--vtes-gold)]/50`}
+                  whileHover={{ scale: 1.05 }}
+                  style={{ boxShadow: 'var(--glow-gold)' }}
+                >
+                  <div className="p-1.5 rounded-lg bg-[var(--vtes-gold)]/30">
+                    <Sparkles className="w-5 h-5" style={{ color: 'var(--vtes-gold)' }} />
+                  </div>
+                  <div>
+                    <motion.span
+                      key={`ranked-streak-${rankedStats.correct}`}
+                      initial={{ scale: 1.3 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="text-xl font-bold block"
+                      style={{ color: 'var(--vtes-text-primary)' }}
+                    >
+                      {rankedStats.correct}
+                    </motion.span>
+                    <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-muted)' }}>Streak</span>
+                  </div>
+                  
+                  {/* Streak multiplier indicator */}
+                  {(() => {
+                    const streakInfo = getStreakMultiplier(rankedStats.correct);
+                    if (streakInfo.multiplier > 1.0) {
+                      return (
+                        <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${streakInfo.color} bg-[var(--vtes-bg-secondary)] border border-[var(--vtes-gold)]`}>
+                          {streakInfo.icon} x{streakInfo.multiplier.toFixed(1)}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </motion.div>
+              </div>
+              
+              <div className="relative group">
+                <motion.div 
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--vtes-blood)]/20 to-transparent border border-[var(--vtes-blood)]/30"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div className="p-1.5 rounded-lg bg-[var(--vtes-blood)]/20">
+                    <Crown className="w-5 h-5" style={{ color: 'var(--vtes-blood)' }} />
+                  </div>
+                  <div>
+                    <motion.span
+                      key={`ranked-score-${rankedScore}`}
+                      initial={{ scale: 1.3 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="text-xl font-bold block"
+                      style={{ color: 'var(--vtes-gold)' }}
+                    >
+                      {rankedScore}
+                    </motion.span>
+                    <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-muted)' }}>Points</span>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          ) : (
+            <>
+              <motion.div 
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--vtes-bg-tertiary)] border border-orange-500/30 cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="p-1.5 rounded-lg bg-orange-500/20">
+                  <Flame className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <motion.span
+                    key={`streak-${streak}`}
+                    initial={{ scale: 1.3 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    className="text-xl font-bold block"
+                    style={{ color: 'var(--vtes-text-primary)' }}
+                  >
+                    {streak}
+                  </motion.span>
+                  <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-muted)' }}>Streak</span>
+                </div>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--vtes-blood)]/20 to-transparent border border-[var(--vtes-blood)]/30 cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="p-1.5 rounded-lg bg-[var(--vtes-blood)]/20">
+                  <Crown className="w-5 h-5" style={{ color: 'var(--vtes-blood)' }} />
+                </div>
+                <div>
+                  <motion.span
+                    key={`score-${score}`}
+                    initial={{ scale: 1.3 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    className="text-xl font-bold block"
+                    style={{ color: 'var(--vtes-text-primary)' }}
+                  >
+                    {score}
+                  </motion.span>
+                  <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-muted)' }}>Score</span>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </div>
+
+        {/* Difficulty selector - Collapsible on mobile */}
         {gameMode === 'normal' && (
           <div className="mb-3 flex-shrink-0">
-            <div className="flex gap-1.5 justify-center overflow-x-auto pb-1 scrollbar-hide">
-              {[1, 2, 3, 4, 5].map(diff => {
-                const info = difficultyLabels[diff];
-                const isSelected = selectedDifficulty === diff;
+            {/* Compact difficulty pills */}
+            <div className="flex items-center justify-center gap-1.5">
+              {[1, 2, 3, 4, 5].map(d => {
+                const info = difficultyLabels[d];
+                const isSelected = d === selectedDifficulty;
                 return (
                   <button
-                    key={diff}
-                    onClick={() => changeDifficulty(diff)}
-                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                    key={d}
+                    onClick={() => changeDifficulty(d)}
+                    className={`relative px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 min-w-[60px] ${
+                      isSelected 
+                        ? info.bgColor + ' ' + info.borderColor + ' border' 
+                        : 'bg-[var(--vtes-bg-tertiary)] border border-transparent hover:bg-[var(--vtes-bg-secondary)]'
+                    }`}
                     style={{
-                      backgroundColor: isSelected ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
-                      color: isSelected ? 'var(--vtes-gold)' : 'var(--vtes-text-muted)',
-                      border: `1px solid ${isSelected ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)'}`,
-                      boxShadow: isSelected ? 'var(--glow-gold)' : 'none',
-                      fontFamily: 'var(--vtes-font-body)'
+                      color: isSelected ? info.color : 'var(--vtes-text-muted)',
+                      fontFamily: 'var(--vtes-font-display)',
+                      boxShadow: isSelected ? `0 0 12px var(--vtes-${info.name === 'Staple' ? 'emerald' : info.name === 'Common' ? 'blue' : info.name === 'Uncommon' ? 'yellow' : info.name === 'Rare' ? 'orange' : 'red'}-500/30)` : 'none'
                     }}
                   >
+                    <span className="mr-1">{info.icon}</span>
                     {info.name}
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeDiff"
+                        className="absolute inset-0 rounded-full border-2"
+                        style={{ borderColor: info.color }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
                   </button>
                 );
               })}
             </div>
-            <p className="text-center text-[10px] mt-1" style={{ color: 'var(--vtes-text-dim)' }}>
-              {diffInfo.description} &middot; {filteredCardsCount} cards
-            </p>
+            {/* Selected difficulty info */}
+            <div className="text-center mt-2">
+              <motion.div 
+                key={selectedDifficulty}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}
+              >
+                <span className="text-sm" style={{ color: diffInfo.color }}>{diffInfo.icon}</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-gold)', fontFamily: 'var(--vtes-font-display)' }}>{diffInfo.name}</span>
+                <span className="text-xs text-slate-500">•</span>
+                <span className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>{diffInfo.description}</span>
+                <span className="text-xs text-slate-500">•</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--vtes-blood)' }}>{filteredCardsCount} cards</span>
+              </motion.div>
+            </div>
           </div>
         )}
 
         {/* Card type selector - Normal mode only */}
         {gameMode === 'normal' && (
-          <div className="flex gap-1.5 justify-center mb-3 flex-shrink-0">
-            {(['library', 'crypt', 'all'] as const).map(type => {
+          <div className="flex gap-2 justify-center mb-3 flex-shrink-0">
+            {[
+              { type: 'library', icon: <BookOpen className="w-4 h-4" />, label: 'Library' },
+              { type: 'crypt', icon: <Skull className="w-4 h-4" />, label: 'Crypt' },
+              { type: 'all', icon: <Target className="w-4 h-4" />, label: 'All' }
+            ].map(({ type, icon, label }) => {
               const isSelected = cardType === type;
               return (
                 <button
                   key={type}
-                  onClick={() => { setCardType(type); setCurrentCard(null); setShowInitials(false); }}
-                  className="px-3 py-1 rounded-lg text-[11px] font-medium transition-all duration-200"
+                  onClick={() => { setCardType(type as any); setCurrentCard(null); setShowInitials(false); }}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 min-w-[80px] justify-center ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-red-700 to-red-600 text-white shadow-lg transform scale-105'
+                      : 'bg-[var(--vtes-bg-tertiary)] text-slate-400 hover:text-slate-200 hover:bg-[var(--vtes-bg-secondary)]'
+                  }`}
                   style={{
-                    backgroundColor: isSelected ? 'var(--vtes-blood)' : 'var(--vtes-bg-secondary)',
-                    color: isSelected ? 'var(--vtes-text-primary)' : 'var(--vtes-text-muted)',
-                    border: `1px solid ${isSelected ? 'var(--vtes-blood)' : 'transparent'}`,
-                    fontFamily: 'var(--vtes-font-body)'
+                    fontFamily: 'var(--vtes-font-body)',
+                    boxShadow: isSelected ? '0 0 15px rgba(185, 28, 28, 0.4)' : 'none'
                   }}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {icon}
+                  {label}
                 </button>
               );
             })}
@@ -1236,26 +1303,7 @@ export default function GuessCardPage() {
           </div>
         )}
 
-        {/* Streak milestone toast */}
-        <AnimatePresence>
-          {streakMilestone && (
-            <motion.div
-              initial={{ opacity: 0, y: -40, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.8 }}
-              transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-              className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full font-bold text-lg shadow-lg"
-              style={{
-                backgroundColor: 'var(--vtes-gold)',
-                color: 'var(--vtes-bg-primary)',
-                fontFamily: 'var(--vtes-font-display)',
-                boxShadow: '0 0 30px rgba(212, 175, 55, 0.6)'
-              }}
-            >
-              {streakMilestone}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Streak milestone toast - Removed */}
 
         {/* Art display with transition */}
         <div className="flex justify-center mb-3 flex-shrink-0">
@@ -1284,9 +1332,6 @@ export default function GuessCardPage() {
                   'ring-2 ring-slate-700'
                 }`}
                 style={{ width: displayWidth, height: displayHeight }}
-                onClick={handleCardTap}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
               >
                 {isCrypt ? (
                   <MaskedCard
@@ -1339,22 +1384,7 @@ export default function GuessCardPage() {
           </AnimatePresence>
         </div>
 
-        {/* Card details - shown below card when revealed (for crypt cards that need the info) */}
-        {revealed && isCrypt && cardDetails && (
-          <div className="mb-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
-            <div className="flex flex-col items-center gap-1">
-              {cardDetails.type && (
-                <p className="text-xs font-medium" style={{ color: 'var(--vtes-gold)' }}>{cardDetails.type}</p>
-              )}
-              {cardDetails.artists && cardDetails.artists.length > 0 && (
-                <p className="text-[10px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
-              )}
-              {currentCard.count > 0 && (
-                <p className="text-[10px] font-medium" style={{ color: 'var(--vtes-blood)' }}>Used in {currentCard.count.toLocaleString()} TWDA decks</p>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Card details - shown below card when revealed (REMOVED - no extra info) */}
 
         {/* Card Info Line */}
         <div className="flex justify-center mb-3 flex-shrink-0">
@@ -1492,60 +1522,63 @@ export default function GuessCardPage() {
                     ))}
                   </div>
                   <div className="flex justify-center">
-                    <button
-                      onClick={skipCard}
-                      className="text-[11px] px-3 py-1 rounded transition-all duration-200 flex items-center gap-1 hover:opacity-80"
-                      style={{
-                        color: 'var(--vtes-text-dim)',
-                        fontFamily: 'var(--vtes-font-body)'
-                      }}
-                    >
-                      <SkipForward className="w-3 h-3" />
-                      Skip
-                    </button>
+                    {gameMode !== 'ranked' && (
+                      <button
+                        onClick={skipCard}
+                        className="text-[11px] px-3 py-1 rounded transition-all duration-200 flex items-center gap-1 hover:opacity-80"
+                        style={{
+                          color: 'var(--vtes-text-dim)',
+                          fontFamily: 'var(--vtes-font-body)'
+                        }}
+                      >
+                        <SkipForward className="w-3 h-3" />
+                        Skip
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : !isCrypt && libraryOptions.length > 0 ? (
                 /* Library: Multiple choice buttons */
-                <div className="space-y-2">
-                  <p className="text-center text-sm" style={{ color: 'var(--vtes-text-secondary, #c0bfb8)' }}>What card is this?</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
+                  <p className="text-center text-sm font-medium" style={{ color: 'var(--vtes-text-secondary, #c0bfb8)' }}>What card is this?</p>
+                  <div className="grid grid-cols-2 gap-2.5">
                     {libraryOptions.map((option, i) => (
-                      <button
+                      <motion.button
                         key={i}
                         onClick={() => handleLibraryChoice(option)}
-                        className="px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left"
+                        whileHover={{ scale: 1.03, borderColor: 'var(--vtes-gold)' }}
+                        whileTap={{ scale: 0.97 }}
+                        className="px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left"
                         style={{
                           backgroundColor: 'var(--vtes-bg-tertiary)',
                           color: 'var(--vtes-text-primary)',
                           border: '2px solid var(--vtes-burgundy-dark)',
-                          fontFamily: 'var(--vtes-font-body)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--vtes-gold)';
-                          e.currentTarget.style.boxShadow = 'var(--glow-gold)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--vtes-burgundy-dark)';
-                          e.currentTarget.style.boxShadow = 'none';
+                          fontFamily: 'var(--vtes-font-body)',
+                          boxShadow: 'none'
                         }}
                       >
                         {option}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
-                  <div className="flex justify-center">
-                    <button
-                      onClick={skipCard}
-                      className="text-[11px] px-3 py-1 rounded transition-all duration-200 flex items-center gap-1 hover:opacity-80"
-                      style={{
-                        color: 'var(--vtes-text-dim)',
-                        fontFamily: 'var(--vtes-font-body)'
-                      }}
-                    >
-                      <SkipForward className="w-3 h-3" />
-                      Skip
-                    </button>
+                  <div className="flex justify-center mt-3">
+                    {gameMode !== 'ranked' && (
+                      <motion.button
+                        onClick={skipCard}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-xs px-4 py-2 rounded-full transition-all duration-200 flex items-center gap-1.5 hover:opacity-80"
+                        style={{
+                          backgroundColor: 'var(--vtes-bg-tertiary)',
+                          color: 'var(--vtes-text-dim)',
+                          border: '1px solid var(--vtes-burgundy-dark)',
+                          fontFamily: 'var(--vtes-font-body)'
+                        }}
+                      >
+                        <SkipForward className="w-3 h-3" />
+                        SKIP
+                      </motion.button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1582,15 +1615,17 @@ export default function GuessCardPage() {
                     }}
                   />
                   <div className="flex gap-2">
-                    <button
+                    <motion.button
                       onClick={checkGuess}
                       disabled={!guess.trim()}
-                      className="flex-1 py-2.5 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                      whileHover={guess.trim() ? { scale: 1.02 } : {}}
+                      whileTap={guess.trim() ? { scale: 0.98 } : {}}
+                      className="flex-1 py-3 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
                       style={{
                         backgroundColor: guess.trim() ? 'var(--vtes-burgundy)' : 'var(--vtes-bg-tertiary)',
                         color: guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-text-dim)',
                         border: `2px solid ${guess.trim() ? 'var(--vtes-gold)' : 'var(--vtes-burgundy-dark)'}`,
-                        boxShadow: guess.trim() ? 'var(--glow-gold)' : 'none',
+                        boxShadow: guess.trim() ? '0 0 20px rgba(212, 175, 55, 0.3)' : 'none',
                         cursor: guess.trim() ? 'pointer' : 'not-allowed',
                         fontFamily: 'var(--vtes-font-display)',
                         fontSize: '14px',
@@ -1598,21 +1633,25 @@ export default function GuessCardPage() {
                       }}
                     >
                       <Send className="w-4 h-4" />
-                      Submit
-                    </button>
-                    <button
-                      onClick={skipCard}
-                      className="px-4 py-2.5 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5"
-                      style={{
-                        backgroundColor: 'var(--vtes-bg-secondary)',
-                        color: 'var(--vtes-text-muted)',
-                        border: '1px solid var(--vtes-burgundy-dark)',
-                        fontFamily: 'var(--vtes-font-body)'
-                      }}
-                    >
-                      <SkipForward className="w-3.5 h-3.5" />
-                      Skip
-                    </button>
+                      SEND
+                    </motion.button>
+                    {gameMode !== 'ranked' && (
+                      <motion.button
+                        onClick={skipCard}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="px-4 py-3 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5"
+                        style={{
+                          backgroundColor: 'var(--vtes-bg-secondary)',
+                          color: 'var(--vtes-text-muted)',
+                          border: '1px solid var(--vtes-burgundy-dark)',
+                          fontFamily: 'var(--vtes-font-body)'
+                        }}
+                      >
+                        <SkipForward className="w-4 h-4" />
+                        SKIP
+                      </motion.button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1621,119 +1660,182 @@ export default function GuessCardPage() {
 
           {/* After choice made - show result */}
           {(revealed || choiceMade) && result === 'incorrect' ? (
-            /* INCORRECT: Show large SKIP button, keep blur */
-            <div className="text-center space-y-3">
+            /* INCORRECT: Simplified with expandable details */
+            <div className="flex flex-col items-center gap-3 w-full">
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="space-y-0.5"
+                className="text-lg font-bold flex items-center gap-2"
+                style={{ color: '#ef4444' }}
               >
-                <p className="font-bold text-lg" style={{ color: '#ef4444' }}>Incorrect</p>
-                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Streak lost</p>
+                <span className="text-xl">✗</span> INCORRECT
               </motion.div>
 
-              <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
+              <p className="text-xl font-semibold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
 
-              {cardDetails && (
-                <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
-                  {cardDetails.type && <p>{cardDetails.type}</p>}
-                  {cardDetails.artists && cardDetails.artists.length > 0 && (
-                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
-                  )}
-                  {currentCard.count > 0 && (
-                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Used in {currentCard.count} TWDA decks</p>
-                  )}
-                </div>
+              {cardDetails?.type && (
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>{cardDetails.type}</p>
               )}
 
-              <button
+              <motion.button
                 onClick={nextCard}
-                className="w-full py-4 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-4 mt-2 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-3 text-lg shadow-lg"
                 style={{
                   backgroundColor: 'var(--vtes-burgundy)',
                   color: 'var(--vtes-gold)',
                   border: '2px solid var(--vtes-gold)',
                   fontFamily: 'var(--vtes-font-display)',
-                  fontSize: '16px'
+                  boxShadow: '0 0 25px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
                 }}
               >
                 <SkipForward className="w-5 h-5" />
-                Skip / Next Card
-              </button>
+                NEXT
+                <ArrowRight className="w-5 h-5" />
+              </motion.button>
+
+              {cardDetails && (cardDetails.artists?.length || currentCard.count > 0) && (
+                <>
+                  <button
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="text-xs flex items-center gap-1 mt-1 transition-all duration-200 hover:opacity-80"
+                    style={{ color: 'var(--vtes-text-muted)' }}
+                  >
+                    <Info size={14} />
+                    {showDetails ? 'Hide' : 'Show'} Details
+                  </button>
+                  {showDetails && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="text-xs text-center space-y-0.5"
+                      style={{ color: 'var(--vtes-text-dim)' }}
+                    >
+                      {cardDetails.artists && cardDetails.artists.length > 0 && (
+                        <p>Art by {cardDetails.artists.join(', ')}</p>
+                      )}
+                      {currentCard.count > 0 && (
+                        <p>Used in {currentCard.count.toLocaleString()} TWDA decks</p>
+                      )}
+                    </motion.div>
+                  )}
+                </>
+              )}
             </div>
           ) : result === 'skipped' ? (
-            /* SKIPPED: Same as incorrect but different message */
-            <div className="text-center space-y-3">
+            /* SKIPPED: Same simplified structure */
+            <div className="flex flex-col items-center gap-3 w-full">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-0.5"
+                className="text-lg font-bold flex items-center gap-2"
+                style={{ color: 'var(--vtes-text-muted)' }}
               >
-                <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-muted)' }}>Skipped</p>
-                <p className="text-sm" style={{ color: 'var(--vtes-text-dim)' }}>Streak lost</p>
+                <SkipForward className="w-4 h-4" /> SKIPPED
               </motion.div>
 
-              <p className="text-xl font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
+              <p className="text-xl font-semibold" style={{ color: 'var(--vtes-text-primary)' }}>{currentCard.name}</p>
 
-              {cardDetails && (
-                <div className="text-sm space-y-0.5" style={{ color: 'var(--vtes-text-muted)' }}>
-                  {cardDetails.type && <p>{cardDetails.type}</p>}
-                  {cardDetails.artists && cardDetails.artists.length > 0 && (
-                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Art by {cardDetails.artists.join(', ')}</p>
-                  )}
-                  {currentCard.count > 0 && (
-                    <p className="text-[11px]" style={{ color: 'var(--vtes-text-dim)' }}>Used in {currentCard.count} TWDA decks</p>
-                  )}
-                </div>
+              {cardDetails?.type && (
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>{cardDetails.type}</p>
               )}
 
-              <button
+              <motion.button
                 onClick={nextCard}
-                className="w-full py-4 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-4 mt-2 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-3 text-lg shadow-lg"
                 style={{
                   backgroundColor: 'var(--vtes-burgundy)',
                   color: 'var(--vtes-gold)',
                   border: '2px solid var(--vtes-gold)',
                   fontFamily: 'var(--vtes-font-display)',
-                  fontSize: '16px'
+                  boxShadow: '0 0 25px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
                 }}
               >
                 <SkipForward className="w-5 h-5" />
-                Next Card
-              </button>
+                NEXT
+                <ArrowRight className="w-5 h-5" />
+              </motion.button>
+
+              {cardDetails && (cardDetails.artists?.length || currentCard.count > 0) && (
+                <>
+                  <button
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="text-xs flex items-center gap-1 mt-1 transition-all duration-200 hover:opacity-80"
+                    style={{ color: 'var(--vtes-text-muted)' }}
+                  >
+                    <Info size={14} />
+                    {showDetails ? 'Hide' : 'Show'} Details
+                  </button>
+                  {showDetails && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="text-xs text-center space-y-0.5"
+                      style={{ color: 'var(--vtes-text-dim)' }}
+                    >
+                      {cardDetails.artists && cardDetails.artists.length > 0 && (
+                        <p>Art by {cardDetails.artists.join(', ')}</p>
+                      )}
+                      {currentCard.count > 0 && (
+                        <p>Used in {currentCard.count.toLocaleString()} TWDA decks</p>
+                      )}
+                    </motion.div>
+                  )}
+                </>
+              )}
             </div>
           ) : null
           /* Note: Correct answer auto-advances, no additional UI needed */
           }
         </div>
 
-        {/* Stats footer - Fixed at bottom */}
-        <div className="mt-4 p-2.5 rounded-lg flex-shrink-0" style={{
-          backgroundColor: 'rgba(30, 30, 40, 0.5)',
-          border: '1px solid var(--vtes-burgundy-dark)'
-        }}>
-          <div className="flex justify-around text-center text-[11px]">
-            <div>
-              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{totalPlayed}</p>
-              <p style={{ color: 'var(--vtes-text-dim)' }}>Played</p>
+        {/* Stats footer - Enhanced card styling */}
+        <motion.div 
+          className="mt-4 p-3 rounded-xl flex-shrink-0 border"
+          style={{
+            backgroundColor: 'rgba(30, 30, 40, 0.7)',
+            borderColor: 'var(--vtes-burgundy-dark)',
+            backdropFilter: 'blur(10px)'
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex justify-around text-center">
+            <div className="flex flex-col items-center">
+              <div className="p-1.5 rounded-lg bg-slate-800/50 mb-1">
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{totalPlayed}</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-dim)' }}>Played</span>
             </div>
-            <div>
-              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>{totalCorrect}</p>
-              <p style={{ color: 'var(--vtes-text-dim)' }}>Correct</p>
+            <div className="w-px bg-slate-700/50" />
+            <div className="flex flex-col items-center">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 mb-1">
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-emerald-400)' }}>{totalCorrect}</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-dim)' }}>Correct</span>
             </div>
-            <div>
-              <p className="font-bold" style={{ color: 'var(--vtes-text-primary)' }}>
-                {totalPlayed > 0 ? Math.round((totalCorrect / totalPlayed) * 100) : 0}%
-              </p>
-              <p style={{ color: 'var(--vtes-text-dim)' }}>Accuracy</p>
+            <div className="w-px bg-slate-700/50" />
+            <div className="flex flex-col items-center">
+              <div className="p-1.5 rounded-lg bg-[var(--vtes-gold)]/10 mb-1">
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-gold)' }}>
+                  {totalPlayed > 0 ? Math.round((totalCorrect / totalPlayed) * 100) : 0}%
+                </span>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-dim)' }}>Accuracy</span>
             </div>
-            <div>
-              <p className="font-bold" style={{ color: 'var(--vtes-gold)' }}>{bestStreak}</p>
-              <p style={{ color: 'var(--vtes-text-dim)' }}>Best</p>
+            <div className="w-px bg-slate-700/50" />
+            <div className="flex flex-col items-center">
+              <div className="p-1.5 rounded-lg bg-orange-500/10 mb-1">
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-orange-400)' }}>{bestStreak}</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--vtes-text-dim)' }}>Best</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="mt-2 text-center flex-shrink-0">
           <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
