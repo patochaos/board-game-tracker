@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Trophy, Skull, Zap, ArrowRight } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default function MarketingPage() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();

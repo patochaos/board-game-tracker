@@ -35,3 +35,6 @@ next-env.d.ts
 
 # agent skills (local only)
 .agent/skills/
+
+# Windows special file
+nul
