@@ -149,6 +149,37 @@ function calculateScore(hintsUsed: boolean, currentStreak: number, difficulty: n
 
 const AUTO_ADVANCE_DELAY = 2000; // 2000ms for all results (show full card before auto-advance)
 const HOVER_DELAY = 1000;
+const STATS_STORAGE_KEY = 'vtes-guess-stats';
+
+// Stats interface for localStorage
+interface GameStats {
+  score: number;
+  bestStreak: number;
+  totalPlayed: number;
+  totalCorrect: number;
+}
+
+// Load stats from localStorage
+function loadStats(): GameStats {
+  try {
+    const stored = localStorage.getItem(STATS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Error loading stats from localStorage:', e);
+  }
+  return { score: 0, bestStreak: 0, totalPlayed: 0, totalCorrect: 0 };
+}
+
+// Save stats to localStorage
+function saveStats(stats: GameStats): void {
+  try {
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
+  } catch (e) {
+    console.error('Error saving stats to localStorage:', e);
+  }
+}
 
 // Check if two clans are related (same clan or antitribu variant)
 function areClanRelated(clan1?: string, clan2?: string): boolean {
@@ -447,6 +478,9 @@ export default function GuessCardPage() {
   const [showLargeCard, setShowLargeCard] = useState(false);
   const [autoAdvanceProgress, setAutoAdvanceProgress] = useState(0);
   const [showInitials, setShowInitials] = useState(false);
+  
+  // Mobile detection - for tap to preview
+  const [isMobile, setIsMobile] = useState(false);
 
   // Multiple choice for crypt
   const [cryptOptions, setCryptOptions] = useState<string[]>([]);
@@ -486,6 +520,9 @@ export default function GuessCardPage() {
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [lastPoints, setLastPoints] = useState(0);
 
+  // Preloaded next card image URL
+  const [preloadedImageUrl, setPreloadedImageUrl] = useState<string | null>(null);
+
   // Ranked Mode State
   const [gameMode, setGameMode] = useState<'normal' | 'ranked' | null>('normal');
   const [rankedPlaylist, setRankedPlaylist] = useState<CardData[]>([]);
@@ -502,7 +539,7 @@ export default function GuessCardPage() {
     return `/api/vtes/card-image?id=${card.id}`;
   }, []);
 
-  // Load game data
+  // Load game data and initialize stats
   useEffect(() => {
     async function loadGameData() {
       try {
@@ -517,6 +554,16 @@ export default function GuessCardPage() {
       }
     }
     loadGameData();
+    
+    // Load stats from localStorage
+    const savedStats = loadStats();
+    setScore(savedStats.score);
+    setBestStreak(savedStats.bestStreak);
+    setTotalPlayed(savedStats.totalPlayed);
+    setTotalCorrect(savedStats.totalCorrect);
+    
+    // Detect mobile device
+    setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
 
   // Get filtered cards
@@ -721,17 +768,48 @@ export default function GuessCardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed, result]);
 
+  // Save stats to localStorage whenever they change (only in normal mode)
+  useEffect(() => {
+    if (gameMode === 'normal') {
+      saveStats({ score, bestStreak, totalPlayed, totalCorrect });
+    }
+  }, [score, bestStreak, totalPlayed, totalCorrect, gameMode]);
+
   useEffect(() => {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
 
+  // Preload next card image when card is revealed
+  useEffect(() => {
+    if (revealed && gameMode === 'normal') {
+      // Pick a random next card and preload its image
+      const nextCard = pickRandomCard();
+      if (nextCard) {
+        const nextUrl = `/api/vtes/card-image?id=${nextCard.id}`;
+        const img = new Image();
+        img.src = nextUrl;
+        setPreloadedImageUrl(nextUrl);
+      }
+    } else if (!revealed) {
+      setPreloadedImageUrl(null);
+    }
+  }, [revealed, gameMode, pickRandomCard]);
+
   const handleMouseEnter = () => {
+    if (isMobile) return; // Skip hover on mobile
     hoverTimeoutRef.current = setTimeout(() => setShowLargeCard(true), HOVER_DELAY);
   };
 
   const handleMouseLeave = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    setShowLargeCard(false);
+    if (!isMobile) setShowLargeCard(false);
+  };
+
+  // Mobile tap handler - toggle large card preview
+  const handleCardTap = () => {
+    if (isMobile && revealed) {
+      setShowLargeCard(prev => !prev);
+    }
   };
 
   const nextCard = useCallback(() => {
@@ -1199,13 +1277,16 @@ export default function GuessCardPage() {
               className="relative"
             >
               <div
-                className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${
+                className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 cursor-pointer ${
                   result === 'correct' ? 'ring-4 ring-green-500' :
                   result === 'incorrect' ? 'ring-4 ring-red-500' :
                   result === 'skipped' ? 'ring-4 ring-slate-500' :
                   'ring-2 ring-slate-700'
                 }`}
                 style={{ width: displayWidth, height: displayHeight }}
+                onClick={handleCardTap}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
               >
                 {isCrypt ? (
                   <MaskedCard
