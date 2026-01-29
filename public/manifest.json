@@ -1,6 +1,6 @@
 {
-  "name": "VTES Guesser",
-  "short_name": "VTES Guesser",
+  "name": "Praxis Seizure",
+  "short_name": "Praxis Seizure",
   "description": "Test your Vampire: The Eternal Struggle card knowledge",
   "start_url": "/vtes-guess",
   "display": "standalone",

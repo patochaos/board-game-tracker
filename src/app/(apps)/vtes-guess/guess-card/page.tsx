@@ -80,10 +80,10 @@ const generateShareText = (
   };
   const emojiGrid = results.map(r => emojiMap[r]).join('');
 
-  return `🧛 VTES Guesser - Ranked Score: ${score}
+  return `🧛 Praxis Seizure - Ranked Score: ${score}
 🔥 Max Streak: ${bestStreak}
 ${emojiGrid}
-Play at: https://board-game-tracker-78pn.vercel.app/vtes-guess`;
+Play at: https://praxis-seizure.vercel.app/vtes-guess`;
 };
 
 // Smart share: native share on mobile, clipboard on desktop
@@ -97,7 +97,7 @@ const handleShare = async (shareText: string): Promise<void> => {
   if (canUseWebShare) {
     try {
       await navigator.share({
-        title: 'VTES Guesser Results',
+        title: 'Praxis Seizure Results',
         text: shareText,
       });
       // If share succeeds, we're done (no toast needed - OS shows feedback)
@@ -1401,6 +1401,7 @@ function GuessCardContent() {
         onCardTypeChange={handleCardTypeChange}
         gameMode={gameMode || 'normal'}
         onGameModeChange={handleGameModeChange}
+        user={user}
       />
 
       {showLargeCard && (

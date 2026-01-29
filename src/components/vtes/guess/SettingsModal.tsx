@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BookOpen, Skull, Target } from 'lucide-react';
+import { X, BookOpen, Skull, Target, LogIn, LogOut, User } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface SettingsModalProps {
   onCardTypeChange: (t: 'library' | 'crypt' | 'all') => void;
   gameMode: 'normal' | 'ranked';
   onGameModeChange: (m: 'normal' | 'ranked') => void;
+  user?: { email?: string; user_metadata?: { display_name?: string; username?: string } } | null;
 }
 
 export default function SettingsModal({
@@ -20,7 +23,10 @@ export default function SettingsModal({
   onCardTypeChange,
   gameMode,
   onGameModeChange,
+  user,
 }: SettingsModalProps) {
+  const router = useRouter();
+  const supabase = createClient();
   // Handle escape key
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
@@ -85,6 +91,38 @@ export default function SettingsModal({
         </div>
 
         <div className="p-4 space-y-6">
+          {/* User Account Section */}
+          {user ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-700 to-red-900 flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--vtes-text-primary)' }}>
+                  {user.user_metadata?.display_name || user.user_metadata?.username || 'Player'}
+                </p>
+                <p className="text-xs truncate" style={{ color: 'var(--vtes-text-muted)' }}>
+                  {user.email}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                onClose();
+                router.push('/login?next=/vtes-guess/guess-card');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all duration-200"
+              style={{
+                backgroundColor: 'var(--vtes-gold)',
+                color: 'var(--vtes-bg-primary)',
+              }}
+            >
+              <LogIn className="w-4 h-4" />
+              Log In to Save Scores
+            </button>
+          )}
+
           {/* Game Mode */}
           <div>
             <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: 'var(--vtes-text-muted)' }}>
@@ -158,6 +196,26 @@ export default function SettingsModal({
                 Difficulty can be changed using the tabs at the bottom.
               </p>
             </div>
+          )}
+
+          {/* Logout Button - Only show if logged in */}
+          {user && (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                onClose();
+                router.refresh();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-red-900/30"
+              style={{
+                backgroundColor: 'var(--vtes-bg-tertiary)',
+                color: 'var(--vtes-text-muted)',
+                border: '1px solid var(--vtes-burgundy-dark)',
+              }}
+            >
+              <LogOut className="w-4 h-4" />
+              Log Out
+            </button>
           )}
         </div>
       </motion.div>

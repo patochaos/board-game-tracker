@@ -14,7 +14,7 @@ export default function VtesGuessModeSelect() {
           fontFamily: 'var(--vtes-font-display)',
           color: 'var(--vtes-text-primary)',
         }}>
-          <span style={{ color: 'var(--vtes-blood)' }}>V</span>TES Guesser
+          <span style={{ color: 'var(--vtes-blood)' }}>P</span>raxis Seizure
         </h1>
         <p className="text-sm mt-2" style={{ color: 'var(--vtes-text-muted)' }}>
           Choose your path
