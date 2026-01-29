@@ -123,14 +123,11 @@ export default function CardStage({
                 backgroundColor: 'var(--vtes-bg-tertiary)',
                 border: '1px solid var(--vtes-burgundy-dark)'
               }}>
-                <span className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>
-                  Used in
-                </span>
                 <span className="text-sm font-bold" style={{ color: 'var(--vtes-gold)' }}>
                   {card.count.toLocaleString()}
                 </span>
                 <span className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>
-                  TWDA decks
+                  copies in TWDA
                 </span>
               </div>
             </div>

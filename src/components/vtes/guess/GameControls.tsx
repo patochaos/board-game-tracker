@@ -70,8 +70,8 @@ export default function GameControls({
           <SkipForward className="w-4 h-4" />
         </motion.button>
 
-        {/* Expandable details */}
-        {(artists.length > 0 || (cardCount && cardCount > 0)) && (
+        {/* Expandable details - hidden in ranked mode */}
+        {gameMode !== 'ranked' && (artists.length > 0 || (cardCount && cardCount > 0)) && (
           <>
             <button
               onClick={toggleDetails}
@@ -88,7 +88,7 @@ export default function GameControls({
                 style={{ color: 'var(--vtes-text-dim)' }}
               >
                 {artists.length > 0 && <p>Art by {artists.join(', ')}</p>}
-                {cardCount && cardCount > 0 && <p>Used in {cardCount.toLocaleString()} TWDA decks</p>}
+                {cardCount && cardCount > 0 && <p>{cardCount.toLocaleString()} copies in TWDA</p>}
               </motion.div>
             )}
           </>

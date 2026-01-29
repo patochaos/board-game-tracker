@@ -201,6 +201,9 @@ function GuessCardContent() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartRef = useRef<number | null>(null);
 
+  // First card loading state for ranked mode
+  const [firstCardLoading, setFirstCardLoading] = useState(false);
+
   // Obfuscated image URL: uses proxy API with card ID
   const getImageUrl = useCallback((card: GameCardData) => {
     return `/api/vtes/card-image?id=${card.id}`;
@@ -418,8 +421,12 @@ function GuessCardContent() {
     return { multiplier: 1.0, icon: '', color: '', label: '' };
   }, []);
 
-  const startRankedGame = useCallback(() => {
+  const startRankedGame = useCallback(async () => {
     if (!gameData) return;
+
+    // Show loading state
+    setFirstCardLoading(true);
+
     const playlist = generateRankedPlaylist(gameData);
     setRankedPlaylist(playlist);
     setRankedCardIndex(0);
@@ -430,12 +437,22 @@ function GuessCardContent() {
     setGameMode('ranked');
 
     if (playlist[0]) {
+      // Preload first card image before showing
+      const firstCardImageUrl = `/api/vtes/card-image?id=${playlist[0].id}`;
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // Resolve even on error to not block
+        img.src = firstCardImageUrl;
+      });
+
       setCurrentCard(playlist[0]);
       fetchCardDetails(playlist[0].name, playlist[0]);
-      // Note: setupLibraryOptions will be called after cardDetails is set
     }
-    
-    // Pre-fetch all 20 card images for smooth ranked gameplay
+
+    setFirstCardLoading(false);
+
+    // Pre-fetch remaining card images for smooth ranked gameplay
     preFetchRankedImages(playlist);
   }, [gameData, generateRankedPlaylist, fetchCardDetails]);
 
@@ -904,12 +921,12 @@ function GuessCardContent() {
     setResult(null);
   };
 
-  if (loading) {
+  if (loading || firstCardLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{
         background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)'
       }}>
-        <div className="text-white text-xl">Loading card database...</div>
+        <div className="text-white text-xl">{firstCardLoading ? 'Preparing ranked game...' : 'Loading card database...'}</div>
       </div>
     );
   }
