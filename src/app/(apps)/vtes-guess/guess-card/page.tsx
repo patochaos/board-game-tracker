@@ -1124,6 +1124,34 @@ function GuessCardContent() {
             >
               Enter Gehenna
             </button>
+
+            {/* Debug: Skip to end with random score */}
+            <button
+              onClick={() => {
+                const randomScore = Math.floor(Math.random() * 300) + 100;
+                const randomCorrect = Math.floor(Math.random() * 15) + 5;
+                const randomStreak = Math.floor(Math.random() * 10) + 1;
+                const mockResults: ('correct' | 'incorrect' | 'timeout')[] = [];
+                for (let i = 0; i < 20; i++) {
+                  if (i < randomCorrect) mockResults.push('correct');
+                  else if (i < randomCorrect + 2) mockResults.push('timeout');
+                  else mockResults.push('incorrect');
+                }
+                // Shuffle
+                for (let i = mockResults.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [mockResults[i], mockResults[j]] = [mockResults[j], mockResults[i]];
+                }
+                setRankedScore(randomScore);
+                setRankedStats({ correct: randomCorrect, total: 20, currentStreak: 0, bestStreak: randomStreak });
+                setRankedResults(mockResults);
+                setShowFinalScore(true);
+              }}
+              className="mt-6 text-xs opacity-30 hover:opacity-60 transition-opacity"
+              style={{ color: 'var(--vtes-text-muted)' }}
+            >
+              [Debug: Skip to End]
+            </button>
           </div>
         </div>
       )}
