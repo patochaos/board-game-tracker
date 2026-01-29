@@ -13,8 +13,6 @@ interface GameControlsProps {
   onSkip: () => void;
   revealed: boolean;
   result: 'correct' | 'incorrect' | 'skipped' | null;
-  currentCardName: string;
-  cardDetailsType?: string;
   onNextCard: () => void;
   showDetails: boolean;
   toggleDetails: () => void;
@@ -34,8 +32,6 @@ export default function GameControls({
   onSkip,
   revealed,
   result,
-  currentCardName,
-  cardDetailsType,
   onNextCard,
   showDetails,
   toggleDetails,
@@ -51,21 +47,11 @@ export default function GameControls({
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-lg font-bold flex items-center gap-2"
+          className="text-lg font-bold flex items-center gap-2 mb-2"
           style={{ color: '#ef4444' }}
         >
           <span className="text-xl">✗</span> INCORRECT
         </motion.div>
-
-        <p className="text-lg font-semibold text-center" style={{ color: 'var(--vtes-text-primary)' }}>
-          {currentCardName}
-        </p>
-
-        {cardDetailsType && (
-          <p className="text-xs text-center" style={{ color: 'var(--vtes-text-muted)' }}>
-            {cardDetailsType}
-          </p>
-        )}
 
         <motion.button
           onClick={onNextCard}
@@ -116,21 +102,11 @@ export default function GameControls({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-lg font-bold flex items-center gap-2"
+          className="text-lg font-bold flex items-center gap-2 mb-2"
           style={{ color: 'var(--vtes-text-muted)' }}
         >
           <SkipForward className="w-4 h-4" /> SKIPPED
         </motion.div>
-
-        <p className="text-lg font-semibold text-center" style={{ color: 'var(--vtes-text-primary)' }}>
-          {currentCardName}
-        </p>
-
-        {cardDetailsType && (
-          <p className="text-xs text-center" style={{ color: 'var(--vtes-text-muted)' }}>
-            {cardDetailsType}
-          </p>
-        )}
 
         <motion.button
           onClick={onNextCard}
@@ -182,23 +158,28 @@ export default function GameControls({
     <div className="flex-shrink-0 flex flex-col items-center justify-end pb-2 min-h-[140px]">
       {/* Answer Grid */}
       <div className="grid grid-cols-2 gap-2 w-full max-w-[320px]">
-        {options.map((option, i) => (
-          <motion.button
-            key={i}
-            onClick={() => isCrypt ? onCryptChoice(option) : onLibraryChoice(option)}
-            whileHover={{ scale: 1.02, borderColor: 'var(--vtes-gold)' }}
-            whileTap={{ scale: 0.98 }}
-            className="py-3 px-2 rounded-xl text-sm font-medium transition-all duration-200 text-left"
-            style={{
-              backgroundColor: 'var(--vtes-bg-tertiary)',
-              color: 'var(--vtes-text-primary)',
-              border: '2px solid var(--vtes-burgundy-dark)',
-              fontFamily: 'var(--vtes-font-body)',
-            }}
-          >
-            {option}
-          </motion.button>
-        ))}
+        {options.map((option, i) => {
+          // Dynamic text size: smaller for long names to prevent overflow
+          const textSize = option.length > 20 ? 'text-[11px]' : 'text-sm';
+
+          return (
+            <motion.button
+              key={i}
+              onClick={() => isCrypt ? onCryptChoice(option) : onLibraryChoice(option)}
+              whileHover={{ scale: 1.02, borderColor: 'var(--vtes-gold)' }}
+              whileTap={{ scale: 0.98 }}
+              className={`py-2.5 px-3 rounded-xl ${textSize} font-medium transition-all duration-200 flex items-center justify-center text-center min-h-[56px]`}
+              style={{
+                backgroundColor: 'var(--vtes-bg-tertiary)',
+                color: 'var(--vtes-text-primary)',
+                border: '2px solid var(--vtes-burgundy-dark)',
+                fontFamily: 'var(--vtes-font-body)',
+              }}
+            >
+              {option}
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Skip Button - Discreet text link */}

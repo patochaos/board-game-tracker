@@ -951,8 +951,6 @@ export default function GuessCardPage() {
         onSkip={skipCard}
         revealed={revealed}
         result={result}
-        currentCardName={currentCard?.name || ''}
-        cardDetailsType={cardDetails?.type}
         onNextCard={nextCard}
         showDetails={showDetails}
         toggleDetails={() => setShowDetails(!showDetails)}
