@@ -86,6 +86,10 @@ export default function GuessCardPage() {
   const [cardDetails, setCardDetails] = useState<GameCardDetails | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [, setShowUnblurred] = useState(false); // For incorrect/skipped - shows full HD card
+
+  // Preloaded next card queue for instant transitions
+  const [queuedNextCard, setQueuedNextCard] = useState<GameCardData | null>(null);
+  const [queuedNextDetails, setQueuedNextDetails] = useState<GameCardDetails | null>(null);
   const [, setGuess] = useState('');
   const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | null>(null);
   const [showLargeCard, setShowLargeCard] = useState(false);
@@ -491,11 +495,11 @@ export default function GuessCardPage() {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
 
-  // Preload next cards (images and details) for instant transitions
-  const preloadNextCards = useCallback((count = 2) => {
-    if (!gameData) return;
-    
-    // Get filtered cards for normal mode
+  // Queue next card with preloaded image and details for instant transitions
+  const queueNextCard = useCallback(async () => {
+    if (!gameData || gameMode === 'ranked') return;
+
+    // Get filtered cards
     const getFiltered = (): GameCardData[] => {
       let cards: GameCardData[] = [];
       if (cardType === 'crypt' || cardType === 'all') {
@@ -506,36 +510,60 @@ export default function GuessCardPage() {
       }
       return cards;
     };
-    
+
     const filtered = getFiltered();
     const usedIds = new Set([currentCard?.id].filter(Boolean));
-    
-    // Pick random cards that aren't the current card
+
+    // Pick random card that isn't the current card
     const available = filtered.filter(c => !usedIds.has(c.id));
-    const shuffled = available.sort(() => Math.random() - 0.5);
-    const toLoad = shuffled.slice(0, count);
-    
-    toLoad.forEach(card => {
-      // Preload image
-      const img = new Image();
-      img.src = getImageUrl(card);
-      
-      // Preload card details
-      fetchCardDetailsForPreload(card.name);
-    });
-  }, [gameData, cardType, selectedDifficulty, currentCard, getImageUrl]);
-  
-  // Fetch card details for preloading (without setting state)
-  const fetchCardDetailsForPreload = useCallback(async (cardName: string) => {
+    if (available.length === 0) return;
+
+    const nextCard = available[Math.floor(Math.random() * available.length)];
+
+    // Preload image
+    const img = new Image();
+    img.src = getImageUrl(nextCard);
+
+    // Fetch and store card details
     try {
-      const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(cardName)}`);
+      const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(nextCard.name)}`);
       if (response.ok) {
-        await response.json(); // Just cache this data, don't update state
+        const data = await response.json();
+
+        // Extract sect from card_text for crypt cards
+        let sect = undefined;
+        if (data.card_text && nextCard.capacity !== undefined) {
+          const knownSects = ['Camarilla', 'Sabbat', 'Laibon', 'Independent', 'Anarch'];
+          const firstWord = data.card_text.split(/[\s:]/)[0];
+          if (knownSects.includes(firstWord)) {
+            sect = firstWord;
+          }
+        }
+
+        const details: GameCardDetails = {
+          name: data.name || nextCard.name,
+          imageUrl: data.url || `https://static.krcg.org/card/${nextCard.slug}.jpg`,
+          type: data.types?.join(', '),
+          disciplines: data.disciplines || nextCard.disciplines || [],
+          clan: data.clans?.[0] || nextCard.clan,
+          sect: sect,
+          title: data.title,
+          firstSet: data.ordered_sets?.[0],
+          artists: data.artists,
+          poolCost: data.pool_cost,
+          bloodCost: data.blood_cost,
+          convictionCost: data.conviction_cost,
+        };
+
+        setQueuedNextCard(nextCard);
+        setQueuedNextDetails(details);
       }
     } catch {
-      // Silent fail for preloading
+      // If details fetch fails, still queue the card (details will load on display)
+      setQueuedNextCard(nextCard);
+      setQueuedNextDetails(null);
     }
-  }, []);
+  }, [gameData, gameMode, cardType, selectedDifficulty, currentCard, getImageUrl]);
 
   // Pre-fetch card image (silent, no state)
   const preFetchCardImage = useCallback((card: GameCardData) => {
@@ -549,18 +577,16 @@ export default function GuessCardPage() {
       // Stagger preloading to avoid overwhelming the browser
       setTimeout(() => {
         preFetchCardImage(card);
-        // Also pre-fetch card details in background
-        fetchCardDetailsForPreload(card.name);
       }, index * 100); // 100ms delay between each card
     });
-  }, [preFetchCardImage, fetchCardDetailsForPreload]);
+  }, [preFetchCardImage]);
 
-  // Trigger preloading when card is revealed (normal mode only)
+  // Queue next card when current card is revealed (normal mode only)
   useEffect(() => {
     if (revealed && gameMode === 'normal') {
-      preloadNextCards(2);
+      queueNextCard();
     }
-  }, [revealed, gameMode, preloadNextCards]);
+  }, [revealed, gameMode, queueNextCard]);
 
   const nextCard = useCallback(() => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
@@ -575,17 +601,31 @@ export default function GuessCardPage() {
         setCurrentCard(card);
         setCardDetails(null);
         fetchCardDetails(card.name, card);
-        // Note: setupLibraryOptions will be called after cardDetails is set
       } else if (nextIndex === rankedPlaylist.length) {
         setShowFinalScore(true);
       }
     } else {
-      const card = pickRandomCard();
-      if (card) {
-        setCurrentCard(card);
-        setCardDetails(null);
-        fetchCardDetails(card.name, card);
-        // Note: setupLibraryOptions will be called after cardDetails is set
+      // Use queued card if available (instant transition), otherwise pick random
+      if (queuedNextCard) {
+        setCurrentCard(queuedNextCard);
+        setCardDetails(queuedNextDetails);
+        // Clear the queue
+        setQueuedNextCard(null);
+        setQueuedNextDetails(null);
+        // Setup options with preloaded details
+        if (queuedNextCard.capacity !== undefined) {
+          setupCryptOptions(queuedNextCard);
+        } else if (queuedNextDetails) {
+          setupLibraryOptions(queuedNextCard, queuedNextDetails);
+        }
+      } else {
+        // Fallback to random pick if no queued card
+        const card = pickRandomCard();
+        if (card) {
+          setCurrentCard(card);
+          setCardDetails(null);
+          fetchCardDetails(card.name, card);
+        }
       }
     }
 
@@ -604,7 +644,7 @@ export default function GuessCardPage() {
 
     // Auto-focus input after transition
     setTimeout(() => inputRef.current?.focus(), 400);
-  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails, setupCryptOptions]);
+  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails, setupCryptOptions, setupLibraryOptions, queuedNextCard, queuedNextDetails]);
 
   // Handle scoring for correct/incorrect
   const handleAnswer = useCallback((correct: boolean) => {
@@ -689,11 +729,16 @@ export default function GuessCardPage() {
       return;
     }
 
-    setRevealed(true); // Must set revealed for GameControls to show skipped screen
+    setRevealed(true);
     setResult('skipped');
     setShowUnblurred(true); // REVEAL card in full HD
     setStreak(0);
     setTotalPlayed(prev => prev + 1);
+
+    // Auto-advance after brief delay to show the skipped card
+    setTimeout(() => {
+      nextCard();
+    }, 800);
   };
 
   const changeDifficulty = (diff: number) => {

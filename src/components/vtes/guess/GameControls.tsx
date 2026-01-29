@@ -166,14 +166,16 @@ export default function GameControls({
             <motion.button
               key={i}
               onClick={() => isCrypt ? onCryptChoice(option) : onLibraryChoice(option)}
-              whileHover={{ scale: 1.02, borderColor: 'var(--vtes-gold)' }}
-              whileTap={{ scale: 0.98 }}
-              className={`py-2.5 px-3 rounded-xl ${textSize} font-medium transition-all duration-200 flex items-center justify-center text-center min-h-[56px]`}
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97, y: 0 }}
+              className={`py-2.5 px-3 rounded-xl ${textSize} font-semibold transition-all duration-200 flex items-center justify-center text-center min-h-[56px] shadow-md hover:shadow-lg`}
               style={{
-                backgroundColor: 'var(--vtes-bg-tertiary)',
-                color: 'var(--vtes-text-primary)',
-                border: '2px solid var(--vtes-burgundy-dark)',
-                fontFamily: 'var(--vtes-font-body)',
+                background: 'linear-gradient(180deg, var(--vtes-burgundy) 0%, var(--vtes-burgundy-dark) 100%)',
+                color: 'var(--vtes-gold)',
+                border: '2px solid var(--vtes-gold-dark)',
+                borderBottom: '3px solid rgba(0,0,0,0.3)',
+                fontFamily: 'var(--vtes-font-display)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.3)',
               }}
             >
               {option}
