@@ -14,7 +14,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get('next') || '/dashboard';
+  const nextUrl = searchParams.get('next') || '/bg-tracker/dashboard';
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {

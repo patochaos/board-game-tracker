@@ -64,7 +64,7 @@ export async function updateSession(request: NextRequest) {
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone();
     const nextParam = request.nextUrl.searchParams.get('next');
-    url.pathname = nextParam || '/dashboard';
+    url.pathname = nextParam || '/bg-tracker/dashboard';
     url.search = ''; // Clear search params after using 'next'
     return NextResponse.redirect(url);
   }

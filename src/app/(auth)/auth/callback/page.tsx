@@ -35,7 +35,7 @@ function AuthCallbackContent() {
         // Priority: 1) URL param, 2) sessionStorage, 3) default
         let redirectTo = next;
 
-        if (!redirectTo || redirectTo === '/dashboard') {
+        if (!redirectTo || redirectTo === '/dashboard' || redirectTo === '/bg-tracker/dashboard') {
           // Check sessionStorage for stored return URL
           const storedUrl = sessionStorage.getItem('auth_return_url');
           if (storedUrl) {
@@ -46,7 +46,7 @@ function AuthCallbackContent() {
 
         // Default fallback
         if (!redirectTo) {
-          redirectTo = '/dashboard';
+          redirectTo = '/bg-tracker/dashboard';
         }
 
         // Redirect to final destination

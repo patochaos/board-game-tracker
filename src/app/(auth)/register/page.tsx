@@ -15,7 +15,7 @@ function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get('next') || '/dashboard';
+  const nextUrl = searchParams.get('next') || '/bg-tracker/dashboard';
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
