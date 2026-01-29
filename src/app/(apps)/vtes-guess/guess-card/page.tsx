@@ -555,6 +555,34 @@ export default function GuessCardPage() {
           convictionCost: data.conviction_cost,
         };
 
+        // Preload discipline icons
+        const disciplineMap: Record<string, string> = {
+          'abombwe': 'abo', 'animalism': 'ani', 'auspex': 'aus', 'celerity': 'cel',
+          'chimerstry': 'chi', 'daimoinon': 'dai', 'dominate': 'dom', 'fortitude': 'for',
+          'melpominee': 'mel', 'mytherceria': 'myt', 'necromancy': 'nec', 'obfuscate': 'obf',
+          'obtenebration': 'obt', 'potence': 'pot', 'presence': 'pre', 'protean': 'pro',
+          'quietus': 'qui', 'sanguinus': 'san', 'serpentis': 'ser', 'spiritus': 'spi',
+          'temporis': 'tem', 'thanatosis': 'thn', 'thaumaturgy': 'tha', 'valeren': 'val',
+          'vicissitude': 'vic', 'visceratika': 'vis', 'dementation': 'dem',
+          'blood sorcery': 'tha', 'oblivion': 'obl', 'thin-blood alchemy': 'tba',
+        };
+
+        details.disciplines?.forEach(disc => {
+          const lowerDisc = disc.toLowerCase();
+          const filename = disciplineMap[lowerDisc] || lowerDisc.substring(0, 3);
+          const isSuperior = disc === disc.toUpperCase() && /[A-Z]/.test(disc);
+          const folder = isSuperior ? 'sup' : 'inf';
+          const iconImg = new Image();
+          iconImg.src = `https://static.krcg.org/webp_wb/disc/${folder}/${filename}.webp`;
+        });
+
+        // Preload clan icon
+        if (details.clan) {
+          const clanFilename = details.clan.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const clanImg = new Image();
+          clanImg.src = `https://static.krcg.org/webp_wb/clan/${clanFilename}.webp`;
+        }
+
         setQueuedNextCard(nextCard);
         setQueuedNextDetails(details);
       }
