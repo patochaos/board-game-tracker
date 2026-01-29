@@ -471,7 +471,7 @@ export default function HeadToHeadPage() {
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-slate-600 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-slate-300">No games together</h3>
-                  <p className="text-slate-500">These players haven't played any games together yet.</p>
+                  <p className="text-slate-500">These players haven&apos;t played any games together yet.</p>
                 </div>
               </Card>
             )}

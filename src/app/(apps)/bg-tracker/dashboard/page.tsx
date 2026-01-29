@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AppLayout } from '@/components/layout';
 import { StatCard, Card, Button, EmptyState, Badge } from '@/components/ui';
-import { Dice5, Trophy, Clock, Users, Plus, CalendarDays, TrendingUp } from 'lucide-react';
+import { Dice5, Trophy, Clock, Users, Plus, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function DashboardPage() {

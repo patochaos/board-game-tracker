@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 import { ArrowLeft, Trash2, Trophy, Loader2, Dice5, Save, X, Pencil, Calendar, Clock, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';

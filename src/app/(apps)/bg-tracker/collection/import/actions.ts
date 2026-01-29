@@ -3,7 +3,6 @@
 import { getUserCollection, getUserExpansions, searchGames } from '@/lib/bgg';
 import type { BGGCollectionItem, BGGSearchResult } from '@/types';
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 
 async function getBggToken() {
     const supabase = await createClient();

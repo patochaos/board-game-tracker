@@ -103,7 +103,7 @@ export default function MaskDebugPage() {
                 </div>
 
                 <div className="p-4 bg-slate-950 rounded font-mono text-xs text-slate-300 break-all border border-slate-800">
-                    <p className="mb-2 text-slate-500">// Copy this to developer:</p>
+                    <p className="mb-2 text-slate-500">Copy this to developer:</p>
                     {JSON.stringify(config, null, 2)}
                 </div>
             </div>

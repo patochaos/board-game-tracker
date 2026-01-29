@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { describe, it, expect } from 'vitest';
 import { normalizeString, isCorrectGuess, calculateScore, displayName } from './guess-game';
 

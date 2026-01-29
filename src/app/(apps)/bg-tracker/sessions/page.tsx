@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, EmptyState, SessionListSkeleton } from '@/components/ui';
-import { CalendarDays, Plus, Loader2, Trophy, Clock, Dice5, Filter, X } from 'lucide-react';
+import { CalendarDays, Plus, Trophy, Clock, Dice5, Filter, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

@@ -53,7 +53,7 @@ export default function LeaderboardPage() {
             setLoading(true);
 
             // Build query with optional group filter
-            let query = supabase
+            const query = supabase
                 .from('session_players')
                 .select(`
                     is_winner,

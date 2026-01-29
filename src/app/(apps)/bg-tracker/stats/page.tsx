@@ -4,14 +4,14 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, StatCard, EmptyState, StatCardsSkeleton } from '@/components/ui';
-import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Loader2, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords, ArrowRight } from 'lucide-react';
+import { BarChart3, Trophy, Target, Clock, Dice5, TrendingUp, Medal, Users, Calendar, Award, Star, Zap, Flame, Crown, Sparkles, Swords, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Image from 'next/image';
-import { format, subDays, startOfWeek, eachWeekOfInterval } from 'date-fns';
-import { SessionWithDetails, SessionPlayerWithProfile } from '@/types';
+import { format, subDays, eachWeekOfInterval } from 'date-fns';
+import { SessionWithDetails } from '@/types';
 
 interface PlayerStats {
   user_id: string;

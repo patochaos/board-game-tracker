@@ -52,7 +52,6 @@ function NewSessionContent() {
   const [selectedExpansions, setSelectedExpansions] = useState<string[]>([]);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState<string>('');
 
   const supabase = createClient();
 
