@@ -91,7 +91,7 @@ const generateShareText = (
   };
   const emojiGrid = results.map(r => emojiMap[r]).join('');
 
-  return `🧛 Praxis Seizure - Ranked Score: ${score}
+  return `🧛 CRUSADE - Ranked Score: ${score}
 🔥 Max Streak: ${bestStreak}
 ${emojiGrid}
 Play at: https://praxis-seizure.vercel.app/vtes-guess`;
@@ -108,7 +108,7 @@ const handleShare = async (shareText: string): Promise<void> => {
   if (canUseWebShare) {
     try {
       await navigator.share({
-        title: 'Praxis Seizure Results',
+        title: 'CRUSADE Results',
         text: shareText,
       });
       // If share succeeds, we're done (no toast needed - OS shows feedback)

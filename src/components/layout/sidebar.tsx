@@ -37,7 +37,7 @@ const vtesNavItems = [
   { label: 'Sessions', href: '/vtes/sessions', icon: FileText },
   { label: 'Leaderboard', href: '/vtes/leaderboard', icon: Trophy },
   { label: 'Search Cards', href: '/vtes/cards', icon: Search },
-  { label: 'Guess Card', href: '/vtes/guess-card', icon: HelpCircle },
+  { label: 'CRUSADE', href: '/vtes/guess-card', icon: HelpCircle },
 ];
 
 const bottomItems = [
@@ -68,7 +68,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
     activeShadow: 'shadow-red-500/10',
     hoverBg: 'hover:bg-red-900/10',
     hoverText: 'hover:text-red-200',
-    appName: 'VTES Tracker'
+    appName: 'Praxis Seizure'
   } : {
     iconBg: 'bg-gradient-to-br from-wood-500 to-wood-600',
     iconColor: 'text-white',

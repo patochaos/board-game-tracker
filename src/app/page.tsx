@@ -54,7 +54,7 @@ export default function LandingPage() {
         {/* Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
 
-          {/* Featured Card - VTES Guess (Spans 2 cols on lg) */}
+          {/* Featured Card - CRUSADE (Spans 2 cols on lg) */}
           <Link
             href="/vtes-guess"
             className="group relative md:col-span-2 lg:col-span-2 rounded-3xl overflow-hidden min-h-[320px] md:min-h-[380px]"
@@ -92,7 +92,7 @@ export default function LandingPage() {
               </div>
 
               <h2 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">
-                <span className="text-red-500">V</span>TES Guess
+                <span className="text-red-500">C</span>RUSADE
               </h2>
               <p className="text-slate-400 text-lg mb-6 max-w-md">
                 Test your knowledge of Vampire: The Eternal Struggle cards. Climb the leaderboard in Ranked mode.
@@ -105,7 +105,7 @@ export default function LandingPage() {
             </div>
           </Link>
 
-          {/* Secondary Card A - VTES Tracker */}
+          {/* Secondary Card A - Praxis Seizure */}
           <Link
             href="/vtes"
             className="group relative rounded-3xl overflow-hidden min-h-[280px]"
@@ -126,7 +126,7 @@ export default function LandingPage() {
                 <BarChart3 className="w-6 h-6 text-white" />
               </div>
 
-              <h3 className="text-2xl font-bold mb-2">VTES Tracker</h3>
+              <h3 className="text-2xl font-bold mb-2">Praxis Seizure</h3>
               <p className="text-slate-400 text-sm mb-auto">
                 Track decks, match statistics, and tournament results for your eternal struggle.
               </p>
