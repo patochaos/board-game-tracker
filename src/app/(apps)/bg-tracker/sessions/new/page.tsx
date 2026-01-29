@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -46,6 +46,12 @@ function NewSessionContent() {
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
+
+  // Game search state
+  const [gameSearch, setGameSearch] = useState('');
+
+  // Recent players for quick-add
+  const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
 
   // Expansion state
   const [availableExpansions, setAvailableExpansions] = useState<Game[]>([]);
@@ -106,6 +112,28 @@ function NewSessionContent() {
 
       if (gamesData) {
         setGames(gamesData);
+      }
+
+      // Fetch recent players from past sessions (guest players)
+      const { data: recentSessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('created_by', user.id)
+        .order('played_at', { ascending: false })
+        .limit(10);
+
+      if (recentSessions && recentSessions.length > 0) {
+        const sessionIds = recentSessions.map(s => s.id);
+        const { data: guestPlayersData } = await supabase
+          .from('guest_players')
+          .select('name')
+          .in('session_id', sessionIds);
+
+        if (guestPlayersData) {
+          // Get unique names, most recent first
+          const uniqueNames = Array.from(new Set(guestPlayersData.map(p => p.name))).slice(0, 5);
+          setRecentPlayers(uniqueNames);
+        }
       }
 
       setLoading(false);
@@ -449,37 +477,57 @@ function NewSessionContent() {
                 <Check className="h-6 w-6 text-emerald-400" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {games.map((game) => (
-                  <button
-                    key={game.id}
-                    type="button"
-                    onClick={() => setSelectedGameId(game.id)}
-                    className={`p-3 rounded-xl border transition-all text-left ${selectedGameId === game.id
-                      ? 'border-emerald-500 bg-emerald-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {game.thumbnail_url ? (
-                        <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
-                          <Image
-                            src={game.thumbnail_url}
-                            alt={game.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
-                          <Dice5 className="h-5 w-5 text-slate-500" />
-                        </div>
-                      )}
-                      <span className="text-sm text-slate-200 line-clamp-2">{game.name}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <>
+                {/* Game search - show when more than 6 games */}
+                {games.length > 6 && (
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search games..."
+                      value={gameSearch}
+                      onChange={(e) => setGameSearch(e.target.value)}
+                      className="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-200 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {games
+                    .filter(game => game.name.toLowerCase().includes(gameSearch.toLowerCase()))
+                    .map((game) => (
+                    <button
+                      key={game.id}
+                      type="button"
+                      onClick={() => setSelectedGameId(game.id)}
+                      className={`p-3 rounded-xl border transition-all text-left ${selectedGameId === game.id
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                        }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {game.thumbnail_url ? (
+                          <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                            <Image
+                              src={game.thumbnail_url}
+                              alt={game.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+                            <Dice5 className="h-5 w-5 text-slate-500" />
+                          </div>
+                        )}
+                        <span className="text-sm text-slate-200 line-clamp-2">{game.name}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {games.length > 6 && gameSearch && games.filter(g => g.name.toLowerCase().includes(gameSearch.toLowerCase())).length === 0 && (
+                  <p className="text-center text-slate-500 py-4">No games match "{gameSearch}"</p>
+                )}
+              </>
             )}
           </Card>
 
@@ -564,6 +612,36 @@ function NewSessionContent() {
                 Add Player
               </Button>
             </div>
+
+            {/* Recent players quick-add */}
+            {recentPlayers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-slate-500 mb-2">Quick add recent players:</p>
+                <div className="flex flex-wrap gap-2">
+                  {recentPlayers
+                    .filter(name => !players.some(p => p.name === name))
+                    .map(name => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setPlayers([...players, {
+                          id: crypto.randomUUID(),
+                          name: name,
+                          score: '',
+                          isWinner: false,
+                          isCurrentUser: false,
+                          userId: null,
+                        }]);
+                      }}
+                      className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      + {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               {players.map((player, index) => (
