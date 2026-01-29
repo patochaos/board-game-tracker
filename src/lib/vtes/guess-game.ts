@@ -198,6 +198,7 @@ export function generateCryptOptions(
       c.id !== correctCard.id &&
       c.difficulty === difficulty &&
       (!gender || gender === '?' || c.gender === gender) &&
+      !isNameTooSimilar(correctCard, c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
@@ -217,15 +218,17 @@ export function generateCryptOptions(
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
       (!gender || gender === '?' || c.gender === gender) &&
+      !isNameTooSimilar(correctCard, c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Fallback: any crypt card
+  // Fallback: any crypt card (still exclude similar names)
   if (candidates.length < 2) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
+      !isNameTooSimilar(correctCard, c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
@@ -359,21 +362,23 @@ export function generateLibraryOptions(
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Fallback: any library card with same types count
+  // Fallback: any library card with same types count (still exclude similar names)
   if (candidates.length < 3) {
     const moreCandidates = allLibrary.filter(c =>
       c.id !== correctCard.id &&
       c.types.length === targetTypes.length &&
       c.types.every(t => targetTypes.includes(t)) &&
+      !isNameTooSimilar(correctCard, c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Last resort: any library card
+  // Last resort: any library card (still exclude similar names)
   if (candidates.length < 3) {
     const moreCandidates = allLibrary.filter(c =>
       c.id !== correctCard.id &&
+      !isNameTooSimilar(correctCard, c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
