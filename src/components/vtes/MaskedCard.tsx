@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { useMemo } from 'react';
+import { memo } from 'react';
 
 interface MaskedCardProps {
     imageUrl: string;
@@ -9,7 +9,7 @@ interface MaskedCardProps {
     className?: string;
 }
 
-export function MaskedCard({ imageUrl, name, isCrypt, isRevealed, className = '' }: MaskedCardProps) {
+export const MaskedCard = memo(function MaskedCard({ imageUrl, name, isCrypt, isRevealed, className = '' }: MaskedCardProps) {
 
     // If revealed or not a crypt card (for now), show normal image
     // Note: Library cards might need their own mask later, but user specified Crypt.
@@ -60,4 +60,4 @@ export function MaskedCard({ imageUrl, name, isCrypt, isRevealed, className = ''
             />
         </div>
     );
-}
+});

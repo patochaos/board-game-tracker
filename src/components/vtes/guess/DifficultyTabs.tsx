@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 
 const difficulties = [
@@ -16,7 +17,7 @@ interface DifficultyTabsProps {
   disabled?: boolean;
 }
 
-export default function DifficultyTabs({
+function DifficultyTabs({
   selectedDifficulty,
   onDifficultyChange,
   disabled = false,
@@ -76,3 +77,5 @@ export default function DifficultyTabs({
     </div>
   );
 }
+
+export default memo(DifficultyTabs);

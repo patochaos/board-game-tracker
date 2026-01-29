@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { SkipForward } from 'lucide-react';
 
@@ -22,7 +23,7 @@ interface GameControlsProps {
   cardCount?: number;
 }
 
-export default function GameControls({
+function GameControls({
   isCrypt,
   cryptOptions,
   libraryOptions,
@@ -136,3 +137,5 @@ export default function GameControls({
     </div>
   );
 }
+
+export default memo(GameControls);

@@ -1,0 +1,24 @@
+# VTES Guess Game - CRUSADE
+User-agent: *
+Allow: /vtes-guess/
+
+# VTES Tracker - Praxis Seizure
+Allow: /vtes/
+Allow: /vtes-tracker/
+
+# Board Game Tracker
+Allow: /dashboard/
+Allow: /bg-tracker/
+
+# Auth routes
+Allow: /auth/
+Allow: /login
+Allow: /register
+
+# Sitemap
+Sitemap: https://praxis-seizure.vercel.app/sitemap.xml
+
+# Disallow private/admin routes
+Disallow: /api/
+Disallow: /_next/
+Disallow: /private/
