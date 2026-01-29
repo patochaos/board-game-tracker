@@ -18,7 +18,8 @@ export function MaskedCard({ imageUrl, name, isCrypt, isRevealed, className = ''
             <img
                 src={imageUrl}
                 alt={name}
-                className={`w-full h-full object-contain rounded-xl shadow-2xl ${className}`}
+                className={`w-full h-full object-contain rounded-xl shadow-2xl select-none ${className}`}
+                draggable={false}
             />
         );
     }
@@ -31,7 +32,8 @@ export function MaskedCard({ imageUrl, name, isCrypt, isRevealed, className = ''
                 <img
                     src={imageUrl}
                     alt={name}
-                    className="w-full h-full object-fill"
+                    className="w-full h-full object-fill select-none"
+                    draggable={false}
                 />
             </div>
 

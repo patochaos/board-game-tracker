@@ -18,6 +18,10 @@ import {
   type GameCardDetails,
   type PremiumDistractors
 } from '@/lib/vtes/guess-game';
+import {
+  trackGameStart,
+  trackModeSelect,
+} from '@/lib/analytics';
 
 // Blood burst effect for correct guesses
 const triggerBloodBurst = () => {
@@ -200,6 +204,15 @@ function GuessCardContent() {
   const [loading, setLoading] = useState(true);
   const [selectedDifficulty, setSelectedDifficulty] = useState<number>(1);
   const [cardType, setCardType] = useState<'library' | 'crypt' | 'all'>('library');
+  const [includeImbued, setIncludeImbued] = useState<boolean>(true);
+
+  // Load includeImbued from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('vtes-guess-include-imbued');
+    if (saved !== null) {
+      setIncludeImbued(saved === 'true');
+    }
+  }, []);
 
   // Current card
   const [currentCard, setCurrentCard] = useState<GameCardData | null>(null);
@@ -207,9 +220,8 @@ function GuessCardContent() {
   const [revealed, setRevealed] = useState(false);
   const [, setShowUnblurred] = useState(false); // For incorrect/skipped - shows full HD card
 
-  // Preloaded next card queue for instant transitions
-  const [queuedNextCard, setQueuedNextCard] = useState<GameCardData | null>(null);
-  const [queuedNextDetails, setQueuedNextDetails] = useState<GameCardDetails | null>(null);
+  // Casual mode: preloaded queue of upcoming cards (5 cards ahead)
+  const [casualQueue, setCasualQueue] = useState<GameCardData[]>([]);
   const [, setGuess] = useState('');
   const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | 'timeout' | null>(null);
   const [showLargeCard, setShowLargeCard] = useState(false);
@@ -555,6 +567,17 @@ function GuessCardContent() {
   const startRankedGame = useCallback(async () => {
     if (!gameData) return;
 
+    // Track game start
+    trackGameStart({ mode: 'ranked' });
+
+    // Reset game state from previous mode (casual)
+    setRevealed(false);
+    setResult(null);
+    setChoiceMade(false);
+    setFeedback(null);
+    setGuess('');
+    setCardDetails(null);
+
     // Show loading state
     setFirstCardLoading(true);
 
@@ -648,6 +671,18 @@ function GuessCardContent() {
 
 
   const startNormalGame = useCallback(() => {
+    // Track game start
+    trackGameStart({ mode: 'normal', difficulty: 1, cardType: 'library' });
+
+    // Reset game state from previous mode (ranked)
+    setRevealed(false);
+    setResult(null);
+    setChoiceMade(false);
+    setFeedback(null);
+    setGuess('');
+    setCardDetails(null);
+    setCurrentCard(null); // Will trigger the effect to pick a new card
+
     setGameMode('normal');
     setShowFinalScore(false);
     setSelectedDifficulty(1);
@@ -656,6 +691,9 @@ function GuessCardContent() {
 
   // Handler for game mode change from settings modal
   const handleGameModeChange = useCallback((mode: 'normal' | 'ranked') => {
+    // Track mode selection
+    trackModeSelect({ mode, source: 'settings' });
+
     if (mode === 'ranked') {
       startRankedGame();
     } else {
@@ -670,17 +708,6 @@ function GuessCardContent() {
   }, [startRankedGame, startNormalGame, pickRandomCard, fetchCardDetails]);
 
   // Start game
-  useEffect(() => {
-    if (gameData && !currentCard) {
-      const card = pickRandomCard();
-      if (card) {
-        setCurrentCard(card);
-        fetchCardDetails(card.name, card);
-        // Note: setupLibraryOptions will be called after cardDetails is set
-      }
-    }
-  }, [gameData, currentCard, pickRandomCard, fetchCardDetails]);
-
   // Auto-advance timer - only for CORRECT guesses (not incorrect/skipped)
   useEffect(() => {
     if (revealed && result === 'correct') {
@@ -767,103 +794,66 @@ function GuessCardContent() {
     };
   }, [gameMode, revealed, currentCard, choiceMade, showFinalScore, rankedReady]);
 
-  // Queue next card with preloaded image and details for instant transitions
-  const queueNextCard = useCallback(async () => {
-    if (!gameData || gameMode === 'ranked') return;
-
-    // Get filtered cards
-    const getFiltered = (): GameCardData[] => {
-      let cards: GameCardData[] = [];
-      if (cardType === 'crypt' || cardType === 'all') {
-        cards = [...cards, ...gameData.crypt.filter(c => c.difficulty === selectedDifficulty)];
+  // Helper: get cards for specific difficulty/type settings
+  const getCardsForSettings = useCallback((difficulty: number, type: 'library' | 'crypt' | 'all'): GameCardData[] => {
+    if (!gameData) return [];
+    let cards: GameCardData[] = [];
+    if (type === 'crypt' || type === 'all') {
+      let cryptCards = gameData.crypt.filter(c => c.difficulty === difficulty);
+      // Filter out Imbued if disabled
+      if (!includeImbued) {
+        cryptCards = cryptCards.filter(c => !c.types?.includes('Imbued'));
       }
-      if (cardType === 'library' || cardType === 'all') {
-        cards = [...cards, ...gameData.library.filter(c => c.difficulty === selectedDifficulty)];
-      }
-      return cards;
-    };
-
-    const filtered = getFiltered();
-    const usedIds = new Set([currentCard?.id].filter(Boolean));
-
-    // Pick random card that isn't the current card
-    const available = filtered.filter(c => !usedIds.has(c.id));
-    if (available.length === 0) return;
-
-    const nextCard = available[Math.floor(Math.random() * available.length)];
-
-    // Preload image
-    const img = new Image();
-    img.src = getImageUrl(nextCard);
-
-    // Fetch and store card details
-    try {
-      const response = await fetch(`https://api.krcg.org/card/${encodeURIComponent(nextCard.name)}`);
-      if (response.ok) {
-        const data = await response.json();
-
-        // Extract sect from card_text for crypt cards
-        let sect = undefined;
-        if (data.card_text && nextCard.capacity !== undefined) {
-          const knownSects = ['Camarilla', 'Sabbat', 'Laibon', 'Independent', 'Anarch'];
-          const firstWord = data.card_text.split(/[\s:]/)[0];
-          if (knownSects.includes(firstWord)) {
-            sect = firstWord;
-          }
-        }
-
-        const details: GameCardDetails = {
-          name: data.name || nextCard.name,
-          imageUrl: data.url || `https://static.krcg.org/card/${nextCard.slug}.jpg`,
-          type: data.types?.join(', '),
-          disciplines: data.disciplines || nextCard.disciplines || [],
-          clan: data.clans?.[0] || nextCard.clan,
-          sect: sect,
-          title: data.title,
-          firstSet: data.ordered_sets?.[0],
-          artists: data.artists,
-          poolCost: data.pool_cost,
-          bloodCost: data.blood_cost,
-          convictionCost: data.conviction_cost,
-        };
-
-        // Preload discipline icons
-        const disciplineMap: Record<string, string> = {
-          'abombwe': 'abo', 'animalism': 'ani', 'auspex': 'aus', 'celerity': 'cel',
-          'chimerstry': 'chi', 'daimoinon': 'dai', 'dominate': 'dom', 'fortitude': 'for',
-          'melpominee': 'mel', 'mytherceria': 'myt', 'necromancy': 'nec', 'obfuscate': 'obf',
-          'obtenebration': 'obt', 'potence': 'pot', 'presence': 'pre', 'protean': 'pro',
-          'quietus': 'qui', 'sanguinus': 'san', 'serpentis': 'ser', 'spiritus': 'spi',
-          'temporis': 'tem', 'thanatosis': 'thn', 'thaumaturgy': 'tha', 'valeren': 'val',
-          'vicissitude': 'vic', 'visceratika': 'vis', 'dementation': 'dem',
-          'blood sorcery': 'tha', 'oblivion': 'obl', 'thin-blood alchemy': 'tba',
-        };
-
-        details.disciplines?.forEach(disc => {
-          const lowerDisc = disc.toLowerCase();
-          const filename = disciplineMap[lowerDisc] || lowerDisc.substring(0, 3);
-          const isSuperior = disc === disc.toUpperCase() && /[A-Z]/.test(disc);
-          const folder = isSuperior ? 'sup' : 'inf';
-          const iconImg = new Image();
-          iconImg.src = `https://static.krcg.org/webp_wb/disc/${folder}/${filename}.webp`;
-        });
-
-        // Preload clan icon
-        if (details.clan) {
-          const clanFilename = details.clan.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const clanImg = new Image();
-          clanImg.src = `https://static.krcg.org/webp_wb/clan/${clanFilename}.webp`;
-        }
-
-        setQueuedNextCard(nextCard);
-        setQueuedNextDetails(details);
-      }
-    } catch {
-      // If details fetch fails, still queue the card (details will load on display)
-      setQueuedNextCard(nextCard);
-      setQueuedNextDetails(null);
+      cards = [...cards, ...cryptCards];
     }
-  }, [gameData, gameMode, cardType, selectedDifficulty, currentCard, getImageUrl]);
+    if (type === 'library' || type === 'all') {
+      let libraryCards = gameData.library.filter(c => c.difficulty === difficulty);
+      // Filter out Imbued-only cards (Conviction, Power) if disabled
+      if (!includeImbued) {
+        libraryCards = libraryCards.filter(c =>
+          !c.types?.includes('Conviction') && !c.types?.includes('Power')
+        );
+      }
+      cards = [...cards, ...libraryCards];
+    }
+    return cards;
+  }, [gameData, includeImbued]);
+
+  // Helper: pick N random cards from pool, excluding certain IDs
+  const pickRandomCards = useCallback((pool: GameCardData[], count: number, excludeIds: Set<number>): GameCardData[] => {
+    const available = pool.filter(c => !excludeIds.has(c.id));
+    const shuffled = [...available].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+  }, []);
+
+  // Fill casual queue with preloaded cards
+  const fillCasualQueue = useCallback((difficulty: number, type: 'library' | 'crypt' | 'all', currentCardId?: number) => {
+    const pool = getCardsForSettings(difficulty, type);
+    const excludeIds = new Set(currentCardId ? [currentCardId] : []);
+    const newCards = pickRandomCards(pool, 5, excludeIds);
+
+    // Preload all images
+    newCards.forEach(card => {
+      const img = new Image();
+      img.src = getImageUrl(card);
+    });
+
+    setCasualQueue(newCards);
+  }, [getCardsForSettings, pickRandomCards, getImageUrl]);
+
+  // Add one card to the end of casual queue
+  const addToCasualQueue = useCallback(() => {
+    const pool = getCardsForSettings(selectedDifficulty, cardType);
+    const usedIds = new Set([currentCard?.id, ...casualQueue.map(c => c.id)].filter((id): id is number => id !== undefined));
+    const newCards = pickRandomCards(pool, 1, usedIds);
+
+    if (newCards.length > 0) {
+      // Preload image
+      const img = new Image();
+      img.src = getImageUrl(newCards[0]);
+      setCasualQueue(prev => [...prev, newCards[0]]);
+    }
+  }, [getCardsForSettings, selectedDifficulty, cardType, currentCard, casualQueue, pickRandomCards, getImageUrl]);
 
   // Pre-fetch card image (silent, no state)
   const preFetchCardImage = useCallback((card: GameCardData) => {
@@ -881,12 +871,25 @@ function GuessCardContent() {
     });
   }, [preFetchCardImage]);
 
-  // Queue next card when current card is revealed (normal mode only)
+  // Add card to queue when current card is revealed (normal mode only)
   useEffect(() => {
     if (revealed && gameMode === 'normal') {
-      queueNextCard();
+      addToCasualQueue();
     }
-  }, [revealed, gameMode, queueNextCard]);
+  }, [revealed, gameMode, addToCasualQueue]);
+
+  // Start game - pick first card and fill queue
+  useEffect(() => {
+    if (gameData && !currentCard && gameMode === 'normal') {
+      const card = pickRandomCard();
+      if (card) {
+        setCurrentCard(card);
+        fetchCardDetails(card.name, card);
+        // Fill queue with preloaded cards
+        fillCasualQueue(selectedDifficulty, cardType, card.id);
+      }
+    }
+  }, [gameData, currentCard, gameMode, pickRandomCard, fetchCardDetails, fillCasualQueue, selectedDifficulty, cardType]);
 
   const nextCard = useCallback(() => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
@@ -907,21 +910,15 @@ function GuessCardContent() {
         setShowFinalScore(true);
       }
     } else {
-      // Use queued card if available (instant transition), otherwise pick random
-      if (queuedNextCard) {
-        setCurrentCard(queuedNextCard);
-        setCardDetails(queuedNextDetails);
-        // Clear the queue
-        setQueuedNextCard(null);
-        setQueuedNextDetails(null);
-        // Setup options with preloaded details
-        if (queuedNextCard.capacity !== undefined) {
-          setupCryptOptions(queuedNextCard);
-        } else if (queuedNextDetails) {
-          setupLibraryOptions(queuedNextCard, queuedNextDetails);
-        }
+      // Use card from queue if available (instant transition), otherwise pick random
+      if (casualQueue.length > 0) {
+        const [nextCard, ...rest] = casualQueue;
+        setCasualQueue(rest);
+        setCurrentCard(nextCard);
+        setCardDetails(null);
+        fetchCardDetails(nextCard.name, nextCard);
       } else {
-        // Fallback to random pick if no queued card
+        // Fallback to random pick if queue is empty
         const card = pickRandomCard();
         if (card) {
           setCurrentCard(card);
@@ -946,7 +943,7 @@ function GuessCardContent() {
 
     // Auto-focus input after transition
     setTimeout(() => inputRef.current?.focus(), 400);
-  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails, setupCryptOptions, setupLibraryOptions, queuedNextCard, queuedNextDetails]);
+  }, [gameMode, rankedCardIndex, rankedPlaylist, pickRandomCard, fetchCardDetails, casualQueue]);
 
   // Handle scoring for correct/incorrect
   const handleAnswer = useCallback((correct: boolean) => {
@@ -1043,7 +1040,7 @@ function GuessCardContent() {
     setTotalPlayed(prev => prev + 1);
 
     // Start preloading next card immediately
-    queueNextCard();
+    addToCasualQueue();
 
     // Auto-advance after brief delay to show the skipped card
     setTimeout(() => {
@@ -1051,25 +1048,70 @@ function GuessCardContent() {
     }, 800);
   };
 
-  const changeDifficulty = (diff: number) => {
-    setSelectedDifficulty(diff);
-    setCurrentCard(null);
-    setCardDetails(null);
-    setRevealed(false);
-    setGuess('');
-    setResult(null);
-  };
+  const changeDifficulty = useCallback((diff: number) => {
+    if (!gameData) return;
 
-  // Handler for card type change from settings modal
-  const handleCardTypeChange = useCallback((newType: 'library' | 'crypt' | 'all') => {
-    setCardType(newType);
-    setCurrentCard(null);
+    // Clear any pending auto-advance timers
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    if (progressRef.current) clearInterval(progressRef.current);
+
+    // Get cards for the new difficulty
+    const cards = getCardsForSettings(diff, cardType);
+    if (cards.length === 0) return;
+
+    // Pick a random card and preload its image
+    const newCard = cards[Math.floor(Math.random() * cards.length)];
+    const img = new Image();
+    img.src = getImageUrl(newCard);
+
+    // Update state with new card directly (no null transition)
+    setSelectedDifficulty(diff);
+    setCurrentCard(newCard);
     setCardDetails(null);
+    fetchCardDetails(newCard.name, newCard);
     setRevealed(false);
     setGuess('');
     setResult(null);
     setChoiceMade(false);
-  }, []);
+    setFeedback(null);
+    setCardKey(prev => prev + 1);
+
+    // Fill queue with preloaded cards for the new difficulty
+    fillCasualQueue(diff, cardType, newCard.id);
+  }, [gameData, cardType, getImageUrl, fetchCardDetails, getCardsForSettings, fillCasualQueue]);
+
+  // Handler for card type change from settings modal
+  const handleCardTypeChange = useCallback((newType: 'library' | 'crypt' | 'all') => {
+    if (!gameData) return;
+
+    // Clear any pending auto-advance timers
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    if (progressRef.current) clearInterval(progressRef.current);
+
+    // Get cards for the new card type
+    const cards = getCardsForSettings(selectedDifficulty, newType);
+    if (cards.length === 0) return;
+
+    // Pick a random card and preload its image
+    const newCard = cards[Math.floor(Math.random() * cards.length)];
+    const img = new Image();
+    img.src = getImageUrl(newCard);
+
+    // Update state with new card directly (no null transition)
+    setCardType(newType);
+    setCurrentCard(newCard);
+    setCardDetails(null);
+    fetchCardDetails(newCard.name, newCard);
+    setRevealed(false);
+    setGuess('');
+    setResult(null);
+    setChoiceMade(false);
+    setFeedback(null);
+    setCardKey(prev => prev + 1);
+
+    // Fill queue with preloaded cards for the new card type
+    fillCasualQueue(selectedDifficulty, newType, newCard.id);
+  }, [gameData, selectedDifficulty, getImageUrl, fetchCardDetails, getCardsForSettings, fillCasualQueue]);
 
   if (loading || firstCardLoading) {
     return (
@@ -1401,10 +1443,6 @@ function GuessCardContent() {
           </div>
         )}
 
-        {/* KRCG Credit */}
-        <div className="text-center py-1">
-          <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
-        </div>
       </footer>
 
       {/* Settings Modal */}
@@ -1416,6 +1454,11 @@ function GuessCardContent() {
         gameMode={gameMode || 'normal'}
         onGameModeChange={handleGameModeChange}
         user={user}
+        includeImbued={includeImbued}
+        onIncludeImbuedChange={(value) => {
+          setIncludeImbued(value);
+          localStorage.setItem('vtes-guess-include-imbued', String(value));
+        }}
       />
 
       {showLargeCard && (

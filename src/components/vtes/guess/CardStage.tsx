@@ -30,9 +30,16 @@ export default function CardStage({
   const showArtCrop = !isCrypt && !revealed;
 
   // Calculate responsive card dimensions using CSS clamp
-  // Small screens: 260px wide, Normal: 300px, Large: 320px
-  const displayWidth = 'clamp(260px, 85vw, 320px)';
-  const displayHeight = isCrypt ? 'clamp(355px, 116vw, 437px)' : 'clamp(250px, 81vw, 315px)';
+  // When revealed: bigger card that fills more of the screen
+  // When playing: smaller to leave room for options
+  const displayWidth = revealed
+    ? 'clamp(270px, 83vw, 324px)'  // Bigger when revealed (~10% smaller than before)
+    : 'clamp(260px, 85vw, 320px)'; // Normal when playing
+
+  // Card aspect ratio is ~1.4:1 (height:width)
+  const displayHeight = revealed
+    ? (isCrypt ? 'clamp(378px, 115vw, 454px)' : 'clamp(378px, 115vw, 454px)')  // Full card when revealed
+    : (isCrypt ? 'clamp(355px, 116vw, 437px)' : 'clamp(250px, 81vw, 315px)');   // Cropped when playing
 
   // Library crop dimensions (tuned via /vtes-guess/crop-test)
   const scaledCardWidth = 'calc(clamp(260px, 85vw, 320px) / 0.710)';
@@ -41,7 +48,7 @@ export default function CardStage({
   const offsetY = 'calc(' + scaledCardHeight + ' * 0.1150)';
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-start py-2 min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col items-center justify-start py-2 px-2 min-h-0 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={cardKey}
@@ -72,6 +79,7 @@ export default function CardStage({
               height: displayHeight,
               backgroundColor: 'var(--vtes-bg-primary)',
             }}
+            onContextMenu={(e) => e.preventDefault()}
           >
             {isCrypt ? (
               <MaskedCard
@@ -84,7 +92,8 @@ export default function CardStage({
               <img
                 src={showArtCrop ? imageUrl : revealedImageUrl}
                 alt="VTES Card"
-                className="w-full h-full"
+                className="w-full h-full select-none"
+                draggable={false}
                 style={{
                   ...(showArtCrop ? {
                     position: 'absolute',
@@ -119,7 +128,7 @@ export default function CardStage({
 
           {/* Card Info Strip - Show attributes when playing, TWDA count when revealed */}
           {revealed ? (
-            <div className="flex flex-col items-center mt-1 flex-shrink-0 gap-2">
+            <div className="flex flex-col items-center mt-1 flex-shrink-0">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg shadow-sm" style={{
                 backgroundColor: 'var(--vtes-bg-tertiary)',
                 border: '1px solid var(--vtes-burgundy-dark)'
@@ -131,20 +140,6 @@ export default function CardStage({
                   copies in TWDA
                 </span>
               </div>
-
-              {/* Flavor text - shown when revealed */}
-              {cardDetails?.flavorText && (
-                <div
-                  className="max-w-[320px] px-4 py-2 text-center"
-                  style={{
-                    color: 'var(--vtes-text-muted)',
-                  }}
-                >
-                  <p className="text-sm italic leading-relaxed">
-                    &ldquo;{cardDetails.flavorText}&rdquo;
-                  </p>
-                </div>
-              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">

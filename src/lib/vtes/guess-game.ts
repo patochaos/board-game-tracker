@@ -157,7 +157,7 @@ export function isNameTooSimilar(card1: GameCardData, card2: GameCardData): bool
   return false;
 }
 
-// Generate 2 wrong options for crypt multiple choice (3 total with correct)
+// Generate 3 wrong options for crypt multiple choice (4 total with correct)
 export function generateCryptOptions(
   correctCard: GameCardData,
   allCrypt: GameCardData[]
@@ -166,14 +166,20 @@ export function generateCryptOptions(
   const cap = correctCard.capacity ?? 5;
   const gender = correctCard.gender;
   const difficulty = correctCard.difficulty;
+  const isCorrectImbued = correctCard.types?.includes('Imbued');
+
+  // Helper: check if card is Imbued (they have obvious "nickname" format)
+  const isImbued = (c: GameCardData) => c.types?.includes('Imbued');
 
   // Base filter: different card, same gender, similar capacity (+/- 2)
+  // Also exclude Imbued as options unless the correct card is also Imbued
   const baseFilter = (c: GameCardData) =>
     c.id !== correctCard.id &&
     c.capacity !== undefined &&
     Math.abs((c.capacity ?? 0) - cap) <= 2 &&
     (!gender || gender === '?' || c.gender === gender) &&
-    !isNameTooSimilar(correctCard, c);
+    !isNameTooSimilar(correctCard, c) &&
+    (isCorrectImbued || !isImbued(c));
 
   // Priority 1: Same gender + same difficulty + same/antitribu clan + similar capacity
   let candidates = allCrypt.filter(c =>
@@ -183,7 +189,7 @@ export function generateCryptOptions(
   );
 
   // Priority 2: Same gender + same difficulty + similar capacity (any clan)
-  if (candidates.length < 2) {
+  if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       baseFilter(c) &&
       c.difficulty === difficulty &&
@@ -193,19 +199,20 @@ export function generateCryptOptions(
   }
 
   // Priority 3: Same gender + same difficulty, any capacity
-  if (candidates.length < 2) {
+  if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
       c.difficulty === difficulty &&
       (!gender || gender === '?' || c.gender === gender) &&
       !isNameTooSimilar(correctCard, c) &&
+      (isCorrectImbued || !isImbued(c)) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
   // Priority 4: Same gender + any difficulty + similar capacity
-  if (candidates.length < 2) {
+  if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       baseFilter(c) &&
       !candidates.some(e => e.id === c.id)
@@ -214,29 +221,31 @@ export function generateCryptOptions(
   }
 
   // Priority 5: Same gender, any difficulty, any capacity
-  if (candidates.length < 2) {
+  if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
       (!gender || gender === '?' || c.gender === gender) &&
       !isNameTooSimilar(correctCard, c) &&
+      (isCorrectImbued || !isImbued(c)) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Fallback: any crypt card (still exclude similar names)
-  if (candidates.length < 2) {
+  // Fallback: any crypt card (still exclude similar names and Imbued unless correct is Imbued)
+  if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
       !isNameTooSimilar(correctCard, c) &&
+      (isCorrectImbued || !isImbued(c)) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Shuffle and pick 2
+  // Shuffle and pick 3
   const shuffled = candidates.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2);
+  return shuffled.slice(0, 3);
 }
 
 // Generate 3 wrong options for library multiple choice (4 total with correct)
