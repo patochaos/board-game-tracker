@@ -4,13 +4,12 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button } from '@/components/ui';
-import { ArrowLeft, User, LayoutGrid, Layers, Download, Lock, Droplet, AlertCircle, Trash2, Shield, Sword, Eye, MousePointerClick } from 'lucide-react';
+import { ArrowLeft, Lock, Droplet, AlertCircle, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useParams, useRouter } from 'next/navigation';
 import { getCardsByIds, VtesCard } from '@/lib/krcg';
-import Image from 'next/image';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import { sortDisciplines } from '@/lib/vtes/utils';
 import { useVtesDeckStats } from '@/hooks/useVtesDeckStats';
@@ -68,6 +67,8 @@ interface DeckData {
     deck_cards: {
         card_id: number;
         count: number;
+        type?: 'crypt' | 'library'; // Stored during import
+        name?: string; // Cached card name
     }[];
 }
 
@@ -82,6 +83,11 @@ export default function DeckDetailPage() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     const [isRestricted, setIsRestricted] = useState(false);
+
+    // Delete confirmation modal state
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,7 +107,7 @@ export default function DeckDetailPage() {
                     .select(`
                         id, name, description, created_at, user_id, is_public, tags,
                         profile:profiles(display_name, username),
-                        deck_cards(card_id, count)
+                        deck_cards(card_id, count, type, name)
                     `)
                     .eq('id', params.id)
                     .single();
@@ -109,7 +115,7 @@ export default function DeckDetailPage() {
                 if (error) {
                     console.error('Supabase Error:', error);
                     // Don't redirect immediately to allow debugging
-                    // router.push('/vtes/decks');
+                    // router.push('/vtes-tracker/decks');
                     setLoading(false);
                     return;
                 }
@@ -121,6 +127,12 @@ export default function DeckDetailPage() {
                 }
 
                 console.log('Deck Data:', data);
+                // Debug: Check deck_cards types
+                console.log('Deck cards sample:', data.deck_cards?.slice(0, 3).map((dc: { card_id: number; type?: string; name?: string }) => ({
+                    card_id: dc.card_id,
+                    type: dc.type,
+                    name: dc.name
+                })));
                 const deckData = data as unknown as DeckData;
                 setDeck(deckData);
 
@@ -131,6 +143,11 @@ export default function DeckDetailPage() {
                 if (ids.length > 0) {
                     const krcgCards = await getCardsByIds(ids);
                     console.log('KRCG Fetched:', krcgCards.length);
+
+                    // Debug: Log first card to see API structure
+                    if (krcgCards.length > 0) {
+                        console.log('Sample card structure:', JSON.stringify(krcgCards[0], null, 2));
+                    }
 
                     const cardMap = new Map<number, VtesCard>();
                     krcgCards.forEach(c => cardMap.set(c.id, c));
@@ -156,8 +173,9 @@ export default function DeckDetailPage() {
     }, [params.id]);
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this deck? This cannot be undone.')) return;
+        if (deleteConfirmText !== 'DELETE') return;
 
+        setIsDeleting(true);
         const { error } = await supabase
             .from('decks')
             .delete()
@@ -166,9 +184,20 @@ export default function DeckDetailPage() {
         if (error) {
             console.error(error);
             alert('Failed to delete deck');
+            setIsDeleting(false);
         } else {
-            router.push('/vtes/decks');
+            router.push('/vtes-tracker/decks');
         }
+    };
+
+    const openDeleteModal = () => {
+        setDeleteConfirmText('');
+        setShowDeleteModal(true);
+    };
+
+    const closeDeleteModal = () => {
+        setShowDeleteModal(false);
+        setDeleteConfirmText('');
     };
 
     const handleAutoTag = async () => {
@@ -221,7 +250,7 @@ export default function DeckDetailPage() {
                     <h1 className="text-3xl font-bold text-red-100">{deck.name}</h1>
                     <p className="text-xl text-slate-400">This deck is private.</p>
                     <p className="text-slate-500">Only the author can view its contents.</p>
-                    <Link href="/vtes/decks">
+                    <Link href="/vtes-tracker/decks">
                         <Button className="mt-8" variant="ghost" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                             Back to Decks
                         </Button>
@@ -240,11 +269,26 @@ export default function DeckDetailPage() {
     (deck.deck_cards || []).forEach(dc => {
         const card = hydratedCards.get(dc.card_id);
         if (card) {
-            const isCrypt = card.types?.includes('Vampire') || card.types?.includes('Imbued');
+            // Primary: Use stored type from database (set during import)
+            // Fallback: Check KRCG API types array for Vampire/Imbued
+            let isCrypt: boolean;
+            if (dc.type) {
+                // Trust the stored type - it was validated during import
+                isCrypt = dc.type === 'crypt';
+            } else {
+                // Fallback for old decks that don't have type stored
+                isCrypt = card.types?.includes('Vampire') || card.types?.includes('Imbued') || false;
+            }
+
             if (isCrypt) cryptCards.push({ q: dc.count, card });
             else libraryCards.push({ q: dc.count, card });
         }
     });
+
+    // Debug: Log card split with details
+    console.log(`Card split - Crypt: ${cryptCards.length}, Library: ${libraryCards.length}, Total hydrated: ${hydratedCards.size}`);
+    console.log('First crypt card:', cryptCards[0]?.card?.name);
+    console.log('Sample deck_cards types:', deck.deck_cards?.slice(0, 5).map(dc => ({ name: dc.name, type: dc.type })));
 
     // Sort Crypt
     cryptCards.sort((a, b) => (b.card.capacity || 0) - (a.card.capacity || 0) || (a.card.name || '').localeCompare(b.card.name || ''));
@@ -282,7 +326,7 @@ export default function DeckDetailPage() {
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/vtes/decks">
+                        <Link href="/vtes-tracker/decks">
                             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
                         </Link>
                         <div>
@@ -312,18 +356,10 @@ export default function DeckDetailPage() {
                                     className="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50"
                                     size="sm"
                                     leftIcon={<Trash2 className="h-4 w-4" />}
-                                    onClick={handleDelete}
+                                    onClick={openDeleteModal}
                                 >
                                     Delete
                                 </Button>
-                                {/* <Button
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                                    size="sm"
-                                    leftIcon={<Wand2 className="h-4 w-4" />}
-                                    onClick={handleAutoTag}
-                                >
-                                    Auto Tag
-                                </Button> */}
                             </div>
                         )
                     }
@@ -501,6 +537,42 @@ export default function DeckDetailPage() {
                     </div>
                 </div>
             </div >
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-red-900/50 rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl">
+                        <h2 className="text-xl font-bold text-red-400 mb-2">Delete Deck</h2>
+                        <p className="text-slate-300 mb-4">
+                            Are you sure you want to delete <strong className="text-red-200">{deck?.name}</strong>? This action cannot be undone.
+                        </p>
+                        <p className="text-sm text-slate-400 mb-4">
+                            Type <span className="font-mono text-red-400 bg-red-950/30 px-1 rounded">DELETE</span> to confirm:
+                        </p>
+                        <input
+                            type="text"
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:border-red-500 outline-none mb-4 font-mono"
+                            placeholder="DELETE"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-3">
+                            <Button variant="ghost" onClick={closeDeleteModal} disabled={isDeleting}>
+                                Cancel
+                            </Button>
+                            <Button
+                                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleDelete}
+                                disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                                leftIcon={<Trash2 className="h-4 w-4" />}
+                            >
+                                {isDeleting ? 'Deleting...' : 'Delete Forever'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout >
     );
 }

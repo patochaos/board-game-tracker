@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { ArrowLeft, Swords, Trophy, Loader2, User } from 'lucide-react';
+import { ArrowLeft, Swords, Trophy, Loader2, User, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -40,7 +40,17 @@ export default function NewVTESSessionPage() {
     const [tableSwept, setTableSwept] = useState(false);
     const [players, setPlayers] = useState<PlayerEntry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [availableDecks, setAvailableDecks] = useState<{ id: string; name: string }[]>([]);
+    const [availableDecks, setAvailableDecks] = useState<{
+        id: string;
+        name: string;
+        is_public: boolean;
+        user_id: string;
+        owner_name: string;
+    }[]>([]);
+    const [registeredUsers, setRegisteredUsers] = useState<{
+        id: string;
+        name: string;
+    }[]>([]);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,14 +75,43 @@ export default function NewVTESSessionPage() {
 
             const userName = profile?.display_name || profile?.username || 'You';
 
-            // Fetch user's decks
+            // Fetch all decks with owner info
             const { data: decks } = await supabase
                 .from('decks')
-                .select('id, name')
-                .eq('user_id', user.id)
+                .select(`
+                    id, name, is_public, user_id,
+                    profile:profiles (display_name, username)
+                `)
                 .order('name');
 
-            if (decks) setAvailableDecks(decks);
+            if (decks) {
+                const formattedDecks = decks.map(d => {
+                    // Supabase returns single profile object but TS infers array
+                    const profile = d.profile as unknown as { display_name: string | null; username: string } | null;
+                    return {
+                        id: d.id,
+                        name: d.name,
+                        is_public: d.is_public ?? true,
+                        user_id: d.user_id,
+                        owner_name: profile?.display_name || profile?.username || 'Unknown',
+                    };
+                });
+                setAvailableDecks(formattedDecks);
+            }
+
+            // Fetch registered users for player dropdown
+            const { data: users } = await supabase
+                .from('profiles')
+                .select('id, display_name, username')
+                .neq('id', user.id) // Exclude current user (they're always player 1)
+                .order('display_name');
+
+            if (users) {
+                setRegisteredUsers(users.map(u => ({
+                    id: u.id,
+                    name: u.display_name || u.username || 'Unknown',
+                })));
+            }
 
             // Initialize with 5 players (standard VTES table)
             const initialPlayers: PlayerEntry[] = Array.from({ length: 5 }).map((_, i) => ({
@@ -124,28 +163,75 @@ export default function NewVTESSessionPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+
+        // Validation: ALL player seats must have a player assigned
+        // VTES requires at least 3 players, and all shown seats must be filled
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            // Check if this seat has a player assigned
+            if (!p.isCurrentUser && !p.userId && !p.name.trim()) {
+                setError(`Seat ${i + 1} needs a player. Select a registered player or enter a guest name.`);
+                return;
+            }
+        }
+
+        // Now check decks for all players
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            if (!p.deckId && !p.deckName.trim()) {
+                const playerName = p.isCurrentUser ? 'You' : (p.name || p.userId ? registeredUsers.find(u => u.id === p.userId)?.name : `Seat ${i + 1}`);
+                setError(`${playerName || `Seat ${i + 1}`} needs a deck selected. Choose a deck or select "Unknown".`);
+                return;
+            }
+        }
+
+        // Get players with valid data for saving (now all should be valid after above checks)
+        const playersWithData = players;
+
         setSaving(true);
 
         try {
-            const validPlayers = players.filter(p => p.name.trim() || p.isCurrentUser);
+            const validPlayers = playersWithData;
 
             // Calculate winner(s) based on VP
             const maxVP = Math.max(...validPlayers.map(p => parseFloat(p.vp || '0')));
             const winners = validPlayers.filter(p => parseFloat(p.vp || '0') === maxVP && maxVP > 0);
             const winnerIds = new Set(winners.map(p => p.id));
 
-            // Get or create group (reuse logic or simplify to default group)
-            const { data: memberships } = await supabase
+            // Get or create group for VTES sessions
+            let { data: memberships } = await supabase
                 .from('group_members')
                 .select('group_id')
                 .eq('user_id', currentUserId)
                 .limit(1);
 
-            const groupId = memberships?.[0]?.group_id;
+            let groupId = memberships?.[0]?.group_id;
 
+            // Auto-create a default group if user doesn't have one
             if (!groupId) {
-                // Fallback create group if none exists (simplified)
-                throw new Error("No group found. Please create a group first.");
+                const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const { data: newGroup, error: groupError } = await supabase
+                    .from('groups')
+                    .insert({
+                        name: 'VTES Players',
+                        invite_code: inviteCode,
+                        created_by: currentUserId,
+                    })
+                    .select('id')
+                    .single();
+
+                if (groupError || !newGroup) {
+                    throw new Error('Failed to create player group. Please try again.');
+                }
+
+                // Add user as admin of the new group
+                await supabase.from('group_members').insert({
+                    group_id: newGroup.id,
+                    user_id: currentUserId,
+                    role: 'admin',
+                });
+
+                groupId = newGroup.id;
             }
 
             // Create Session with VTES-specific fields
@@ -168,23 +254,30 @@ export default function NewVTESSessionPage() {
 
             if (sessionError) throw sessionError;
 
-            // Insert Players with deck_id and seat_position
-            const currentUserPlayer = validPlayers.find(p => p.isCurrentUser);
-            if (currentUserPlayer) {
-                await supabase.from('session_players').insert({
+            // Separate registered users and guests
+            const registeredPlayers = validPlayers.filter(p => p.userId);
+            const guestPlayers = validPlayers.filter(p => !p.userId && p.name.trim());
+
+            // Insert registered users into session_players
+            if (registeredPlayers.length > 0) {
+                const { error: playersError } = await supabase.from('session_players').insert(registeredPlayers.map(p => ({
                     session_id: session.id,
-                    user_id: currentUserId,
-                    score: parseFloat(currentUserPlayer.vp || '0'),
-                    is_winner: winnerIds.has(currentUserPlayer.id),
-                    deck_id: currentUserPlayer.deckId || null,
-                    deck_name: currentUserPlayer.deckName || null,
-                    seat_position: currentUserPlayer.seatPosition,
-                });
+                    user_id: p.userId,
+                    score: parseFloat(p.vp || '0'),
+                    is_winner: winnerIds.has(p.id),
+                    deck_id: p.deckId || null,
+                    deck_name: p.deckName || null,
+                    seat_position: p.seatPosition,
+                })));
+                if (playersError) {
+                    console.error('Error inserting session_players:', playersError);
+                    throw playersError;
+                }
             }
 
-            const guestPlayers = validPlayers.filter(p => !p.isCurrentUser && p.name.trim());
+            // Insert guests into guest_players
             if (guestPlayers.length > 0) {
-                await supabase.from('guest_players').insert(guestPlayers.map(p => ({
+                const { error: guestsError } = await supabase.from('guest_players').insert(guestPlayers.map(p => ({
                     session_id: session.id,
                     name: p.name,
                     score: parseFloat(p.vp || '0'),
@@ -193,9 +286,13 @@ export default function NewVTESSessionPage() {
                     deck_name: p.deckName || null,
                     seat_position: p.seatPosition,
                 })));
+                if (guestsError) {
+                    console.error('Error inserting guest_players:', guestsError);
+                    throw guestsError;
+                }
             }
 
-            router.push('/vtes');
+            router.push(`/vtes-tracker/sessions/${session.id}`);
         } catch (err) {
             console.error(err);
             setError(err instanceof Error ? err.message : 'Failed to save session');
@@ -216,7 +313,7 @@ export default function NewVTESSessionPage() {
         <AppLayout>
             <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex items-center gap-4">
-                    <Link href="/vtes">
+                    <Link href="/vtes-tracker">
                         <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                             Back to Domain
                         </Button>
@@ -307,59 +404,104 @@ export default function NewVTESSessionPage() {
                                                     {player.name} (You)
                                                 </div>
                                             ) : (
-                                                <input
-                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                    placeholder="Name"
-                                                    value={player.name}
-                                                    onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
-                                                />
-                                            )}
-                                        </div>
-
-                                        {/* Deck */}
-                                        <div className="md:col-span-4">
-                                            <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
-                                            {player.isCurrentUser && availableDecks.length > 0 ? (
                                                 <div className="space-y-2">
                                                     <select
                                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                        value={player.deckId || ''}
+                                                        value={player.userId || '__GUEST__'}
                                                         onChange={(e) => {
-                                                            const selectedDeck = availableDecks.find(d => d.id === e.target.value);
+                                                            const selectedUser = registeredUsers.find(u => u.id === e.target.value);
                                                             setPlayers(players.map(p => {
                                                                 if (p.id === player.id) {
+                                                                    if (e.target.value === '__GUEST__') {
+                                                                        return { ...p, userId: null, name: '' };
+                                                                    }
                                                                     return {
                                                                         ...p,
-                                                                        deckId: e.target.value || null,
-                                                                        deckName: selectedDeck?.name || p.deckName
+                                                                        userId: e.target.value,
+                                                                        name: selectedUser?.name || ''
                                                                     };
                                                                 }
                                                                 return p;
                                                             }));
                                                         }}
                                                     >
-                                                        <option value="">-- Select Deck --</option>
-                                                        {availableDecks.map(d => (
-                                                            <option key={d.id} value={d.id}>{d.name}</option>
+                                                        <option value="__GUEST__">Guest (type name below)</option>
+                                                        {registeredUsers.map(u => (
+                                                            <option key={u.id} value={u.id}>{u.name}</option>
                                                         ))}
                                                     </select>
-                                                    {!player.deckId && (
+                                                    {!player.userId && (
                                                         <input
                                                             className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                            placeholder="Or enter deck name"
-                                                            value={player.deckName}
-                                                            onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                            placeholder="Guest name"
+                                                            value={player.name}
+                                                            onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
                                                         />
                                                     )}
                                                 </div>
-                                            ) : (
-                                                <input
-                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                    placeholder="Deck Name"
-                                                    value={player.deckName}
-                                                    onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
-                                                />
                                             )}
+                                        </div>
+
+                                        {/* Deck */}
+                                        <div className="md:col-span-4">
+                                            <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
+                                            <div className="space-y-2">
+                                                <select
+                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                    value={player.deckId || (player.deckName === 'Unknown' ? '__UNKNOWN__' : '')}
+                                                    onChange={(e) => {
+                                                        if (e.target.value === '__CREATE__') {
+                                                            router.push('/vtes-tracker/decks/import?returnTo=/vtes-tracker/sessions/new');
+                                                            return;
+                                                        }
+                                                        if (e.target.value === '__UNKNOWN__') {
+                                                            setPlayers(players.map(p => {
+                                                                if (p.id === player.id) {
+                                                                    return { ...p, deckId: null, deckName: 'Unknown' };
+                                                                }
+                                                                return p;
+                                                            }));
+                                                            return;
+                                                        }
+                                                        const selectedDeck = availableDecks.find(d => d.id === e.target.value);
+                                                        setPlayers(players.map(p => {
+                                                            if (p.id === player.id) {
+                                                                return {
+                                                                    ...p,
+                                                                    deckId: e.target.value || null,
+                                                                    deckName: selectedDeck?.name || ''
+                                                                };
+                                                            }
+                                                            return p;
+                                                        }));
+                                                    }}
+                                                >
+                                                    <option value="">-- Select Deck --</option>
+                                                    <option value="__UNKNOWN__">❓ Unknown deck</option>
+                                                    <option value="__CREATE__">➕ CREATE DECK...</option>
+                                                    {availableDecks
+                                                        .filter(d => {
+                                                            // Keep this deck if it's the current player's selection
+                                                            if (d.id === player.deckId) return true;
+                                                            // Filter out decks already selected by other players
+                                                            const usedByOther = players.some(p => p.id !== player.id && p.deckId === d.id);
+                                                            return !usedByOther;
+                                                        })
+                                                        .map(d => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.is_public ? '' : '🔒 '}{d.name} ({d.owner_name})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {!player.deckId && player.deckName !== 'Unknown' && (
+                                                    <input
+                                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                        placeholder="Or enter deck name manually"
+                                                        value={player.deckName}
+                                                        onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* VP */}
@@ -404,10 +546,17 @@ export default function NewVTESSessionPage() {
                         />
                     </Card>
 
-                    {error && <div className="text-red-400 text-center">{error}</div>}
+                    {error && (
+                        <div className="flex items-start gap-3 p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-200">
+                            <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium">{error}</p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                        <Link href="/vtes">
+                        <Link href="/vtes-tracker">
                             <Button variant="ghost" type="button">Cancel</Button>
                         </Link>
                         <Button type="submit" className="bg-red-600 hover:bg-red-700" disabled={saving}>
