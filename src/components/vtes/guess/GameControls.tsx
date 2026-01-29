@@ -21,6 +21,8 @@ interface GameControlsProps {
     artists?: string[];
   };
   cardCount?: number;
+  selectedAnswer?: string | null;
+  correctAnswer?: string | null;
 }
 
 function GameControls({
@@ -38,6 +40,8 @@ function GameControls({
   toggleDetails,
   cardDetails,
   cardCount,
+  selectedAnswer,
+  correctAnswer,
 }: GameControlsProps) {
   const artists = cardDetails?.artists ?? [];
 
@@ -93,6 +97,46 @@ function GameControls({
   // Normal gameplay - show answer options
   const options = isCrypt ? cryptOptions : libraryOptions;
 
+  // Determine button states when revealed
+  const getButtonStyle = (option: string) => {
+    const isSelected = selectedAnswer === option;
+    const isCorrect = option === correctAnswer;
+
+    // When revealed, show correct/incorrect styling
+    if (revealed && (result === 'correct' || result === 'incorrect' || result === 'timeout')) {
+      if (isCorrect) {
+        // Correct answer - always show green
+        return {
+          background: 'linear-gradient(180deg, #166534 0%, #14532d 100%)',
+          border: '2px solid #22c55e',
+          boxShadow: '0 0 12px rgba(34, 197, 94, 0.4), 0 3px 0 rgba(0,0,0,0.3)',
+        };
+      }
+      if (isSelected && !isCorrect) {
+        // Wrong answer selected - show red
+        return {
+          background: 'linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%)',
+          border: '2px solid #ef4444',
+          boxShadow: '0 0 12px rgba(239, 68, 68, 0.4), 0 3px 0 rgba(0,0,0,0.3)',
+        };
+      }
+      // Other options - dim them
+      return {
+        background: 'linear-gradient(180deg, var(--vtes-burgundy) 0%, var(--vtes-burgundy-dark) 100%)',
+        border: '2px solid var(--vtes-gold-dark)',
+        boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)',
+        opacity: 0.4,
+      };
+    }
+
+    // Default style
+    return {
+      background: 'linear-gradient(180deg, var(--vtes-burgundy) 0%, var(--vtes-burgundy-dark) 100%)',
+      border: '2px solid var(--vtes-gold-dark)',
+      boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)',
+    };
+  };
+
   return (
     <div className="flex-shrink-0 flex flex-col items-center justify-end pb-2 min-h-[140px]">
       {/* Answer Grid */}
@@ -100,24 +144,48 @@ function GameControls({
         {options.map((option, i) => {
           // Dynamic text size: smaller for long names to prevent overflow
           const textSize = option.length > 20 ? 'text-[11px]' : 'text-sm';
+          const isSelected = selectedAnswer === option;
+          const isCorrect = option === correctAnswer;
+          const showIndicator = revealed && (result === 'correct' || result === 'incorrect' || result === 'timeout');
 
           return (
             <motion.button
               key={i}
               onClick={() => isCrypt ? onCryptChoice(option) : onLibraryChoice(option)}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97, y: 0 }}
-              className={`py-2.5 px-3 rounded-xl ${textSize} font-semibold transition-all duration-200 flex items-center justify-center text-center min-h-[56px] shadow-md hover:shadow-lg`}
+              whileHover={!revealed ? { scale: 1.03, y: -2 } : {}}
+              whileTap={!revealed ? { scale: 0.97, y: 0 } : {}}
+              disabled={revealed}
+              className={`py-2.5 px-3 rounded-xl ${textSize} font-semibold transition-all duration-200 flex items-center justify-center text-center min-h-[56px] shadow-md hover:shadow-lg relative`}
               style={{
-                background: 'linear-gradient(180deg, var(--vtes-burgundy) 0%, var(--vtes-burgundy-dark) 100%)',
+                ...getButtonStyle(option),
                 color: 'var(--vtes-gold)',
-                border: '2px solid var(--vtes-gold-dark)',
-                boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)',
                 fontFamily: 'var(--vtes-font-display)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.3)',
               }}
             >
               {option}
+              {/* Selection indicator */}
+              {showIndicator && isSelected && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    backgroundColor: isCorrect ? '#22c55e' : '#ef4444',
+                    color: 'white',
+                  }}
+                >
+                  {isCorrect ? '✓' : '✗'}
+                </span>
+              )}
+              {/* Show checkmark on correct answer if user picked wrong */}
+              {showIndicator && isCorrect && !isSelected && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    backgroundColor: '#22c55e',
+                    color: 'white',
+                  }}
+                >
+                  ✓
+                </span>
+              )}
             </motion.button>
           );
         })}

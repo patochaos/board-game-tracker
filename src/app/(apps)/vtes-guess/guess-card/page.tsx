@@ -243,6 +243,9 @@ function GuessCardContent() {
   // Choice tracking - prevents multiple selections
   const [choiceMade, setChoiceMade] = useState(false);
 
+  // Track which answer was selected (for highlighting)
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+
   // Details expandable (for incorrect/skipped screens)
   const [showDetails, setShowDetails] = useState(false);
 
@@ -574,6 +577,7 @@ function GuessCardContent() {
     setRevealed(false);
     setResult(null);
     setChoiceMade(false);
+    setSelectedAnswer(null);
     setFeedback(null);
     setGuess('');
     setCardDetails(null);
@@ -678,6 +682,7 @@ function GuessCardContent() {
     setRevealed(false);
     setResult(null);
     setChoiceMade(false);
+    setSelectedAnswer(null);
     setFeedback(null);
     setGuess('');
     setCardDetails(null);
@@ -939,6 +944,7 @@ function GuessCardContent() {
     setShowDetails(false);
     setFeedback(null);
     setChoiceMade(false);
+    setSelectedAnswer(null);
     setCardKey(prev => prev + 1);
 
     // Auto-focus input after transition
@@ -1015,6 +1021,7 @@ function GuessCardContent() {
   const handleCryptChoice = (chosenName: string) => {
     if (!currentCard || choiceMade) return;
     setChoiceMade(true);
+    setSelectedAnswer(chosenName);
     const correct = chosenName === displayName(currentCard.name);
     handleAnswer(correct);
   };
@@ -1022,6 +1029,7 @@ function GuessCardContent() {
   const handleLibraryChoice = (chosenName: string) => {
     if (!currentCard || choiceMade) return;
     setChoiceMade(true);
+    setSelectedAnswer(chosenName);
     const correct = chosenName === displayName(currentCard.name);
     handleAnswer(correct);
   };
@@ -1073,6 +1081,7 @@ function GuessCardContent() {
     setGuess('');
     setResult(null);
     setChoiceMade(false);
+    setSelectedAnswer(null);
     setFeedback(null);
     setCardKey(prev => prev + 1);
 
@@ -1106,6 +1115,7 @@ function GuessCardContent() {
     setGuess('');
     setResult(null);
     setChoiceMade(false);
+    setSelectedAnswer(null);
     setFeedback(null);
     setCardKey(prev => prev + 1);
 
@@ -1404,6 +1414,8 @@ function GuessCardContent() {
           toggleDetails={() => setShowDetails(!showDetails)}
           cardDetails={cardDetails ? { artists: cardDetails.artists } : undefined}
           cardCount={currentCard?.count}
+          selectedAnswer={selectedAnswer}
+          correctAnswer={currentCard ? displayName(currentCard.name) : null}
         />
 
         {/* Difficulty Tabs - Only in casual mode */}

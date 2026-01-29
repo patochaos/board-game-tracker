@@ -55,16 +55,26 @@ export default function CardAttributesStrip({ cardDetails, isCrypt, cardTypes }:
               </div>
             )}
             
-            {/* Card Type */}
-            <span className="text-xs font-semibold tracking-wider capitalize" style={{
-              color: 'var(--vtes-gold)',
-              fontFamily: 'var(--vtes-font-display)'
-            }}>
-              {cardTypes.join(' / ')}
-            </span>
+            {/* Card Type with Icons */}
+            <div className="flex items-center gap-1">
+              {cardTypes.map((type, i) => (
+                <span key={type} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-slate-500">/</span>}
+                  {type.toLowerCase() !== 'master' && (
+                    <VtesIcon name={type} type="type" size="sm" />
+                  )}
+                  <span className="text-xs font-semibold tracking-wider capitalize" style={{
+                    color: 'var(--vtes-gold)',
+                    fontFamily: 'var(--vtes-font-display)'
+                  }}>
+                    {type}
+                  </span>
+                </span>
+              ))}
+            </div>
           </>
         ) : (
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex items-center gap-2">
             <span className="text-xs font-semibold tracking-wider capitalize" style={{
               color: 'var(--vtes-gold)',
               fontFamily: 'var(--vtes-font-display)'
@@ -72,11 +82,14 @@ export default function CardAttributesStrip({ cardDetails, isCrypt, cardTypes }:
               {cardTypes.join(' / ')}
             </span>
             {(cardDetails?.sect || cardDetails?.title) && (
-              <div className="flex items-center gap-1.5 text-[9px]" style={{ color: 'var(--vtes-text-muted)' }}>
-                {cardDetails.sect && <span className="uppercase tracking-wider">{cardDetails.sect}</span>}
-                {cardDetails.sect && cardDetails.title && <span style={{ color: 'var(--vtes-burgundy)' }}>•</span>}
-                {cardDetails.title && <span className="uppercase tracking-wider">{cardDetails.title}</span>}
-              </div>
+              <>
+                <span style={{ color: 'var(--vtes-burgundy)' }}>•</span>
+                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--vtes-text-muted)' }}>
+                  {cardDetails.sect && <span className="uppercase tracking-wider">{cardDetails.sect}</span>}
+                  {cardDetails.sect && cardDetails.title && <span style={{ color: 'var(--vtes-burgundy)' }}>•</span>}
+                  {cardDetails.title && <span className="uppercase tracking-wider">{cardDetails.title}</span>}
+                </div>
+              </>
             )}
           </div>
         )}
