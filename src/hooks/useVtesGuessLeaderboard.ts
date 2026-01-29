@@ -24,9 +24,10 @@ interface SubmitScoreData {
 
 interface SubmitScoreResult {
   success: boolean;
-  updated: boolean;
+  isNewRecord: boolean;
   rank: number;
-  message?: string;
+  highScore: number;
+  gamesPlayed: number;
 }
 
 export function useVtesGuessLeaderboard() {

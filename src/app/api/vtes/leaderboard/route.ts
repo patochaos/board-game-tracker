@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   const { score, mode, cardsPlayed, cardsCorrect, bestStreak } = body;
 
   // Validate input
-  if (!score || !mode || cardsPlayed === undefined || cardsCorrect === undefined || bestStreak === undefined) {
+  if (score === undefined || !mode || cardsPlayed === undefined || cardsCorrect === undefined || bestStreak === undefined) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -107,10 +107,10 @@ export async function POST(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const secret = searchParams.get('secret');
-  
+
   // DEBUG mode: Allow anonymous score submission with secret key
   const isDebugMode = secret === process.env.DEBUG_SECRET_KEY;
-  
+
   // Create supabase client outside the if block
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
   );
 
   let user: { id: string } | null = null;
-  
+
   if (!isDebugMode) {
     // Normal mode: require authentication
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     // For debug mode, use a fixed anonymous user ID
     const debugUserId = '00000000-0000-0000-0000-000000000000';
     const userId = isDebugMode ? debugUserId : user!.id;
-    
+
     // Get display name
     let displayName = 'Debug Test';
     if (!isDebugMode && user) {
@@ -159,39 +159,33 @@ export async function POST(request: NextRequest) {
     // Check if user already has an entry for this mode
     const { data: existingEntry } = await supabase
       .from('vtes_guess_leaderboard')
-      .select('score')
+      .select('score, best_streak, games_played, cards_played, cards_correct')
       .eq('user_id', userId)
       .eq('mode', mode)
       .single();
 
-    // Only update if new score is better
-    if (existingEntry && score <= existingEntry.score) {
-      // Get user's current rank
-      const { count: countAbove } = await supabase
-        .from('vtes_guess_leaderboard')
-        .select('*', { count: 'exact', head: true })
-        .eq('mode', mode)
-        .gt('score', score);
+    const oldHighScore = existingEntry?.score ?? 0;
+    const oldBestStreak = existingEntry?.best_streak ?? 0;
+    const oldGamesPlayed = existingEntry?.games_played ?? 0;
 
-      return NextResponse.json({ 
-        success: true,
-        updated: false,
-        message: 'Score not higher than existing entry',
-        rank: (countAbove || 0) + 1,
-      });
-    }
+    // Calculate new values
+    const newHighScore = Math.max(score, oldHighScore);
+    const newBestStreak = Math.max(bestStreak, oldBestStreak);
+    const newGamesPlayed = oldGamesPlayed + 1;
+    const isNewRecord = score > oldHighScore;
 
-    // Upsert the entry
+    // Upsert the entry - always increment games_played, conditionally update score/streak
     const { error: upsertError } = await supabase
       .from('vtes_guess_leaderboard')
       .upsert({
         user_id: userId,
         display_name: displayName,
-        score,
+        score: newHighScore,
         mode,
-        cards_played: cardsPlayed,
-        cards_correct: cardsCorrect,
-        best_streak: bestStreak,
+        cards_played: isNewRecord ? cardsPlayed : (existingEntry?.cards_played ?? cardsPlayed),
+        cards_correct: isNewRecord ? cardsCorrect : (existingEntry?.cards_correct ?? cardsCorrect),
+        best_streak: newBestStreak,
+        games_played: newGamesPlayed,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'user_id,mode',
@@ -203,19 +197,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save score' }, { status: 500 });
     }
 
-    // Get user's new rank
+    // Get user's rank
     const { count: countAbove } = await supabase
       .from('vtes_guess_leaderboard')
       .select('*', { count: 'exact', head: true })
       .eq('mode', mode)
-      .gt('score', score);
+      .gt('score', newHighScore);
 
-    const newRank = (countAbove || 0) + 1;
+    const rank = (countAbove || 0) + 1;
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      updated: true,
-      rank: newRank,
+      isNewRecord,
+      rank,
+      highScore: newHighScore,
+      gamesPlayed: newGamesPlayed,
     });
   } catch (error) {
     console.error('Leaderboard POST error:', error);

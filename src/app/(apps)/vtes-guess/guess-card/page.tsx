@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { Hud, CardStage, GameControls, SettingsModal } from '@/components/vtes/guess';
 import DifficultyTabs from '@/components/vtes/guess/DifficultyTabs';
@@ -34,6 +34,37 @@ const triggerBloodBurst = () => {
 const AUTO_ADVANCE_DELAY = 1500; // 1500ms for correct answers (slower auto-advance)
 const STATS_STORAGE_KEY = 'vtes-guess-stats';
 const RANKED_TIMER_DURATION = 10000; // 10 seconds for ranked mode timer
+const PENDING_RANKED_RESULTS_KEY = 'vtes-guess-pending-ranked';
+
+// Interface for pending ranked results (saved before login)
+interface PendingRankedResults {
+  score: number;
+  stats: { correct: number; total: number; currentStreak: number; bestStreak: number };
+  results: ('correct' | 'incorrect' | 'timeout')[];
+}
+
+// Save pending ranked results to sessionStorage before login
+function savePendingRankedResults(data: PendingRankedResults): void {
+  try {
+    sessionStorage.setItem(PENDING_RANKED_RESULTS_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('Error saving pending ranked results:', e);
+  }
+}
+
+// Load and clear pending ranked results
+function loadPendingRankedResults(): PendingRankedResults | null {
+  try {
+    const stored = sessionStorage.getItem(PENDING_RANKED_RESULTS_KEY);
+    if (stored) {
+      sessionStorage.removeItem(PENDING_RANKED_RESULTS_KEY);
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Error loading pending ranked results:', e);
+  }
+  return null;
+}
 
 // Generate share text for ranked results
 const generateShareText = (
@@ -49,24 +80,60 @@ const generateShareText = (
   };
   const emojiGrid = results.map(r => emojiMap[r]).join('');
 
-  // Flavor text based on score
-  let flavorText = '';
-  if (score >= 400) flavorText = '🏆 Methuselah-level knowledge!';
-  else if (score >= 300) flavorText = '🧛 Elder vampire approved!';
-  else if (score >= 200) flavorText = '⚔️ Ready for the Eternal Struggle!';
-  else if (score >= 100) flavorText = '🌙 The night is young...';
-  else flavorText = '🦇 Still learning the Masquerade...';
-
-  return `VTES Guess the Card 🃏
-
-${flavorText}
-
-Score: ${score}
-Best Streak: ${bestStreak} 🔥
-
+  return `🧛 VTES Guesser - Ranked Score: ${score}
+🔥 Max Streak: ${bestStreak}
 ${emojiGrid}
+Play at: https://board-game-tracker-78pn.vercel.app/vtes-guess`;
+};
 
-Play: https://board-game-tracker-78pn.vercel.app/vtes-guess`;
+// Smart share: native share on mobile, clipboard on desktop
+const handleShare = async (shareText: string): Promise<void> => {
+  // Check if Web Share API is available AND we're on HTTPS (required for share)
+  const canUseWebShare = typeof navigator !== 'undefined'
+    && typeof navigator.share === 'function'
+    && typeof window !== 'undefined'
+    && window.location.protocol === 'https:';
+
+  if (canUseWebShare) {
+    try {
+      await navigator.share({
+        title: 'VTES Guesser Results',
+        text: shareText,
+      });
+      // If share succeeds, we're done (no toast needed - OS shows feedback)
+      return;
+    } catch (err) {
+      const error = err as Error;
+      // User cancelled share - that's fine, no fallback needed
+      if (error.name === 'AbortError') return;
+      // NotAllowedError = not triggered by user gesture, fall through to clipboard
+      // Other errors = also fall through to clipboard
+      console.log('Web Share failed, falling back to clipboard:', error.message);
+    }
+  }
+
+  // Fallback: copy to clipboard
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareText);
+    } else {
+      // Legacy fallback for HTTP or older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = shareText;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    toast.success('Copied to clipboard!');
+  } catch (err) {
+    console.error('Failed to copy:', err);
+    toast.error('Failed to copy to clipboard');
+  }
 };
 
 // Game data interface
@@ -114,6 +181,7 @@ function saveStats(stats: GameStats): void {
 function GuessCardContent() {
   // Read mode from URL query parameter
   const searchParams = useSearchParams();
+  const router = useRouter();
   const urlMode = searchParams.get('mode') as 'normal' | 'ranked' | null;
 
   // Game data
@@ -189,7 +257,10 @@ function GuessCardContent() {
   // Leaderboard state
   const { user } = useCurrentUser();
   const { submitScore } = useVtesGuessLeaderboard();
-  const [submittedRank, setSubmittedRank] = useState<number | null>(null);
+  const [userRank, setUserRank] = useState<number | null>(null);
+  const [userHighScore, setUserHighScore] = useState<number | null>(null);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+  const [leaderboardChecked, setLeaderboardChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
@@ -203,6 +274,9 @@ function GuessCardContent() {
 
   // First card loading state for ranked mode
   const [firstCardLoading, setFirstCardLoading] = useState(false);
+
+  // Ranked mode ready state - shows "Enter Gehenna" overlay until clicked
+  const [rankedReady, setRankedReady] = useState(false);
 
   // Obfuscated image URL: uses proxy API with card ID
   const getImageUrl = useCallback((card: GameCardData) => {
@@ -249,6 +323,52 @@ function GuessCardContent() {
     }
     loadPremiumDistractors();
   }, []);
+
+  // Check for pending ranked results after OAuth login redirect
+  // Also handle debug mode: ?debug=endgame&score=500&streak=10 to skip to final score
+  useEffect(() => {
+    const debugMode = searchParams.get('debug');
+    if (debugMode === 'endgame') {
+      // Parse optional params: score, streak, correct
+      const customScore = parseInt(searchParams.get('score') || '280', 10);
+      const customStreak = parseInt(searchParams.get('streak') || '6', 10);
+      const customCorrect = parseInt(searchParams.get('correct') || '15', 10);
+
+      // Generate mock results based on correct count
+      const mockResults: ('correct' | 'incorrect' | 'timeout')[] = [];
+      for (let i = 0; i < 20; i++) {
+        if (i < customCorrect) {
+          mockResults.push('correct');
+        } else if (i < customCorrect + 2) {
+          mockResults.push('timeout');
+        } else {
+          mockResults.push('incorrect');
+        }
+      }
+      // Shuffle to make it look realistic
+      for (let i = mockResults.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [mockResults[i], mockResults[j]] = [mockResults[j], mockResults[i]];
+      }
+
+      setRankedScore(customScore);
+      setRankedStats({ correct: customCorrect, total: 20, currentStreak: 0, bestStreak: customStreak });
+      setRankedResults(mockResults);
+      setGameMode('ranked');
+      setShowFinalScore(true);
+      return;
+    }
+
+    const pendingResults = loadPendingRankedResults();
+    if (pendingResults) {
+      // Restore the saved ranked game state
+      setRankedScore(pendingResults.score);
+      setRankedStats(pendingResults.stats);
+      setRankedResults(pendingResults.results);
+      setGameMode('ranked');
+      setShowFinalScore(true);
+    }
+  }, [searchParams]);
 
   // Get filtered cards
   const getFilteredCards = useCallback((): GameCardData[] => {
@@ -434,6 +554,7 @@ function GuessCardContent() {
     setRankedStats({ correct: 0, total: 0, currentStreak: 0, bestStreak: 0 }); // Reset stats
     setRankedResults([]); // Reset per-card results
     setShowFinalScore(false);
+    setRankedReady(false); // Show "Enter Gehenna" overlay
     setGameMode('ranked');
 
     if (playlist[0]) {
@@ -470,43 +591,47 @@ function GuessCardContent() {
     setGuess('');
     setResult(null);
     setShowInitials(false);
-    setSubmittedRank(null);
+    setUserRank(null);
+    setUserHighScore(null);
+    setIsNewRecord(false);
+    setLeaderboardChecked(false);
     setIsSubmitting(false);
   }, [startRankedGame]);
 
-  // Submit score to leaderboard
-  const handleSubmitScore = useCallback(async () => {
-    if (!user || isSubmitting) return;
-    
-    setIsSubmitting(true);
-    
-    const result = await submitScore({
-      score: rankedScore,
-      mode: 'ranked',
-      cardsPlayed: rankedStats.total,
-      cardsCorrect: rankedStats.correct,
-      bestStreak: rankedStats.bestStreak,
-    });
-    
-    if (result) {
-      setSubmittedRank(result.rank);
-      if (result.updated) {
-        toast.success(`Score saved! You're now ranked #${result.rank}`);
-      } else {
-        toast.info(`Score submitted. Your best rank is #${result.rank}`);
-      }
-    } else {
-      toast.error('Failed to submit score. Please try again.');
-    }
-    
-    setIsSubmitting(false);
-  }, [user, isSubmitting, rankedScore, rankedStats, submitScore]);
+  // Auto-check and submit score when game ends
+  useEffect(() => {
+    if (!showFinalScore || !user || leaderboardChecked || isSubmitting) return;
 
-  // Skip submission and continue
-  const handleSkipSubmission = useCallback(() => {
-    setShowFinalScore(false);
-    resetRankedGame();
-  }, [resetRankedGame]);
+    const checkAndSubmitScore = async () => {
+      setIsSubmitting(true);
+
+      const result = await submitScore({
+        score: rankedScore,
+        mode: 'ranked',
+        cardsPlayed: rankedStats.total,
+        cardsCorrect: rankedStats.correct,
+        bestStreak: rankedStats.bestStreak,
+      });
+
+      if (result) {
+        setUserRank(result.rank);
+        setUserHighScore(result.highScore);
+        setIsNewRecord(result.isNewRecord);
+        setLeaderboardChecked(true);
+
+        if (result.isNewRecord) {
+          // New personal best - trigger confetti!
+          triggerBloodBurst();
+          toast.success(`New Personal Best!`);
+        }
+      }
+
+      setIsSubmitting(false);
+    };
+
+    checkAndSubmitScore();
+  }, [showFinalScore, user, leaderboardChecked, isSubmitting, rankedScore, rankedStats, submitScore]);
+
 
   const startNormalGame = useCallback(() => {
     setGameMode('normal');
@@ -574,8 +699,8 @@ function GuessCardContent() {
 
   // Ranked mode timer - starts when card is shown, stops on answer/timeout
   useEffect(() => {
-    // Only run timer in ranked mode when not revealed and we have a card
-    if (gameMode !== 'ranked' || revealed || !currentCard || choiceMade) {
+    // Only run timer in ranked mode when actively playing (not on final score screen, and player is ready)
+    if (gameMode !== 'ranked' || revealed || !currentCard || choiceMade || showFinalScore || !rankedReady) {
       // Clear timer when not needed
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -626,7 +751,7 @@ function GuessCardContent() {
         timerRef.current = null;
       }
     };
-  }, [gameMode, revealed, currentCard, choiceMade]);
+  }, [gameMode, revealed, currentCard, choiceMade, showFinalScore, rankedReady]);
 
   // Queue next card with preloaded image and details for instant transitions
   const queueNextCard = useCallback(async () => {
@@ -921,6 +1046,17 @@ function GuessCardContent() {
     setResult(null);
   };
 
+  // Handler for card type change from settings modal
+  const handleCardTypeChange = useCallback((newType: 'library' | 'crypt' | 'all') => {
+    setCardType(newType);
+    setCurrentCard(null);
+    setCardDetails(null);
+    setRevealed(false);
+    setGuess('');
+    setResult(null);
+    setChoiceMade(false);
+  }, []);
+
   if (loading || firstCardLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{
@@ -948,7 +1084,7 @@ function GuessCardContent() {
   const revealedImageUrl = cardDetails?.imageUrl || imageUrl;
 
   return (
-    <div className="min-h-screen min-h-[100dvh] p-3 sm:p-6 relative overflow-hidden" style={{
+    <div className="h-dvh w-full flex flex-col relative overflow-hidden overscroll-none" style={{
       background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)',
       fontFamily: 'var(--vtes-font-body)'
     }}>
@@ -962,28 +1098,59 @@ function GuessCardContent() {
         background: 'radial-gradient(ellipse at center, transparent 0%, rgba(10, 10, 15, 0.4) 100%)'
       }} />
 
+      {/* Ranked Mode - Enter Gehenna Overlay */}
+      {gameMode === 'ranked' && !rankedReady && !showFinalScore && currentCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)' }}>
+          <div className="text-center">
+            <div className="text-6xl mb-6">🔥</div>
+            <h2 className="text-2xl font-bold mb-2" style={{
+              fontFamily: 'var(--vtes-font-display)',
+              color: 'var(--vtes-gold)'
+            }}>
+              GEHENNA
+            </h2>
+            <p className="text-sm mb-8" style={{ color: 'var(--vtes-text-muted)' }}>
+              20 cards • 10 seconds each • Ramping difficulty
+            </p>
+            <button
+              onClick={() => setRankedReady(true)}
+              className="px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 hover:scale-105"
+              style={{
+                backgroundColor: 'var(--vtes-gold)',
+                color: 'var(--vtes-bg-primary)',
+                fontFamily: 'var(--vtes-font-display)',
+                boxShadow: '0 0 30px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              Enter Gehenna
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Ranked Game Completion */}
       {showFinalScore && gameMode === 'ranked' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(10, 10, 15, 0.95)' }}>
           <div className="max-w-md w-full p-8 rounded-2xl border-2 text-center" style={{
             backgroundColor: 'var(--vtes-bg-secondary)',
-            borderColor: 'var(--vtes-gold)',
-            boxShadow: 'var(--glow-gold)'
+            borderColor: isNewRecord ? '#22c55e' : 'var(--vtes-gold)',
+            boxShadow: isNewRecord ? '0 0 30px rgba(34, 197, 94, 0.3)' : 'var(--glow-gold)'
           }}>
+            {/* Title - changes based on new record */}
             <h2 className="text-3xl font-bold mb-2" style={{
               fontFamily: 'var(--vtes-font-display)',
-              color: 'var(--vtes-gold)'
+              color: isNewRecord ? '#22c55e' : 'var(--vtes-gold)'
             }}>
-              Ranked Complete!
+              {isNewRecord ? '🎉 NEW RECORD!' : 'Ranked Complete!'}
             </h2>
-            
-            <p className="text-5xl font-bold my-4" style={{ color: 'var(--vtes-blood)' }}>
+
+            <p className="text-5xl font-bold my-4" style={{ color: isNewRecord ? '#22c55e' : 'var(--vtes-blood)' }}>
               {rankedScore}
             </p>
             <p className="text-sm mb-4" style={{ color: 'var(--vtes-text-muted)' }}>
-              Final Score
+              {isNewRecord ? 'New Personal Best!' : `High Score: ${userHighScore ?? '...'}`}
             </p>
-            
+
             {/* Stats row */}
             <div className="flex justify-center gap-6 mb-4 text-sm">
               <div className="text-center">
@@ -1015,12 +1182,30 @@ function GuessCardContent() {
               ))}
             </div>
 
+            {/* Rank display - always show if logged in and checked */}
+            {user && leaderboardChecked && userRank !== null && (
+              <div className="mb-4 p-3 rounded-lg bg-[var(--vtes-bg-tertiary)] border" style={{
+                borderColor: isNewRecord ? '#22c55e' : 'var(--vtes-gold)'
+              }}>
+                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Your Rank</p>
+                <p className="text-2xl font-bold" style={{ color: isNewRecord ? '#22c55e' : 'var(--vtes-gold)' }}>
+                  #{userRank}
+                </p>
+              </div>
+            )}
+
+            {/* Loading state while checking leaderboard */}
+            {user && isSubmitting && (
+              <div className="mb-4 py-2 text-sm" style={{ color: 'var(--vtes-text-muted)' }}>
+                Updating leaderboard...
+              </div>
+            )}
+
             {/* Share button */}
             <button
               onClick={() => {
                 const shareText = generateShareText(rankedScore, rankedStats.bestStreak, rankedResults);
-                navigator.clipboard.writeText(shareText);
-                toast.success('Copied to clipboard!');
+                handleShare(shareText);
               }}
               className="w-full py-2.5 mb-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
               style={{
@@ -1032,82 +1217,37 @@ function GuessCardContent() {
               <span>📋</span> Share Results
             </button>
 
-            {/* Submitted rank display */}
-            {submittedRank !== null && (
-              <div className="mb-4 p-3 rounded-lg bg-[var(--vtes-bg-tertiary)] border border-[var(--vtes-gold)]">
-                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>Your Rank</p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--vtes-gold)' }}>
-                  #{submittedRank}
-                </p>
-              </div>
-            )}
-            
-            {user ? (
-              <div className="space-y-3">
-                {!submittedRank ? (
-                  <>
-                    <button
-                      onClick={handleSubmitScore}
-                      disabled={isSubmitting}
-                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50"
-                      style={{
-                        backgroundColor: 'var(--vtes-gold)',
-                        color: 'var(--vtes-bg-primary)',
-                        border: '2px solid var(--vtes-gold)',
-                        fontFamily: 'var(--vtes-font-display)'
-                      }}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Score'}
-                    </button>
-                    <button
-                      onClick={handleSkipSubmission}
-                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
-                      style={{
-                        backgroundColor: 'var(--vtes-bg-tertiary)',
-                        color: 'var(--vtes-text-muted)',
-                        border: '1px solid var(--vtes-burgundy-dark)',
-                        fontFamily: 'var(--vtes-font-body)'
-                      }}
-                    >
-                      Skip
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/vtes-guess/leaderboard/guess"
-                      className="block w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
-                      style={{
-                        backgroundColor: 'var(--vtes-gold)',
-                        color: 'var(--vtes-bg-primary)',
-                        border: '2px solid var(--vtes-gold)',
-                        fontFamily: 'var(--vtes-font-display)'
-                      }}
-                    >
-                      View Leaderboard
-                    </Link>
-                    <button
-                      onClick={resetRankedGame}
-                      className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
-                      style={{
-                        backgroundColor: 'var(--vtes-burgundy)',
-                        color: 'var(--vtes-gold)',
-                        border: '2px solid var(--vtes-gold)',
-                        fontFamily: 'var(--vtes-font-display)'
-                      }}
-                    >
-                      Play Again
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm" style={{ color: 'var(--vtes-text-muted)' }}>
+            {/* Action buttons - same for logged in and not */}
+            <div className="space-y-3">
+              {!user && (
+                <p className="text-sm mb-2" style={{ color: 'var(--vtes-text-muted)' }}>
                   Sign in to save your score to the leaderboard
                 </p>
+              )}
+
+              {!user ? (
+                <button
+                  onClick={() => {
+                    savePendingRankedResults({
+                      score: rankedScore,
+                      stats: rankedStats,
+                      results: rankedResults,
+                    });
+                    router.push('/login?next=/vtes-guess/guess-card');
+                  }}
+                  className="w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
+                  style={{
+                    backgroundColor: 'var(--vtes-gold)',
+                    color: 'var(--vtes-bg-primary)',
+                    border: '2px solid var(--vtes-gold)',
+                    fontFamily: 'var(--vtes-font-display)'
+                  }}
+                >
+                  Sign In to Save
+                </button>
+              ) : (
                 <Link
-                  href="/login"
+                  href="/vtes-guess/leaderboard/guess"
                   className="block w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
                   style={{
                     backgroundColor: 'var(--vtes-gold)',
@@ -1116,138 +1256,124 @@ function GuessCardContent() {
                     fontFamily: 'var(--vtes-font-display)'
                   }}
                 >
-                  Sign In
+                  View Leaderboard
                 </Link>
-                <div className="flex gap-3">
-                  <button
-                    onClick={resetRankedGame}
-                    className="flex-1 py-3 rounded-xl font-semibold transition-all duration-200"
-                    style={{
-                      backgroundColor: 'var(--vtes-burgundy)',
-                      color: 'var(--vtes-gold)',
-                      border: '2px solid var(--vtes-gold)',
-                      fontFamily: 'var(--vtes-font-display)'
-                    }}
-                  >
-                    Play Again
-                  </button>
-                  <button
-                    onClick={() => {
-                      startNormalGame();
-                      setShowFinalScore(false);
-                      const card = pickRandomCard();
-                      if (card) {
-                        setCurrentCard(card);
-                        fetchCardDetails(card.name, card);
-                        setupCryptOptions(card);
-                      }
-                    }}
-                    className="flex-1 py-3 rounded-xl font-semibold transition-all duration-200"
-                    style={{
-                      backgroundColor: 'var(--vtes-bg-tertiary)',
-                      color: 'var(--vtes-text-muted)',
-                      border: '1px solid var(--vtes-burgundy-dark)',
-                      fontFamily: 'var(--vtes-font-body)'
-                    }}
-                  >
-                    Normal Mode
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+
+              <button
+                onClick={resetRankedGame}
+                className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
+                style={{
+                  backgroundColor: 'var(--vtes-burgundy)',
+                  color: 'var(--vtes-gold)',
+                  border: '2px solid var(--vtes-gold)',
+                  fontFamily: 'var(--vtes-font-display)'
+                }}
+              >
+                Play Again
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* HUD - Top bar with score/streak/settings */}
-      {gameMode && (
-        <Hud
-          score={score}
-          streak={streak}
-          gameMode={gameMode}
-          rankedCardIndex={rankedCardIndex}
-          rankedScore={rankedScore}
-          rankedStreak={rankedStats.currentStreak}
-          lastPoints={lastPoints}
-          onSettingsClick={() => setIsSettingsOpen(true)}
-        />
-      )}
+      {/* ===== HEADER SECTION (pinned to top) ===== */}
+      <header className="flex-shrink-0 z-10">
+        {/* HUD - Top bar with score/streak/settings */}
+        {gameMode && (
+          <Hud
+            score={score}
+            streak={streak}
+            gameMode={gameMode}
+            rankedCardIndex={rankedCardIndex}
+            rankedScore={rankedScore}
+            rankedStreak={rankedStats.currentStreak}
+            lastPoints={lastPoints}
+            onSettingsClick={() => setIsSettingsOpen(true)}
+          />
+        )}
 
-      {/* Ranked Mode Timer Bar */}
-      {gameMode === 'ranked' && !revealed && currentCard && (
-        <div className="w-full px-4 py-1">
-          <div
-            className="h-1.5 rounded-full overflow-hidden"
-            style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}
-          >
+        {/* Ranked Mode Timer Bar */}
+        {gameMode === 'ranked' && !revealed && currentCard && (
+          <div className="w-full px-4 py-1">
             <div
-              className="h-full rounded-full transition-all duration-75 ease-linear"
-              style={{
-                width: `${timerProgress}%`,
-                backgroundColor: timerProgress > 30
-                  ? timerProgress > 60
-                    ? '#34d399' // Green when > 60%
-                    : '#fbbf24' // Yellow when 30-60%
-                  : '#ef4444', // Red when < 30%
-                boxShadow: timerProgress <= 30 ? '0 0 8px #ef4444' : 'none',
-              }}
+              className="h-1.5 rounded-full overflow-hidden"
+              style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-75 ease-linear"
+                style={{
+                  width: `${timerProgress}%`,
+                  backgroundColor: timerProgress > 30
+                    ? timerProgress > 60
+                      ? '#34d399' // Green when > 60%
+                      : '#fbbf24' // Yellow when 30-60%
+                    : '#ef4444', // Red when < 30%
+                  boxShadow: timerProgress <= 30 ? '0 0 8px #ef4444' : 'none',
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* ===== MAIN SECTION (grows to fill space, centers card) ===== */}
+      <main className="flex-1 flex flex-col justify-center items-center min-h-0 px-3 py-2 overflow-hidden">
+        <CardStage
+          card={currentCard}
+          cardDetails={cardDetails}
+          revealed={revealed}
+          feedback={feedback}
+          cardKey={cardKey}
+          getImageUrl={getImageUrl}
+        />
+      </main>
+
+      {/* ===== FOOTER SECTION (pinned to bottom) ===== */}
+      <footer className="flex-shrink-0 z-10 px-3 pb-3 pb-safe">
+        {/* Game Controls - Answer buttons and result display */}
+        <GameControls
+          isCrypt={isCrypt}
+          cryptOptions={cryptOptions}
+          libraryOptions={libraryOptions}
+          gameMode={gameMode || 'normal'}
+          onCryptChoice={handleCryptChoice}
+          onLibraryChoice={handleLibraryChoice}
+          onSkip={skipCard}
+          revealed={revealed}
+          result={result}
+          onNextCard={nextCard}
+          showDetails={showDetails}
+          toggleDetails={() => setShowDetails(!showDetails)}
+          cardDetails={cardDetails ? { artists: cardDetails.artists } : undefined}
+          cardCount={currentCard?.count}
+        />
+
+        {/* Difficulty Tabs - Only in casual mode, hidden during results and ranked */}
+        {gameMode === 'normal' && !revealed && (
+          <div className="py-2">
+            <DifficultyTabs
+              selectedDifficulty={selectedDifficulty}
+              onDifficultyChange={changeDifficulty}
             />
           </div>
+        )}
+
+        {/* KRCG Credit */}
+        <div className="text-center py-1">
+          <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
         </div>
-      )}
-
-      {/* Card Stage - Main card display area */}
-      <CardStage
-        card={currentCard}
-        cardDetails={cardDetails}
-        revealed={revealed}
-        feedback={feedback}
-        cardKey={cardKey}
-        getImageUrl={getImageUrl}
-      />
-
-      {/* Game Controls - Answer buttons and result display */}
-      <GameControls
-        isCrypt={isCrypt}
-        cryptOptions={cryptOptions}
-        libraryOptions={libraryOptions}
-        gameMode={gameMode || 'normal'}
-        onCryptChoice={handleCryptChoice}
-        onLibraryChoice={handleLibraryChoice}
-        onSkip={skipCard}
-        revealed={revealed}
-        result={result}
-        onNextCard={nextCard}
-        showDetails={showDetails}
-        toggleDetails={() => setShowDetails(!showDetails)}
-        cardDetails={cardDetails ? { artists: cardDetails.artists } : undefined}
-        cardCount={currentCard?.count}
-      />
+      </footer>
 
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         cardType={cardType}
-        onCardTypeChange={setCardType}
+        onCardTypeChange={handleCardTypeChange}
         gameMode={gameMode || 'normal'}
         onGameModeChange={handleGameModeChange}
       />
-
-      {/* Difficulty Tabs - Only in casual mode, hidden during results and ranked */}
-      {gameMode === 'normal' && !revealed && (
-        <div className="py-2 px-4 flex-shrink-0">
-          <DifficultyTabs
-            selectedDifficulty={selectedDifficulty}
-            onDifficultyChange={changeDifficulty}
-          />
-        </div>
-      )}
-
-      {/* KRCG Credit */}
-      <div className="text-center py-1 flex-shrink-0">
-        <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
-      </div>
 
       {showLargeCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pointer-events-none">

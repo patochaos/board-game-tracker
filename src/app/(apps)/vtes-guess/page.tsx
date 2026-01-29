@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, Trophy, Flame, Target, Clock, Infinity } from 'lucide-react';
+import { Play, Trophy } from 'lucide-react';
 
 export default function VtesGuessModeSelect() {
   return (
@@ -14,10 +14,10 @@ export default function VtesGuessModeSelect() {
           fontFamily: 'var(--vtes-font-display)',
           color: 'var(--vtes-text-primary)',
         }}>
-          <span style={{ color: 'var(--vtes-blood)' }}>V</span>TES Guess
+          <span style={{ color: 'var(--vtes-blood)' }}>V</span>TES Guesser
         </h1>
         <p className="text-sm mt-2" style={{ color: 'var(--vtes-text-muted)' }}>
-          Choose your game mode
+          Choose your path
         </p>
       </div>
 
@@ -41,31 +41,35 @@ export default function VtesGuessModeSelect() {
               <Play className="w-10 h-10 text-white fill-white" />
             </div>
 
-            <h2 className="text-2xl font-bold mb-2" style={{
+            <h2 className="text-2xl font-bold mb-1" style={{
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
             }}>
-              Practice
+              🏛️ Practice
             </h2>
+            <p className="text-xs font-semibold tracking-wider text-emerald-400/80 mb-3">
+              The Elysium
+            </p>
 
-            <p className="text-sm max-w-xs mb-4" style={{ color: 'var(--vtes-text-muted)' }}>
-              Learn at your own pace. No pressure, no time limits.
+            <p className="text-sm max-w-xs mb-4 italic" style={{ color: 'var(--vtes-text-muted)' }}>
+              &ldquo;A sanctuary from the Jyhad. Sharpen your mind, free from the schemes of rival Cainites.&rdquo;
             </p>
 
             {/* Features */}
-            <div className="flex flex-wrap justify-center gap-3 text-xs">
+            <div className="flex flex-wrap justify-center gap-2 text-xs">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                <Infinity className="w-3.5 h-3.5" />
-                Unlimited
+                ♾️ Infinite Retries
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                <Target className="w-3.5 h-3.5" />
-                5 Difficulties
+                🎚️ 5 Difficulties
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                📚 Library / Crypt
               </span>
             </div>
 
             {/* CTA hint */}
-            <div className="mt-6 text-emerald-400 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="mt-4 text-emerald-400 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               Tap to Play →
             </div>
           </div>
@@ -92,31 +96,35 @@ export default function VtesGuessModeSelect() {
               <Trophy className="w-10 h-10 text-white" />
             </div>
 
-            <h2 className="text-2xl font-bold mb-2" style={{
+            <h2 className="text-2xl font-bold mb-1" style={{
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
             }}>
-              Ranked
+              🔥 Ranked
             </h2>
+            <p className="text-xs font-semibold tracking-wider text-amber-400/80 mb-3">
+              Gehenna
+            </p>
 
-            <p className="text-sm max-w-xs mb-4" style={{ color: 'var(--vtes-text-muted)' }}>
-              Test your mastery. 20 cards, all difficulties, compete for the leaderboard.
+            <p className="text-sm max-w-xs mb-4 italic" style={{ color: 'var(--vtes-text-muted)' }}>
+              &ldquo;The Antediluvians have awakened. Face 20 cards of escalating difficulty. Only the strongest will be remembered.&rdquo;
             </p>
 
             {/* Features */}
-            <div className="flex flex-wrap justify-center gap-3 text-xs">
+            <div className="flex flex-wrap justify-center gap-2 text-xs">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
-                <Flame className="w-3.5 h-3.5" />
-                20 Cards
+                🩸 Ramping Difficulty
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
-                <Clock className="w-3.5 h-3.5" />
-                Timed
+                🏆 Leaderboard
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
+                ⏱️ Timed
               </span>
             </div>
 
             {/* CTA hint */}
-            <div className="mt-6 text-amber-400 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="mt-4 text-amber-400 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               Tap to Compete →
             </div>
           </div>
@@ -124,7 +132,14 @@ export default function VtesGuessModeSelect() {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-3 px-4">
+      <div className="text-center py-3 px-4 flex justify-center gap-6">
+        <Link
+          href="/vtes-guess/leaderboard/guess"
+          className="text-xs hover:underline"
+          style={{ color: 'var(--vtes-text-muted)' }}
+        >
+          🏆 Leaderboard
+        </Link>
         <Link
           href="/"
           className="text-xs hover:underline"

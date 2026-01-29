@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Play, BookOpen, Skull, Target } from 'lucide-react';
+import { X, BookOpen, Skull, Target } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -93,62 +93,72 @@ export default function SettingsModal({
             <div className="flex gap-2">
               <button
                 onClick={() => onGameModeChange('normal')}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+                className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all duration-200 flex flex-col items-center gap-1 ${
                   gameMode === 'normal'
                     ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg'
                     : 'bg-[var(--vtes-bg-tertiary)] text-slate-400'
                 }`}
                 style={{ fontFamily: 'var(--vtes-font-display)' }}
               >
-                <Play className={`w-4 h-4 ${gameMode === 'normal' ? 'fill-current' : ''}`} />
-                Casual
+                <span className="text-lg">🏛️</span>
+                <span className="text-sm">PRACTICE</span>
+                <span className={`text-[10px] ${gameMode === 'normal' ? 'text-emerald-200' : 'text-slate-500'}`}>
+                  The Elysium
+                </span>
               </button>
               <button
                 onClick={() => onGameModeChange('ranked')}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+                className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all duration-200 flex flex-col items-center gap-1 ${
                   gameMode === 'ranked'
                     ? 'bg-gradient-to-r from-amber-600 to-yellow-500 text-white shadow-lg'
                     : 'bg-[var(--vtes-bg-tertiary)] text-slate-400'
                 }`}
                 style={{ fontFamily: 'var(--vtes-font-display)' }}
               >
-                <Trophy className={`w-4 h-4 ${gameMode === 'ranked' ? 'fill-current' : ''}`} />
-                Ranked
+                <span className="text-lg">🔥</span>
+                <span className="text-sm">RANKED</span>
+                <span className={`text-[10px] ${gameMode === 'ranked' ? 'text-amber-200' : 'text-slate-500'}`}>
+                  Gehenna
+                </span>
               </button>
             </div>
           </div>
 
-          {/* Card Type */}
-          <div>
-            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: 'var(--vtes-text-muted)' }}>
-              Card Type
-            </label>
-            <div className="flex gap-2">
-              {[
-                { type: 'library' as const, icon: <BookOpen className="w-4 h-4" />, label: 'Library' },
-                { type: 'crypt' as const, icon: <Skull className="w-4 h-4" />, label: 'Crypt' },
-                { type: 'all' as const, icon: <Target className="w-4 h-4" />, label: 'All' }
-              ].map(({ type, icon, label }) => (
-                <button
-                  key={type}
-                  onClick={() => onCardTypeChange(type)}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                    cardType === type
-                      ? 'bg-gradient-to-r from-red-700 to-red-600 text-white shadow-lg'
-                      : 'bg-[var(--vtes-bg-tertiary)] text-slate-400'
-                  }`}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
+          {/* Card Type - Only show in Practice mode */}
+          {gameMode === 'normal' && (
+            <div>
+              <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: 'var(--vtes-text-muted)' }}>
+                Card Type
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { type: 'library' as const, icon: <BookOpen className="w-4 h-4" />, label: 'Library' },
+                  { type: 'crypt' as const, icon: <Skull className="w-4 h-4" />, label: 'Crypt' },
+                  { type: 'all' as const, icon: <Target className="w-4 h-4" />, label: 'All' }
+                ].map(({ type, icon, label }) => (
+                  <button
+                    key={type}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCardTypeChange(type);
+                    }}
+                    className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                      cardType === type
+                        ? 'bg-gradient-to-r from-red-700 to-red-600 text-white shadow-lg'
+                        : 'bg-[var(--vtes-bg-tertiary)] text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    {icon}
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Info about difficulty */}
+              <p className="text-xs text-center mt-3" style={{ color: 'var(--vtes-text-dim)' }}>
+                Difficulty can be changed using the tabs at the bottom.
+              </p>
             </div>
-          </div>
-
-          {/* Info about difficulty */}
-          <p className="text-xs text-center pb-4" style={{ color: 'var(--vtes-text-dim)' }}>
-            Difficulty can be changed using the tabs at the bottom of the screen.
-          </p>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
