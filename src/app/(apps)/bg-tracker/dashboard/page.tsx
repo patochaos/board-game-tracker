@@ -74,7 +74,7 @@ export default async function DashboardPage() {
               Ready for another game night?
             </p>
           </div>
-          <Link href="/sessions/new">
+          <Link href="/bg-tracker/sessions/new">
             <Button size="lg" leftIcon={<Plus className="h-5 w-5" />}>
               Log New Session
             </Button>
@@ -90,12 +90,12 @@ export default async function DashboardPage() {
               description="Log your first board game session to start tracking stats and competing with friends!"
               action={
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Link href="/sessions/new">
+                  <Link href="/bg-tracker/sessions/new">
                     <Button leftIcon={<Plus className="h-4 w-4" />}>
                       Log First Session
                     </Button>
                   </Link>
-                  <Link href="/players">
+                  <Link href="/bg-tracker/players">
                     <Button variant="secondary" leftIcon={<Users className="h-4 w-4" />}>
                       Invite Friends
                     </Button>
@@ -212,19 +212,19 @@ export default async function DashboardPage() {
                   step: 1,
                   title: 'Add games',
                   description: 'Seed test games or search BoardGameGeek',
-                  href: '/games',
+                  href: '/bg-tracker/games',
                 },
                 {
                   step: 2,
                   title: 'Log a session',
                   description: 'Record your first game and start tracking!',
-                  href: '/sessions/new',
+                  href: '/bg-tracker/sessions/new',
                 },
                 {
                   step: 3,
                   title: 'View stats',
                   description: 'See your win rate and leaderboard',
-                  href: '/stats',
+                  href: '/bg-tracker/stats',
                 },
               ].map((item) => (
                 <Link key={item.step} href={item.href}>

@@ -402,7 +402,7 @@ function NewSessionContent() {
         if (expError) console.error('Error saving expansions:', expError);
       }
 
-      router.push('/sessions');
+      router.push('/bg-tracker/sessions');
     } catch (err) {
       console.error('Save error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save session');

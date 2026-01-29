@@ -120,7 +120,7 @@ export default function SessionDetailPage() {
 
       if (error || !data) {
         console.error('Error fetching session:', error);
-        router.push('/sessions');
+        router.push('/bg-tracker/sessions');
         return;
       }
 
@@ -272,7 +272,7 @@ export default function SessionDetailPage() {
 
       if (error) throw error;
 
-      router.push('/sessions');
+      router.push('/bg-tracker/sessions');
     } catch (error) {
       console.error('Error deleting:', error);
       setDeleting(false);

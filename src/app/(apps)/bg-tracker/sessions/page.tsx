@@ -211,7 +211,7 @@ export default function SessionsPage() {
             >
               Filters {hasActiveFilters && `(${[filterGame, filterDateFrom, filterDateTo].filter(Boolean).length})`}
             </Button>
-            <Link href="/sessions/new">
+            <Link href="/bg-tracker/sessions/new">
               <Button leftIcon={<Plus className="h-4 w-4" />}>
                 Log New Session
               </Button>
@@ -287,7 +287,7 @@ export default function SessionsPage() {
                     Clear Filters
                   </Button>
                 ) : (
-                  <Link href="/sessions/new">
+                  <Link href="/bg-tracker/sessions/new">
                     <Button leftIcon={<Plus className="h-4 w-4" />}>
                       Log First Session
                     </Button>
@@ -306,7 +306,7 @@ export default function SessionsPage() {
                 data-testid={`session-card-${session.id}`}
                 onClick={() => {
                   console.log(`[DEBUG] Clicked session ${session.id}, pushing router...`);
-                  router.push(`/sessions/${session.id}`);
+                  router.push(`/bg-tracker/sessions/${session.id}`);
                 }}
               >
                 <div className="flex gap-4">
