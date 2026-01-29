@@ -97,56 +97,17 @@ export default function GameControls({
   }
 
   if (revealed && result === 'skipped') {
+    // Minimal UI - just show SKIPPED indicator, auto-advances after 800ms
     return (
-      <div className="flex-shrink-0 flex flex-col items-center justify-end pb-2 min-h-[140px]">
+      <div className="flex-shrink-0 flex flex-col items-center justify-center pb-2 min-h-[140px]">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-lg font-bold flex items-center gap-2 mb-2"
+          className="text-lg font-bold flex items-center gap-2"
           style={{ color: 'var(--vtes-text-muted)' }}
         >
-          <SkipForward className="w-4 h-4" /> SKIPPED
+          <SkipForward className="w-5 h-5" /> SKIPPED
         </motion.div>
-
-        <motion.button
-          onClick={onNextCard}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full max-w-[320px] py-3 mt-2 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-base shadow-lg"
-          style={{
-            backgroundColor: 'var(--vtes-burgundy)',
-            color: 'var(--vtes-gold)',
-            border: '2px solid var(--vtes-gold)',
-            fontFamily: 'var(--vtes-font-display)',
-          }}
-        >
-          NEXT
-          <SkipForward className="w-4 h-4" />
-        </motion.button>
-
-        {/* Expandable details */}
-        {(artists.length > 0 || (cardCount && cardCount > 0)) && (
-          <>
-            <button
-              onClick={toggleDetails}
-              className="text-xs flex items-center gap-1 mt-2 transition-all duration-200 hover:opacity-80"
-              style={{ color: 'var(--vtes-text-muted)' }}
-            >
-              <span>{showDetails ? 'Hide' : 'Show'} Details</span>
-            </button>
-            {showDetails && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="text-xs text-center mt-1"
-                style={{ color: 'var(--vtes-text-dim)' }}
-              >
-                {artists.length > 0 && <p>Art by {artists.join(', ')}</p>}
-                {cardCount && cardCount > 0 && <p>Used in {cardCount.toLocaleString()} TWDA decks</p>}
-              </motion.div>
-            )}
-          </>
-        )}
       </div>
     );
   }

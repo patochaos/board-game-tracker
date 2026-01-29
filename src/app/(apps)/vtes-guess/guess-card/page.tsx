@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { Hud, CardStage, GameControls, SettingsModal } from '@/components/vtes/guess';
+import DifficultyPrototypes from '@/components/vtes/guess/DifficultyPrototypes';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -140,6 +141,9 @@ export default function GuessCardPage() {
   
   // Ranked stats tracking
   const [rankedStats, setRankedStats] = useState({ correct: 0, total: 0, bestStreak: 0 });
+
+  // PROTOTYPE: Difficulty selector variant (remove after testing)
+  const [prototypeVariant, setPrototypeVariant] = useState<'carousel' | 'tabs' | null>(null);
   
   // Leaderboard state
   const { user } = useCurrentUser();
@@ -1044,10 +1048,47 @@ export default function GuessCardPage() {
         totalCards={getFilteredCards().length}
       />
 
-      {/* KRCG Credit */}
-      <div className="text-center py-2 flex-shrink-0">
-        <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
-      </div>
+      {/* PROTOTYPE SECTION - Remove after testing */}
+      {prototypeVariant ? (
+        <div className="py-3 px-4 flex-shrink-0 border-t border-[var(--vtes-burgundy-dark)]">
+          <div className="flex justify-center gap-2 mb-3">
+            <button
+              onClick={() => setPrototypeVariant('carousel')}
+              className={`px-3 py-1 text-xs rounded-full ${prototypeVariant === 'carousel' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+            >
+              Option A: Carousel
+            </button>
+            <button
+              onClick={() => setPrototypeVariant('tabs')}
+              className={`px-3 py-1 text-xs rounded-full ${prototypeVariant === 'tabs' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+            >
+              Option C: Tabs
+            </button>
+            <button
+              onClick={() => setPrototypeVariant(null)}
+              className="px-3 py-1 text-xs rounded-full bg-red-600 text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <DifficultyPrototypes
+            selectedDifficulty={selectedDifficulty}
+            onDifficultyChange={changeDifficulty}
+            variant={prototypeVariant}
+          />
+        </div>
+      ) : (
+        <div className="text-center py-2 flex-shrink-0">
+          <button
+            onClick={() => setPrototypeVariant('carousel')}
+            className="text-[9px] underline mb-1 block mx-auto"
+            style={{ color: 'var(--vtes-gold)' }}
+          >
+            🧪 Test Difficulty Prototypes
+          </button>
+          <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
+        </div>
+      )}
 
       {showLargeCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pointer-events-none">
