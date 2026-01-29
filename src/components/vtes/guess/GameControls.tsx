@@ -157,7 +157,7 @@ export default function GameControls({
   return (
     <div className="flex-shrink-0 flex flex-col items-center justify-end pb-2 min-h-[140px]">
       {/* Answer Grid */}
-      <div className="grid grid-cols-2 gap-2 w-full max-w-[320px]">
+      <div className="grid grid-cols-2 gap-3 w-full max-w-[320px] pb-1">
         {options.map((option, i) => {
           // Dynamic text size: smaller for long names to prevent overflow
           const textSize = option.length > 20 ? 'text-[11px]' : 'text-sm';
@@ -173,7 +173,7 @@ export default function GameControls({
                 background: 'linear-gradient(180deg, var(--vtes-burgundy) 0%, var(--vtes-burgundy-dark) 100%)',
                 color: 'var(--vtes-gold)',
                 border: '2px solid var(--vtes-gold-dark)',
-                borderBottom: '3px solid rgba(0,0,0,0.3)',
+                boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)',
                 fontFamily: 'var(--vtes-font-display)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.3)',
               }}
