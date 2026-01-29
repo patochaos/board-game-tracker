@@ -14,6 +14,8 @@ interface CardStageProps {
   getImageUrl: (card: GameCardData) => string;
 }
 
+// Note: `revealed` is already in props and used internally
+
 export default function CardStage({
   card,
   cardDetails,
@@ -114,12 +116,31 @@ export default function CardStage({
             </AnimatePresence>
           </div>
 
-          {/* Card Attributes Strip - PRESERVED */}
-          <CardAttributesStrip
-            cardDetails={cardDetails}
-            isCrypt={isCrypt}
-            cardTypes={card.types}
-          />
+          {/* Card Info Strip - Show attributes when playing, TWDA count when revealed */}
+          {revealed ? (
+            <div className="flex justify-center mt-1 flex-shrink-0">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg shadow-sm" style={{
+                backgroundColor: 'var(--vtes-bg-tertiary)',
+                border: '1px solid var(--vtes-burgundy-dark)'
+              }}>
+                <span className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>
+                  Used in
+                </span>
+                <span className="text-sm font-bold" style={{ color: 'var(--vtes-gold)' }}>
+                  {card.count.toLocaleString()}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--vtes-text-muted)' }}>
+                  TWDA decks
+                </span>
+              </div>
+            </div>
+          ) : (
+            <CardAttributesStrip
+              cardDetails={cardDetails}
+              isCrypt={isCrypt}
+              cardTypes={card.types}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

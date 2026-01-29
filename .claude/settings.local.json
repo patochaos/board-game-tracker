@@ -31,7 +31,8 @@
       "Bash(del \"c:\\\\Users\\\\Patricio\\\\Downloads\\\\board-game-tracker\\\\src\\\\app\\\\\\(apps\\)\\\\vtes-guess\\\\guess-card\\\\page.text-input-mode.backup.tsx\")",
       "WebFetch(domain:dribbble.com)",
       "WebFetch(domain:www.carbon-ui.com)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(cmd /c \"rmdir /s /q .next\")"
     ]
   }
 }

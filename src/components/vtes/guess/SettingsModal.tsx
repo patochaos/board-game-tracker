@@ -4,36 +4,22 @@ import { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trophy, Play, BookOpen, Skull, Target } from 'lucide-react';
 
-const difficultyLabels: Record<number, { name: string; color: string; icon: string }> = {
-  1: { name: 'Staple', color: 'text-emerald-400', icon: '🌟' },
-  2: { name: 'Common', color: 'text-blue-400', icon: '📦' },
-  3: { name: 'Uncommon', color: 'text-yellow-400', icon: '🔶' },
-  4: { name: 'Rare', color: 'text-orange-400', icon: '🔴' },
-  5: { name: 'Never Used', color: 'text-red-400', icon: '💀' },
-};
-
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedDifficulty: number;
-  onDifficultyChange: (d: number) => void;
   cardType: 'library' | 'crypt' | 'all';
   onCardTypeChange: (t: 'library' | 'crypt' | 'all') => void;
   gameMode: 'normal' | 'ranked';
   onGameModeChange: (m: 'normal' | 'ranked') => void;
-  totalCards: number;
 }
 
 export default function SettingsModal({
   isOpen,
   onClose,
-  selectedDifficulty,
-  onDifficultyChange,
   cardType,
   onCardTypeChange,
   gameMode,
   onGameModeChange,
-  totalCards,
 }: SettingsModalProps) {
   // Handle escape key
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -159,59 +145,10 @@ export default function SettingsModal({
             </div>
           </div>
 
-          {/* Difficulty */}
-          <div>
-            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: 'var(--vtes-text-muted)' }}>
-              Difficulty ({totalCards} cards)
-            </label>
-            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-              {[1, 2, 3, 4, 5].map(d => {
-                const info = difficultyLabels[d];
-                const isSelected = d === selectedDifficulty;
-                return (
-                  <button
-                    key={d}
-                    onClick={() => onDifficultyChange(d)}
-                    className={`relative px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 min-w-[55px] ${
-                      isSelected
-                        ? `bg-opacity-20 ${info.color.replace('text-', 'bg-').replace('400', '500/20')} border`
-                        : 'bg-[var(--vtes-bg-tertiary)] border border-transparent'
-                    }`}
-                    style={{
-                      color: isSelected ? info.color : 'var(--vtes-text-muted)',
-                      fontFamily: 'var(--vtes-font-display)',
-                      borderColor: isSelected ? info.color.replace('text-', '') : 'transparent',
-                    }}
-                  >
-                    <span className="mr-1">{info.icon}</span>
-                    {info.name}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-center mt-2 text-xs" style={{ color: 'var(--vtes-text-muted)' }}>
-              {difficultyLabels[selectedDifficulty].name} • {difficultyLabels[selectedDifficulty].name === 'Staple' ? 'Top 20%' : 
-               difficultyLabels[selectedDifficulty].name === 'Common' ? '20-50%' :
-               difficultyLabels[selectedDifficulty].name === 'Uncommon' ? '50-80%' :
-               difficultyLabels[selectedDifficulty].name === 'Rare' ? 'Bottom 20%' : '0 TWDA'}
-            </p>
-          </div>
-        </div>
-
-        {/* Close button at bottom */}
-        <div className="p-4 border-t border-[var(--vtes-burgundy-dark)]">
-          <button
-            onClick={onClose}
-            className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
-            style={{
-              backgroundColor: 'var(--vtes-burgundy)',
-              color: 'var(--vtes-gold)',
-              border: '2px solid var(--vtes-gold)',
-              fontFamily: 'var(--vtes-font-display)',
-            }}
-          >
-            Done
-          </button>
+          {/* Info about difficulty */}
+          <p className="text-xs text-center pb-4" style={{ color: 'var(--vtes-text-dim)' }}>
+            Difficulty can be changed using the tabs at the bottom of the screen.
+          </p>
         </div>
       </motion.div>
     </AnimatePresence>

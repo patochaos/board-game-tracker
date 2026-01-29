@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Crown, Flame, Target, Sparkles, Settings, Trophy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Crown, Flame, Target, Settings } from 'lucide-react';
 
 interface HudProps {
   score: number;
@@ -11,6 +11,7 @@ interface HudProps {
   rankedCardIndex?: number;
   rankedScore?: number;
   rankedStreak?: number;
+  lastPoints?: number; // Points earned from last correct answer
   onSettingsClick: () => void;
 }
 
@@ -21,6 +22,7 @@ export default function Hud({
   rankedCardIndex = 0,
   rankedScore = 0,
   rankedStreak = 0,
+  lastPoints = 0,
   onSettingsClick,
 }: HudProps) {
   // Calculate streak multiplier for visual feedback
@@ -81,11 +83,11 @@ export default function Hud({
         </div>
 
         {/* Score - Right */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <div className="p-1.5 rounded-lg bg-[var(--vtes-blood)]/20">
             <Crown className="w-4 h-4" style={{ color: 'var(--vtes-blood)' }} />
           </div>
-          <div>
+          <div className="relative">
             <motion.span
               key={`ranked-score-${rankedScore}`}
               initial={{ scale: 1.2 }}
@@ -95,6 +97,23 @@ export default function Hud({
             >
               {rankedScore}
             </motion.span>
+
+            {/* Floating points animation */}
+            <AnimatePresence>
+              {lastPoints > 0 && (
+                <motion.span
+                  key={`pts-${rankedScore}`}
+                  initial={{ opacity: 1, y: 0, scale: 1 }}
+                  animate={{ opacity: 0, y: -20, scale: 0.8 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                  className="absolute -top-1 left-full ml-1 text-sm font-bold whitespace-nowrap pointer-events-none"
+                  style={{ color: '#34d399' }}
+                >
+                  +{lastPoints}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -108,11 +127,11 @@ export default function Hud({
       borderColor: 'var(--vtes-burgundy-dark)',
     }}>
       {/* Score - Left */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 relative">
         <div className="p-1.5 rounded-lg bg-[var(--vtes-blood)]/20">
           <Crown className="w-4 h-4" style={{ color: 'var(--vtes-blood)' }} />
         </div>
-        <div>
+        <div className="relative">
           <motion.span
             key={`score-${score}`}
             initial={{ scale: 1.2 }}
@@ -122,6 +141,23 @@ export default function Hud({
           >
             {score}
           </motion.span>
+
+          {/* Floating points animation */}
+          <AnimatePresence>
+            {lastPoints > 0 && (
+              <motion.span
+                key={`pts-${score}`}
+                initial={{ opacity: 1, y: 0, scale: 1 }}
+                animate={{ opacity: 0, y: -20, scale: 0.8 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className="absolute -top-1 left-full ml-1 text-sm font-bold whitespace-nowrap pointer-events-none"
+                style={{ color: '#34d399' }}
+              >
+                +{lastPoints}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

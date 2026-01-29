@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { Hud, CardStage, GameControls, SettingsModal } from '@/components/vtes/guess';
-import DifficultyPrototypes from '@/components/vtes/guess/DifficultyPrototypes';
+import DifficultyTabs from '@/components/vtes/guess/DifficultyTabs';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -32,6 +33,7 @@ const triggerBloodBurst = () => {
 
 const AUTO_ADVANCE_DELAY = 1500; // 1500ms for correct answers (slower auto-advance)
 const STATS_STORAGE_KEY = 'vtes-guess-stats';
+const RANKED_TIMER_DURATION = 10000; // 10 seconds for ranked mode timer
 
 // Game data interface
 interface GameData {
@@ -76,6 +78,10 @@ function saveStats(stats: GameStats): void {
 }
 
 export default function GuessCardPage() {
+  // Read mode from URL query parameter
+  const searchParams = useSearchParams();
+  const urlMode = searchParams.get('mode') as 'normal' | 'ranked' | null;
+
   // Game data
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +98,7 @@ export default function GuessCardPage() {
   const [queuedNextCard, setQueuedNextCard] = useState<GameCardData | null>(null);
   const [queuedNextDetails, setQueuedNextDetails] = useState<GameCardDetails | null>(null);
   const [, setGuess] = useState('');
-  const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | null>(null);
+  const [result, setResult] = useState<'correct' | 'incorrect' | 'skipped' | 'timeout' | null>(null);
   const [showLargeCard, setShowLargeCard] = useState(false);
   const [, setAutoAdvanceProgress] = useState(0);
   const [showInitials, setShowInitials] = useState(false);
@@ -130,20 +136,18 @@ export default function GuessCardPage() {
   const [score, setScore] = useState(0);
   const [totalPlayed, setTotalPlayed] = useState(0);
   const [totalCorrect, setTotalCorrect] = useState(0);
-  const [, setLastPoints] = useState(0);
+  const [lastPoints, setLastPoints] = useState(0);
 
-  // Ranked Mode State
-  const [gameMode, setGameMode] = useState<'normal' | 'ranked' | null>('normal');
+  // Ranked Mode State - initialize from URL param if present
+  const [gameMode, setGameMode] = useState<'normal' | 'ranked' | null>(urlMode || 'normal');
+  const [initialModeApplied, setInitialModeApplied] = useState(false);
   const [rankedPlaylist, setRankedPlaylist] = useState<GameCardData[]>([]);
   const [rankedCardIndex, setRankedCardIndex] = useState(0);
   const [rankedScore, setRankedScore] = useState(0);
   const [showFinalScore, setShowFinalScore] = useState(false);
   
   // Ranked stats tracking
-  const [rankedStats, setRankedStats] = useState({ correct: 0, total: 0, bestStreak: 0 });
-
-  // PROTOTYPE: Difficulty selector variant (remove after testing)
-  const [prototypeVariant, setPrototypeVariant] = useState<'carousel' | 'tabs' | null>(null);
+  const [rankedStats, setRankedStats] = useState({ correct: 0, total: 0, currentStreak: 0, bestStreak: 0 });
   
   // Leaderboard state
   const { user } = useCurrentUser();
@@ -154,6 +158,11 @@ export default function GuessCardPage() {
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
   const progressRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ranked mode timer
+  const [timerProgress, setTimerProgress] = useState(100); // 100% = full, 0% = timeout
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStartRef = useRef<number | null>(null);
 
   // Obfuscated image URL: uses proxy API with card ID
   const getImageUrl = useCallback((card: GameCardData) => {
@@ -378,6 +387,7 @@ export default function GuessCardPage() {
     setRankedPlaylist(playlist);
     setRankedCardIndex(0);
     setRankedScore(0);
+    setRankedStats({ correct: 0, total: 0, currentStreak: 0, bestStreak: 0 }); // Reset stats
     setShowFinalScore(false);
     setGameMode('ranked');
 
@@ -390,6 +400,14 @@ export default function GuessCardPage() {
     // Pre-fetch all 20 card images for smooth ranked gameplay
     preFetchRankedImages(playlist);
   }, [gameData, generateRankedPlaylist, fetchCardDetails]);
+
+  // Apply URL mode parameter when game data is loaded
+  useEffect(() => {
+    if (gameData && urlMode === 'ranked' && !initialModeApplied) {
+      setInitialModeApplied(true);
+      startRankedGame();
+    }
+  }, [gameData, urlMode, initialModeApplied, startRankedGame]);
 
   const resetRankedGame = useCallback(() => {
     startRankedGame();
@@ -498,6 +516,61 @@ export default function GuessCardPage() {
   useEffect(() => {
     return () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
   }, []);
+
+  // Ranked mode timer - starts when card is shown, stops on answer/timeout
+  useEffect(() => {
+    // Only run timer in ranked mode when not revealed and we have a card
+    if (gameMode !== 'ranked' || revealed || !currentCard || choiceMade) {
+      // Clear timer when not needed
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    // Start the timer
+    timerStartRef.current = Date.now();
+    setTimerProgress(100);
+
+    timerRef.current = setInterval(() => {
+      if (!timerStartRef.current) return;
+
+      const elapsed = Date.now() - timerStartRef.current;
+      const remaining = Math.max(0, 100 - (elapsed / RANKED_TIMER_DURATION) * 100);
+      setTimerProgress(remaining);
+
+      // Time's up!
+      if (remaining <= 0) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        // Trigger timeout
+        setChoiceMade(true);
+        setResult('timeout');
+        setFeedback('incorrect');
+        setRevealed(true);
+        setShowUnblurred(true);
+        setRankedStats(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          currentStreak: 0, // Reset streak on timeout
+          bestStreak: Math.max(prev.bestStreak, prev.currentStreak),
+        }));
+        setTotalPlayed(prev => prev + 1);
+        // Clear feedback after animation
+        setTimeout(() => setFeedback(null), 600);
+      }
+    }, 50); // Update every 50ms for smooth animation
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [gameMode, revealed, currentCard, choiceMade]);
 
   // Queue next card with preloaded image and details for instant transitions
   const queueNextCard = useCallback(async () => {
@@ -624,6 +697,8 @@ export default function GuessCardPage() {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     if (progressRef.current) clearInterval(progressRef.current);
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimerProgress(100); // Reset timer for next card
 
     if (gameMode === 'ranked') {
       const nextIndex = rankedCardIndex + 1;
@@ -696,16 +771,18 @@ export default function GuessCardPage() {
 
       if (gameMode === 'ranked') {
         const cardValue = getRankedCardValue(currentCard.difficulty);
-        // Calculate streak multiplier
-        const streakInfo = getStreakMultiplier(rankedStats.correct);
+        // Calculate streak multiplier based on current streak
+        const streakInfo = getStreakMultiplier(rankedStats.currentStreak);
         const points = Math.round(cardValue * streakInfo.multiplier);
         setRankedScore(prev => prev + points);
         setLastPoints(points);
+        const newStreak = rankedStats.currentStreak + 1;
         setRankedStats(prev => ({
           ...prev,
           correct: prev.correct + 1,
           total: prev.total + 1,
-          bestStreak: Math.max(prev.bestStreak, prev.correct + 1),
+          currentStreak: newStreak,
+          bestStreak: Math.max(prev.bestStreak, newStreak),
         }));
       } else {
         const newStreak = streak + 1;
@@ -727,7 +804,8 @@ export default function GuessCardPage() {
         setRankedStats(prev => ({
           ...prev,
           total: prev.total + 1,
-          bestStreak: Math.max(prev.bestStreak, prev.correct),
+          currentStreak: 0, // Reset streak on incorrect
+          bestStreak: Math.max(prev.bestStreak, prev.currentStreak),
         }));
       } else {
         setStreak(0);
@@ -766,6 +844,9 @@ export default function GuessCardPage() {
     setShowUnblurred(true); // REVEAL card in full HD
     setStreak(0);
     setTotalPlayed(prev => prev + 1);
+
+    // Start preloading next card immediately
+    queueNextCard();
 
     // Auto-advance after brief delay to show the skipped card
     setTimeout(() => {
@@ -1002,9 +1083,33 @@ export default function GuessCardPage() {
           gameMode={gameMode}
           rankedCardIndex={rankedCardIndex}
           rankedScore={rankedScore}
-          rankedStreak={rankedStats.correct}
+          rankedStreak={rankedStats.currentStreak}
+          lastPoints={lastPoints}
           onSettingsClick={() => setIsSettingsOpen(true)}
         />
+      )}
+
+      {/* Ranked Mode Timer Bar */}
+      {gameMode === 'ranked' && !revealed && currentCard && (
+        <div className="w-full px-4 py-1">
+          <div
+            className="h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-75 ease-linear"
+              style={{
+                width: `${timerProgress}%`,
+                backgroundColor: timerProgress > 30
+                  ? timerProgress > 60
+                    ? '#34d399' // Green when > 60%
+                    : '#fbbf24' // Yellow when 30-60%
+                  : '#ef4444', // Red when < 30%
+                boxShadow: timerProgress <= 30 ? '0 0 8px #ef4444' : 'none',
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Card Stage - Main card display area */}
@@ -1039,56 +1144,26 @@ export default function GuessCardPage() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        selectedDifficulty={selectedDifficulty}
-        onDifficultyChange={changeDifficulty}
         cardType={cardType}
         onCardTypeChange={setCardType}
         gameMode={gameMode || 'normal'}
         onGameModeChange={handleGameModeChange}
-        totalCards={getFilteredCards().length}
       />
 
-      {/* PROTOTYPE SECTION - Remove after testing */}
-      {prototypeVariant ? (
-        <div className="py-3 px-4 flex-shrink-0 border-t border-[var(--vtes-burgundy-dark)]">
-          <div className="flex justify-center gap-2 mb-3">
-            <button
-              onClick={() => setPrototypeVariant('carousel')}
-              className={`px-3 py-1 text-xs rounded-full ${prototypeVariant === 'carousel' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
-            >
-              Option A: Carousel
-            </button>
-            <button
-              onClick={() => setPrototypeVariant('tabs')}
-              className={`px-3 py-1 text-xs rounded-full ${prototypeVariant === 'tabs' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}
-            >
-              Option C: Tabs
-            </button>
-            <button
-              onClick={() => setPrototypeVariant(null)}
-              className="px-3 py-1 text-xs rounded-full bg-red-600 text-white"
-            >
-              ✕
-            </button>
-          </div>
-          <DifficultyPrototypes
+      {/* Difficulty Tabs - Only in casual mode, hidden during results and ranked */}
+      {gameMode === 'normal' && !revealed && (
+        <div className="py-2 px-4 flex-shrink-0">
+          <DifficultyTabs
             selectedDifficulty={selectedDifficulty}
             onDifficultyChange={changeDifficulty}
-            variant={prototypeVariant}
           />
         </div>
-      ) : (
-        <div className="text-center py-2 flex-shrink-0">
-          <button
-            onClick={() => setPrototypeVariant('carousel')}
-            className="text-[9px] underline mb-1 block mx-auto"
-            style={{ color: 'var(--vtes-gold)' }}
-          >
-            🧪 Test Difficulty Prototypes
-          </button>
-          <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
-        </div>
       )}
+
+      {/* KRCG Credit */}
+      <div className="text-center py-1 flex-shrink-0">
+        <p className="text-[9px]" style={{ color: 'var(--vtes-text-dim)' }}>Images: KRCG.org</p>
+      </div>
 
       {showLargeCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pointer-events-none">

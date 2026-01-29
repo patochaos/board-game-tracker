@@ -12,7 +12,7 @@ interface GameControlsProps {
   onLibraryChoice: (name: string) => void;
   onSkip: () => void;
   revealed: boolean;
-  result: 'correct' | 'incorrect' | 'skipped' | null;
+  result: 'correct' | 'incorrect' | 'skipped' | 'timeout' | null;
   onNextCard: () => void;
   showDetails: boolean;
   toggleDetails: () => void;
@@ -40,8 +40,9 @@ export default function GameControls({
 }: GameControlsProps) {
   const artists = cardDetails?.artists ?? [];
 
-  // Handle result states (incorrect/skipped)
-  if (revealed && result === 'incorrect') {
+  // Handle result states (incorrect/skipped/timeout)
+  if (revealed && (result === 'incorrect' || result === 'timeout')) {
+    const isTimeout = result === 'timeout';
     return (
       <div className="flex-shrink-0 flex flex-col items-center justify-end pb-2 min-h-[140px]">
         <motion.div
@@ -50,7 +51,7 @@ export default function GameControls({
           className="text-lg font-bold flex items-center gap-2 mb-2"
           style={{ color: '#ef4444' }}
         >
-          <span className="text-xl">✗</span> INCORRECT
+          <span className="text-xl">{isTimeout ? '⏱️' : '✗'}</span> {isTimeout ? 'TIME OUT' : 'INCORRECT'}
         </motion.div>
 
         <motion.button
