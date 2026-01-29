@@ -69,6 +69,7 @@ function RegisterForm() {
   };
 
   if (success) {
+    const isFromGame = nextUrl.includes('/vtes-guess');
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center" variant="glass">
@@ -80,9 +81,16 @@ function RegisterForm() {
             We sent a confirmation link to <span className="text-slate-200">{email}</span>.
             Click the link to activate your account.
           </p>
-          <Link href="/login" className="btn-secondary btn-md mt-6 inline-flex">
-            Back to Login
-          </Link>
+          <div className="mt-6 flex flex-col gap-3">
+            {isFromGame && (
+              <Link href={nextUrl} className="btn-primary btn-md inline-flex justify-center">
+                ← Back to Score
+              </Link>
+            )}
+            <Link href="/login" className="btn-secondary btn-md inline-flex justify-center">
+              Back to Login
+            </Link>
+          </div>
         </Card>
       </div>
     );
