@@ -86,7 +86,6 @@ function NewSessionContent() {
         .single();
 
       const userName = profile?.display_name || profile?.username || user.email?.split('@')[0] || 'You';
-      setCurrentUserName(userName);
 
       // Add current user as first player
       setPlayers([{
