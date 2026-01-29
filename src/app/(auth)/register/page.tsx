@@ -88,6 +88,12 @@ function RegisterForm() {
         return;
       }
 
+      // Check if email already exists (Supabase returns user with empty identities array)
+      if (authData.user && authData.user.identities?.length === 0) {
+        setError('An account with this email already exists. Please log in instead.');
+        return;
+      }
+
       if (authData.user) {
         setSuccess(true);
       }
