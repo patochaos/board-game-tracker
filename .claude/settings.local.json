@@ -21,7 +21,14 @@
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:static.krcg.org)",
       "Bash(ls:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(tasklist:*)",
+      "Bash(del \"c:\\\\Users\\\\Patricio\\\\Downloads\\\\board-game-tracker\\\\src\\\\app\\\\\\(apps\\)\\\\vtes-guess\\\\guess-card\\\\page.text-input-mode.backup.tsx\")"
     ]
   }
 }
