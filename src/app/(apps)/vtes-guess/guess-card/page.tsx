@@ -35,6 +35,40 @@ const AUTO_ADVANCE_DELAY = 1500; // 1500ms for correct answers (slower auto-adva
 const STATS_STORAGE_KEY = 'vtes-guess-stats';
 const RANKED_TIMER_DURATION = 10000; // 10 seconds for ranked mode timer
 
+// Generate share text for ranked results
+const generateShareText = (
+  score: number,
+  bestStreak: number,
+  results: ('correct' | 'incorrect' | 'timeout')[]
+): string => {
+  // Convert results to emojis: 🟩 = correct, 🟥 = incorrect, 🟨 = timeout
+  const emojiMap = {
+    correct: '🟩',
+    incorrect: '🟥',
+    timeout: '🟨',
+  };
+  const emojiGrid = results.map(r => emojiMap[r]).join('');
+
+  // Flavor text based on score
+  let flavorText = '';
+  if (score >= 400) flavorText = '🏆 Methuselah-level knowledge!';
+  else if (score >= 300) flavorText = '🧛 Elder vampire approved!';
+  else if (score >= 200) flavorText = '⚔️ Ready for the Eternal Struggle!';
+  else if (score >= 100) flavorText = '🌙 The night is young...';
+  else flavorText = '🦇 Still learning the Masquerade...';
+
+  return `VTES Guess the Card 🃏
+
+${flavorText}
+
+Score: ${score}
+Best Streak: ${bestStreak} 🔥
+
+${emojiGrid}
+
+Play: https://board-game-tracker-78pn.vercel.app/vtes-guess`;
+};
+
 // Game data interface
 interface GameData {
   metadata: {
@@ -148,6 +182,9 @@ function GuessCardContent() {
   
   // Ranked stats tracking
   const [rankedStats, setRankedStats] = useState({ correct: 0, total: 0, currentStreak: 0, bestStreak: 0 });
+
+  // Track per-card results for share feature
+  const [rankedResults, setRankedResults] = useState<('correct' | 'incorrect' | 'timeout')[]>([]);
   
   // Leaderboard state
   const { user } = useCurrentUser();
@@ -388,6 +425,7 @@ function GuessCardContent() {
     setRankedCardIndex(0);
     setRankedScore(0);
     setRankedStats({ correct: 0, total: 0, currentStreak: 0, bestStreak: 0 }); // Reset stats
+    setRankedResults([]); // Reset per-card results
     setShowFinalScore(false);
     setGameMode('ranked');
 
@@ -558,6 +596,7 @@ function GuessCardContent() {
           currentStreak: 0, // Reset streak on timeout
           bestStreak: Math.max(prev.bestStreak, prev.currentStreak),
         }));
+        setRankedResults(prev => [...prev, 'timeout']);
         setTotalPlayed(prev => prev + 1);
         // Clear feedback after animation
         setTimeout(() => setFeedback(null), 600);
@@ -784,6 +823,7 @@ function GuessCardContent() {
           currentStreak: newStreak,
           bestStreak: Math.max(prev.bestStreak, newStreak),
         }));
+        setRankedResults(prev => [...prev, 'correct']);
       } else {
         const newStreak = streak + 1;
         const points = calculateScore(showInitials, newStreak, selectedDifficulty);
@@ -807,6 +847,7 @@ function GuessCardContent() {
           currentStreak: 0, // Reset streak on incorrect
           bestStreak: Math.max(prev.bestStreak, prev.currentStreak),
         }));
+        setRankedResults(prev => [...prev, 'incorrect']);
       } else {
         setStreak(0);
       }
@@ -927,7 +968,7 @@ function GuessCardContent() {
             </p>
             
             {/* Stats row */}
-            <div className="flex justify-center gap-6 mb-6 text-sm">
+            <div className="flex justify-center gap-6 mb-4 text-sm">
               <div className="text-center">
                 <p className="font-bold text-lg" style={{ color: 'var(--vtes-text-primary)' }}>
                   {rankedStats.correct}/{rankedStats.total}
@@ -947,7 +988,33 @@ function GuessCardContent() {
                 <p style={{ color: 'var(--vtes-text-muted)' }}>Accuracy</p>
               </div>
             </div>
-            
+
+            {/* Results grid */}
+            <div className="flex justify-center gap-0.5 mb-4 flex-wrap max-w-[280px] mx-auto">
+              {rankedResults.map((result, i) => (
+                <span key={i} className="text-lg">
+                  {result === 'correct' ? '🟩' : result === 'timeout' ? '🟨' : '🟥'}
+                </span>
+              ))}
+            </div>
+
+            {/* Share button */}
+            <button
+              onClick={() => {
+                const shareText = generateShareText(rankedScore, rankedStats.bestStreak, rankedResults);
+                navigator.clipboard.writeText(shareText);
+                toast.success('Copied to clipboard!');
+              }}
+              className="w-full py-2.5 mb-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: 'var(--vtes-bg-tertiary)',
+                color: 'var(--vtes-text-primary)',
+                border: '1px solid var(--vtes-burgundy-dark)',
+              }}
+            >
+              <span>📋</span> Share Results
+            </button>
+
             {/* Submitted rank display */}
             {submittedRank !== null && (
               <div className="mb-4 p-3 rounded-lg bg-[var(--vtes-bg-tertiary)] border border-[var(--vtes-gold)]">
