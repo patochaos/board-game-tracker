@@ -15,8 +15,6 @@ interface SettingsModalProps {
   gameMode: 'normal' | 'ranked';
   onGameModeChange: (m: 'normal' | 'ranked') => void;
   user?: { email?: string; user_metadata?: { display_name?: string; username?: string } } | null;
-  includeImbued?: boolean;
-  onIncludeImbuedChange?: (value: boolean) => void;
 }
 
 export default function SettingsModal({
@@ -27,8 +25,6 @@ export default function SettingsModal({
   gameMode,
   onGameModeChange,
   user,
-  includeImbued = true,
-  onIncludeImbuedChange,
 }: SettingsModalProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -200,30 +196,6 @@ export default function SettingsModal({
               <p className="text-xs text-center mt-3" style={{ color: 'var(--vtes-text-dim)' }}>
                 Difficulty can be changed using the tabs at the bottom.
               </p>
-
-              {/* Imbued Toggle - Only show when crypt cards are included */}
-              {(cardType === 'crypt' || cardType === 'all') && onIncludeImbuedChange && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--vtes-bg-tertiary)' }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">⚔️</span>
-                    <span className="text-sm font-medium" style={{ color: 'var(--vtes-text-primary)' }}>
-                      Include Imbued
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => onIncludeImbuedChange(!includeImbued)}
-                    className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
-                      includeImbued ? 'bg-red-600' : 'bg-slate-600'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${
-                        includeImbued ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
             </div>
           )}
 

@@ -168,18 +168,43 @@ export function generateCryptOptions(
   const difficulty = correctCard.difficulty;
   const isCorrectImbued = correctCard.types?.includes('Imbued');
 
-  // Helper: check if card is Imbued (they have obvious "nickname" format)
+  // Helper: check if card is Imbued
   const isImbued = (c: GameCardData) => c.types?.includes('Imbued');
 
-  // Base filter: different card, same gender, similar capacity (+/- 2)
-  // Also exclude Imbued as options unless the correct card is also Imbued
+  // SPECIAL CASE: If correct card is Imbued, ONLY show other Imbued as options
+  if (isCorrectImbued) {
+    // Filter for Imbued only, matching gender
+    let candidates = allCrypt.filter(c =>
+      c.id !== correctCard.id &&
+      isImbued(c) &&
+      (!gender || gender === '?' || c.gender === gender) &&
+      !isNameTooSimilar(correctCard, c)
+    );
+
+    // Fallback: any Imbued (ignore gender)
+    if (candidates.length < 3) {
+      const moreCandidates = allCrypt.filter(c =>
+        c.id !== correctCard.id &&
+        isImbued(c) &&
+        !isNameTooSimilar(correctCard, c) &&
+        !candidates.some(e => e.id === c.id)
+      );
+      candidates = [...candidates, ...moreCandidates];
+    }
+
+    const shuffled = candidates.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  }
+
+  // NORMAL VAMPIRES: Exclude Imbued from options
+  // Base filter: different card, same gender, similar capacity (+/- 2), no Imbued
   const baseFilter = (c: GameCardData) =>
     c.id !== correctCard.id &&
     c.capacity !== undefined &&
     Math.abs((c.capacity ?? 0) - cap) <= 2 &&
     (!gender || gender === '?' || c.gender === gender) &&
     !isNameTooSimilar(correctCard, c) &&
-    (isCorrectImbued || !isImbued(c));
+    !isImbued(c);
 
   // Priority 1: Same gender + same difficulty + same/antitribu clan + similar capacity
   let candidates = allCrypt.filter(c =>
@@ -205,7 +230,7 @@ export function generateCryptOptions(
       c.difficulty === difficulty &&
       (!gender || gender === '?' || c.gender === gender) &&
       !isNameTooSimilar(correctCard, c) &&
-      (isCorrectImbued || !isImbued(c)) &&
+      !isImbued(c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
@@ -226,18 +251,18 @@ export function generateCryptOptions(
       c.id !== correctCard.id &&
       (!gender || gender === '?' || c.gender === gender) &&
       !isNameTooSimilar(correctCard, c) &&
-      (isCorrectImbued || !isImbued(c)) &&
+      !isImbued(c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];
   }
 
-  // Fallback: any crypt card (still exclude similar names and Imbued unless correct is Imbued)
+  // Fallback: any crypt card (still exclude similar names and Imbued)
   if (candidates.length < 3) {
     const moreCandidates = allCrypt.filter(c =>
       c.id !== correctCard.id &&
       !isNameTooSimilar(correctCard, c) &&
-      (isCorrectImbued || !isImbued(c)) &&
+      !isImbued(c) &&
       !candidates.some(e => e.id === c.id)
     );
     candidates = [...candidates, ...moreCandidates];

@@ -204,15 +204,6 @@ function GuessCardContent() {
   const [loading, setLoading] = useState(true);
   const [selectedDifficulty, setSelectedDifficulty] = useState<number>(1);
   const [cardType, setCardType] = useState<'library' | 'crypt' | 'all'>('library');
-  const [includeImbued, setIncludeImbued] = useState<boolean>(true);
-
-  // Load includeImbued from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('vtes-guess-include-imbued');
-    if (saved !== null) {
-      setIncludeImbued(saved === 'true');
-    }
-  }, []);
 
   // Current card
   const [currentCard, setCurrentCard] = useState<GameCardData | null>(null);
@@ -804,25 +795,15 @@ function GuessCardContent() {
     if (!gameData) return [];
     let cards: GameCardData[] = [];
     if (type === 'crypt' || type === 'all') {
-      let cryptCards = gameData.crypt.filter(c => c.difficulty === difficulty);
-      // Filter out Imbued if disabled
-      if (!includeImbued) {
-        cryptCards = cryptCards.filter(c => !c.types?.includes('Imbued'));
-      }
+      const cryptCards = gameData.crypt.filter(c => c.difficulty === difficulty);
       cards = [...cards, ...cryptCards];
     }
     if (type === 'library' || type === 'all') {
-      let libraryCards = gameData.library.filter(c => c.difficulty === difficulty);
-      // Filter out Imbued-only cards (Conviction, Power) if disabled
-      if (!includeImbued) {
-        libraryCards = libraryCards.filter(c =>
-          !c.types?.includes('Conviction') && !c.types?.includes('Power')
-        );
-      }
+      const libraryCards = gameData.library.filter(c => c.difficulty === difficulty);
       cards = [...cards, ...libraryCards];
     }
     return cards;
-  }, [gameData, includeImbued]);
+  }, [gameData]);
 
   // Helper: pick N random cards from pool, excluding certain IDs
   const pickRandomCards = useCallback((pool: GameCardData[], count: number, excludeIds: Set<number>): GameCardData[] => {
@@ -1441,11 +1422,6 @@ function GuessCardContent() {
         gameMode={gameMode || 'normal'}
         onGameModeChange={handleGameModeChange}
         user={user}
-        includeImbued={includeImbued}
-        onIncludeImbuedChange={(value) => {
-          setIncludeImbued(value);
-          localStorage.setItem('vtes-guess-include-imbued', String(value));
-        }}
       />
 
       {showLargeCard && (
