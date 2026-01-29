@@ -69,30 +69,6 @@ export default function GameControls({
           NEXT
           <SkipForward className="w-4 h-4" />
         </motion.button>
-
-        {/* Expandable details - hidden in ranked mode */}
-        {gameMode !== 'ranked' && (artists.length > 0 || (cardCount && cardCount > 0)) && (
-          <>
-            <button
-              onClick={toggleDetails}
-              className="text-xs flex items-center gap-1 mt-2 transition-all duration-200 hover:opacity-80"
-              style={{ color: 'var(--vtes-text-muted)' }}
-            >
-              <span>{showDetails ? 'Hide' : 'Show'} Details</span>
-            </button>
-            {showDetails && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="text-xs text-center mt-1"
-                style={{ color: 'var(--vtes-text-dim)' }}
-              >
-                {artists.length > 0 && <p>Art by {artists.join(', ')}</p>}
-                {cardCount && cardCount > 0 && <p>{cardCount.toLocaleString()} copies in TWDA</p>}
-              </motion.div>
-            )}
-          </>
-        )}
       </div>
     );
   }

@@ -52,18 +52,29 @@ function savePendingRankedResults(data: PendingRankedResults): void {
   }
 }
 
-// Load and clear pending ranked results
-function loadPendingRankedResults(): PendingRankedResults | null {
+// Load pending ranked results (optionally clear after reading)
+function loadPendingRankedResults(clear: boolean = false): PendingRankedResults | null {
   try {
     const stored = sessionStorage.getItem(PENDING_RANKED_RESULTS_KEY);
     if (stored) {
-      sessionStorage.removeItem(PENDING_RANKED_RESULTS_KEY);
+      if (clear) {
+        sessionStorage.removeItem(PENDING_RANKED_RESULTS_KEY);
+      }
       return JSON.parse(stored);
     }
   } catch (e) {
     console.error('Error loading pending ranked results:', e);
   }
   return null;
+}
+
+// Clear pending ranked results (call after successful submission)
+function clearPendingRankedResults(): void {
+  try {
+    sessionStorage.removeItem(PENDING_RANKED_RESULTS_KEY);
+  } catch (e) {
+    console.error('Error clearing pending ranked results:', e);
+  }
 }
 
 // Generate share text for ranked results
@@ -618,6 +629,9 @@ function GuessCardContent() {
         setUserHighScore(result.highScore);
         setIsNewRecord(result.isNewRecord);
         setLeaderboardChecked(true);
+
+        // Clear pending results after successful submission
+        clearPendingRankedResults();
 
         if (result.isNewRecord) {
           // New personal best - trigger confetti!
@@ -1377,8 +1391,8 @@ function GuessCardContent() {
           cardCount={currentCard?.count}
         />
 
-        {/* Difficulty Tabs - Only in casual mode, hidden during results and ranked */}
-        {gameMode === 'normal' && !revealed && (
+        {/* Difficulty Tabs - Only in casual mode */}
+        {gameMode === 'normal' && (
           <div className="py-2">
             <DifficultyTabs
               selectedDifficulty={selectedDifficulty}

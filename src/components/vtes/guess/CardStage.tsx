@@ -34,11 +34,11 @@ export default function CardStage({
   const displayWidth = 'clamp(260px, 85vw, 320px)';
   const displayHeight = isCrypt ? 'clamp(355px, 116vw, 437px)' : 'clamp(250px, 81vw, 315px)';
 
-  // Library crop dimensions
-  const scaledCardWidth = 'calc(clamp(260px, 85vw, 320px) / 0.72)';
-  const scaledCardHeight = 'calc(' + scaledCardWidth + ' * 1.4)';
-  const offsetX = 'calc(' + scaledCardWidth + ' * 0.21)';
-  const offsetY = 'calc(' + scaledCardHeight + ' * 0.115)';
+  // Library crop dimensions (tuned via /vtes-guess/crop-test)
+  const scaledCardWidth = 'calc(clamp(260px, 85vw, 320px) / 0.710)';
+  const scaledCardHeight = 'calc(' + scaledCardWidth + ' * 1.560)';
+  const offsetX = 'calc(' + scaledCardWidth + ' * 0.2050)';
+  const offsetY = 'calc(' + scaledCardHeight + ' * 0.1150)';
 
   return (
     <div className="flex-1 flex flex-col items-center justify-start py-2 min-h-0 overflow-hidden">
@@ -65,11 +65,12 @@ export default function CardStage({
               feedback === 'correct' ? 'ring-4 ring-green-500' :
               feedback === 'incorrect' ? 'ring-4 ring-red-500' :
               feedback === 'skipped' ? 'ring-4 ring-slate-500' :
-              'ring-2 ring-slate-700'
+              ''
             }`}
-            style={{ 
-              width: displayWidth, 
-              height: displayHeight 
+            style={{
+              width: displayWidth,
+              height: displayHeight,
+              backgroundColor: 'var(--vtes-bg-primary)',
             }}
           >
             {isCrypt ? (
@@ -118,7 +119,7 @@ export default function CardStage({
 
           {/* Card Info Strip - Show attributes when playing, TWDA count when revealed */}
           {revealed ? (
-            <div className="flex justify-center mt-1 flex-shrink-0">
+            <div className="flex flex-col items-center mt-1 flex-shrink-0 gap-2">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg shadow-sm" style={{
                 backgroundColor: 'var(--vtes-bg-tertiary)',
                 border: '1px solid var(--vtes-burgundy-dark)'
@@ -130,13 +131,43 @@ export default function CardStage({
                   copies in TWDA
                 </span>
               </div>
+
+              {/* Flavor text - shown when revealed */}
+              {cardDetails?.flavorText && (
+                <div
+                  className="max-w-[320px] px-4 py-2 text-center"
+                  style={{
+                    color: 'var(--vtes-text-muted)',
+                  }}
+                >
+                  <p className="text-sm italic leading-relaxed">
+                    &ldquo;{cardDetails.flavorText}&rdquo;
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
-            <CardAttributesStrip
-              cardDetails={cardDetails}
-              isCrypt={isCrypt}
-              cardTypes={card.types}
-            />
+            <div className="flex flex-col items-center gap-2">
+              <CardAttributesStrip
+                cardDetails={cardDetails}
+                isCrypt={isCrypt}
+                cardTypes={card.types}
+              />
+
+              {/* Flavor text - shown before guess too */}
+              {cardDetails?.flavorText && (
+                <div
+                  className="max-w-[320px] px-4 text-center"
+                  style={{
+                    color: 'var(--vtes-text-muted)',
+                  }}
+                >
+                  <p className="text-sm italic leading-relaxed">
+                    &ldquo;{cardDetails.flavorText}&rdquo;
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
       </AnimatePresence>

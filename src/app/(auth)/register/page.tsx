@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Dice5, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
@@ -14,9 +14,54 @@ function RegisterForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [checkingVerification, setCheckingVerification] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const nextUrl = searchParams.get('next') || '/bg-tracker/dashboard';
   const supabase = createClient();
+
+  // Poll for email verification when on success screen
+  useEffect(() => {
+    if (!success) return;
+
+    setCheckingVerification(true);
+
+    // Check immediately in case user already verified
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email_confirmed_at) {
+        // Email verified - redirect to score
+        router.push(nextUrl);
+        return true;
+      }
+      return false;
+    };
+
+    // Initial check
+    checkAuth();
+
+    // Poll every 3 seconds
+    const interval = setInterval(async () => {
+      const verified = await checkAuth();
+      if (verified) {
+        clearInterval(interval);
+      }
+    }, 3000);
+
+    // Listen for auth state changes (covers when user clicks verification link in same browser)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+        clearInterval(interval);
+        router.push(nextUrl);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.unsubscribe();
+      setCheckingVerification(false);
+    };
+  }, [success, supabase, router, nextUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +126,15 @@ function RegisterForm() {
             We sent a confirmation link to <span className="text-slate-200">{email}</span>.
             Click the link to activate your account.
           </p>
+
+          {/* Auto-detection status */}
+          {checkingVerification && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-emerald-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Waiting for email verification...</span>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-col gap-3">
             {isFromGame && (
               <Link href={nextUrl} className="btn-primary btn-md inline-flex justify-center">
@@ -91,6 +145,12 @@ function RegisterForm() {
               Back to Login
             </Link>
           </div>
+
+          {isFromGame && (
+            <p className="mt-4 text-xs text-slate-500">
+              You&apos;ll be redirected automatically once verified
+            </p>
+          )}
         </Card>
       </div>
     );
