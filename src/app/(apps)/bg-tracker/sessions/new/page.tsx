@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, useToast } from '@/components/ui';
 import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
@@ -33,6 +33,7 @@ function NewSessionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedGameId = searchParams.get('gameId');
+  const { showToast } = useToast();
 
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -402,10 +403,13 @@ function NewSessionContent() {
         if (expError) console.error('Error saving expansions:', expError);
       }
 
+      showToast('Session saved!', 'success');
       router.push('/bg-tracker/sessions');
     } catch (err) {
       console.error('Save error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save session');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save session';
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setSaving(false);
     }

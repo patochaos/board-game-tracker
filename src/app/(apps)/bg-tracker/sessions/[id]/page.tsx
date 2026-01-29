@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, useToast } from '@/components/ui';
 import { ArrowLeft, Trash2, Trophy, Loader2, Dice5, Save, X, Pencil, Calendar, Clock, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -61,6 +61,7 @@ export default function SessionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.id as string;
+  const { showToast } = useToast();
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -252,9 +253,11 @@ export default function SessionDetailPage() {
         setSession(data as unknown as Session);
       }
 
+      showToast('Changes saved!', 'success');
       setEditing(false);
     } catch (error) {
       console.error('Error saving:', error);
+      showToast('Failed to save changes', 'error');
     } finally {
       setSaving(false);
     }
@@ -272,9 +275,11 @@ export default function SessionDetailPage() {
 
       if (error) throw error;
 
+      showToast('Session deleted', 'success');
       router.push('/bg-tracker/sessions');
     } catch (error) {
       console.error('Error deleting:', error);
+      showToast('Failed to delete session', 'error');
       setDeleting(false);
     }
   };

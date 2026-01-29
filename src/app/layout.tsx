@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 
 export const viewport: Viewport = {
   themeColor: "#8a0303",
@@ -104,7 +105,9 @@ export default function RootLayout({
         />
       </head>
       <body className="noise-overlay">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

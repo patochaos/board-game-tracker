@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, useToast } from '@/components/ui';
 import { ArrowLeft, Swords, Trophy, Loader2, User, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -38,6 +38,7 @@ interface SessionFormState {
 
 export default function NewVTESSessionPage() {
     const router = useRouter();
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -351,10 +352,13 @@ export default function NewVTESSessionPage() {
                 }
             }
 
+            showToast('Struggle recorded!', 'success');
             router.push(`/vtes-tracker/sessions/${session.id}`);
         } catch (err) {
             console.error(err);
-            setError(err instanceof Error ? err.message : 'Failed to save session');
+            const errorMsg = err instanceof Error ? err.message : 'Failed to save session';
+            setError(errorMsg);
+            showToast(errorMsg, 'error');
         } finally {
             setSaving(false);
         }
