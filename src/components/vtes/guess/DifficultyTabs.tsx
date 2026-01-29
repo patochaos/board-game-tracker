@@ -47,7 +47,7 @@ function DifficultyTabs({
               role="tab"
               aria-selected={isSelected}
               aria-label={`${d.name} difficulty`}
-              className="flex-1 py-3 px-1 flex flex-col items-center justify-center transition-all relative min-h-[52px]"
+              className="flex-1 py-2 px-1 flex flex-col items-center justify-center transition-all relative"
               style={{
                 backgroundColor: isSelected ? `${d.color}20` : 'transparent',
               }}
@@ -67,7 +67,7 @@ function DifficultyTabs({
 
               <span className="text-base relative z-10" aria-hidden="true">{d.icon}</span>
               <span
-                className="text-[10px] font-bold uppercase tracking-wider relative z-10 mt-0.5"
+                className="text-[8px] font-bold uppercase tracking-wider relative z-10 mt-0.5"
                 style={{
                   color: isSelected ? d.color : 'var(--vtes-text-muted)',
                   fontFamily: 'var(--vtes-font-display)',

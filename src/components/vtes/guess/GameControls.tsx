@@ -25,32 +25,6 @@ interface GameControlsProps {
   correctAnswer?: string | null;
 }
 
-// Animation variants for staggered button entrance
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const buttonVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: 'spring',
-      stiffness: 400,
-      damping: 25,
-    },
-  },
-};
-
 function GameControls({
   isCrypt,
   cryptOptions,
@@ -200,14 +174,8 @@ function GameControls({
       role="group"
       aria-label="Answer options"
     >
-      {/* Answer Grid with staggered animation */}
-      <motion.div
-        className="grid grid-cols-2 gap-3 w-full max-w-[320px] pb-1"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        key={options.join(',')} // Re-animate when options change
-      >
+      {/* Answer Grid */}
+      <div className="grid grid-cols-2 gap-3 w-full max-w-[320px] pb-1">
         {options.map((option, i) => {
           // Dynamic text size: smaller for long names to prevent overflow
           const textSize = option.length > 20 ? 'text-[11px]' : 'text-sm';
@@ -217,14 +185,11 @@ function GameControls({
 
           return (
             <motion.button
-              key={`${option}-${i}`}
-              variants={buttonVariants}
+              key={i}
               onClick={() => isCrypt ? onCryptChoice(option) : onLibraryChoice(option)}
               whileHover={!revealed ? { scale: 1.03, y: -2 } : {}}
               whileTap={!revealed ? { scale: 0.97, y: 0 } : {}}
               disabled={revealed}
-              aria-label={`Select ${option}${showIndicator && isCorrect ? ' (correct answer)' : ''}${showIndicator && isSelected && !isCorrect ? ' (your incorrect choice)' : ''}`}
-              aria-pressed={isSelected}
               className={`py-2.5 px-3 rounded-xl ${textSize} font-semibold transition-all duration-200 flex items-center justify-center text-center min-h-[56px] shadow-md hover:shadow-lg relative`}
               style={{
                 ...getButtonStyle(option),
@@ -234,52 +199,41 @@ function GameControls({
               }}
             >
               {option}
-              {/* Selection indicator with animated entrance */}
+              {/* Selection indicator */}
               {showIndicator && isSelected && (
-                <motion.span
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 25, delay: 0.1 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
                   style={{
                     backgroundColor: isCorrect ? '#22c55e' : '#ef4444',
                     color: 'white',
                   }}
-                  aria-hidden="true"
                 >
                   {isCorrect ? '✓' : '✗'}
-                </motion.span>
+                </span>
               )}
               {/* Show checkmark on correct answer if user picked wrong */}
               {showIndicator && isCorrect && !isSelected && (
-                <motion.span
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 25, delay: 0.15 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
                   style={{
                     backgroundColor: '#22c55e',
                     color: 'white',
                   }}
-                  aria-hidden="true"
                 >
                   ✓
-                </motion.span>
+                </span>
               )}
             </motion.button>
           );
         })}
-      </motion.div>
+      </div>
 
-      {/* Skip Button - Discreet text link with adequate touch target */}
+      {/* Skip Button - Discreet text link */}
       {gameMode !== 'ranked' && (
         <button
           onClick={onSkip}
-          className="mt-2 text-xs flex items-center gap-1 px-4 py-2 rounded-lg transition-all duration-200 hover:opacity-80 min-h-[44px]"
+          className="mt-2 text-xs flex items-center gap-1 px-3 py-1 rounded transition-all duration-200 hover:opacity-80"
           style={{ color: 'var(--vtes-text-dim)' }}
-          aria-label="Skip this card"
         >
-          <SkipForward className="w-3 h-3" aria-hidden="true" />
+          <SkipForward className="w-3 h-3" />
           Skip
         </button>
       )}
