@@ -37,7 +37,7 @@ const vtesNavItems = [
   { label: 'Sessions', href: '/vtes/sessions', icon: FileText },
   { label: 'Leaderboard', href: '/vtes/leaderboard', icon: Trophy },
   { label: 'Search Cards', href: '/vtes/cards', icon: Search },
-  { label: 'CRUSADE', href: '/vtes/guess-card', icon: HelpCircle },
+  { label: 'CRUSADE', href: '/vtes-guess', icon: HelpCircle },
 ];
 
 const bottomItems = [
