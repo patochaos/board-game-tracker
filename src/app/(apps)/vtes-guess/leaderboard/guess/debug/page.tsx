@@ -62,7 +62,7 @@ export default function GuessLeaderboardDebugPage() {
             Leaderboard Debug Mode
           </h1>
           <Link
-            href="/vtes/leaderboard/guess"
+            href="/vtes-guess/leaderboard/guess"
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
             style={{
               backgroundColor: 'var(--vtes-bg-tertiary)',

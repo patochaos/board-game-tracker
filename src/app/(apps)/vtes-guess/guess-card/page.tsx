@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { Hud, CardStage, GameControls, SettingsModal } from '@/components/vtes/guess';
@@ -77,7 +77,7 @@ function saveStats(stats: GameStats): void {
   }
 }
 
-export default function GuessCardPage() {
+function GuessCardContent() {
   // Read mode from URL query parameter
   const searchParams = useSearchParams();
   const urlMode = searchParams.get('mode') as 'normal' | 'ranked' | null;
@@ -991,7 +991,7 @@ export default function GuessCardPage() {
                 ) : (
                   <>
                     <Link
-                      href="/vtes/leaderboard/guess"
+                      href="/vtes-guess/leaderboard/guess"
                       className="block w-full py-3 rounded-xl font-semibold transition-all duration-200 text-center"
                       style={{
                         backgroundColor: 'var(--vtes-gold)',
@@ -1172,5 +1172,19 @@ export default function GuessCardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function GuessCardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{
+        background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)'
+      }}>
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    }>
+      <GuessCardContent />
+    </Suspense>
   );
 }
