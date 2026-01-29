@@ -3,7 +3,8 @@
 import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BookOpen, Skull, Target, LogIn, LogOut, User } from 'lucide-react';
+import { X, BookOpen, Skull, Target, LogIn, LogOut, User, Trophy } from 'lucide-react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 interface SettingsModalProps {
@@ -197,6 +198,26 @@ export default function SettingsModal({
               </p>
             </div>
           )}
+
+          {/* Leaderboard Link */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: 'var(--vtes-text-muted)' }}>
+              Leaderboard
+            </label>
+            <Link
+              href="/vtes-guess/leaderboard/guess"
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02]"
+              style={{
+                backgroundColor: 'var(--vtes-bg-tertiary)',
+                color: 'var(--vtes-gold)',
+                border: '1px solid var(--vtes-burgundy-dark)',
+              }}
+            >
+              <Trophy className="w-5 h-5" />
+              View Leaderboard
+            </Link>
+          </div>
 
           {/* Logout Button - Only show if logged in */}
           {user && (
