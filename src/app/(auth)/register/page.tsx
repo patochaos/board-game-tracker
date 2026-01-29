@@ -51,6 +51,11 @@ function RegisterForm() {
   };
 
   const handleGoogleLogin = async () => {
+    // Store return URL in sessionStorage as backup (Supabase sometimes strips query params)
+    if (nextUrl && nextUrl !== '/dashboard') {
+      sessionStorage.setItem('auth_return_url', nextUrl);
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

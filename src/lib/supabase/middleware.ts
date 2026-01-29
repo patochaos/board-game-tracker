@@ -55,15 +55,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged in users away from auth pages
+  // Redirect logged in users away from auth pages (but respect the 'next' parameter)
   const authRoutes = ['/login', '/register'];
-  const isAuthRoute = authRoutes.some(route => 
+  const isAuthRoute = authRoutes.some(route =>
     request.nextUrl.pathname === route
   );
 
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    const nextParam = request.nextUrl.searchParams.get('next');
+    url.pathname = nextParam || '/dashboard';
+    url.search = ''; // Clear search params after using 'next'
     return NextResponse.redirect(url);
   }
 
