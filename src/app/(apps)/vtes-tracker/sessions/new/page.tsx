@@ -24,6 +24,17 @@ interface PlayerEntry {
 type GameType = 'casual' | 'tournament_prelim' | 'tournament_final' | 'league';
 
 const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const SESSION_FORM_STORAGE_KEY = 'vtes-session-form-draft';
+
+interface SessionFormState {
+    playedAt: string;
+    durationMinutes: string;
+    location: string;
+    notes: string;
+    gameType: GameType;
+    tableSwept: boolean;
+    players: PlayerEntry[];
+}
 
 export default function NewVTESSessionPage() {
     const router = useRouter();
@@ -51,6 +62,34 @@ export default function NewVTESSessionPage() {
         id: string;
         name: string;
     }[]>([]);
+
+    // Save form state to localStorage (for returning from CREATE DECK)
+    const saveFormState = () => {
+        const state: SessionFormState = {
+            playedAt,
+            durationMinutes,
+            location,
+            notes,
+            gameType,
+            tableSwept,
+            players,
+        };
+        localStorage.setItem(SESSION_FORM_STORAGE_KEY, JSON.stringify(state));
+    };
+
+    // Restore form state from localStorage
+    const restoreFormState = (): SessionFormState | null => {
+        try {
+            const saved = localStorage.getItem(SESSION_FORM_STORAGE_KEY);
+            if (saved) {
+                localStorage.removeItem(SESSION_FORM_STORAGE_KEY); // Clear after reading
+                return JSON.parse(saved);
+            }
+        } catch {
+            // Ignore parse errors
+        }
+        return null;
+    };
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -113,19 +152,39 @@ export default function NewVTESSessionPage() {
                 })));
             }
 
-            // Initialize with 5 players (standard VTES table)
-            const initialPlayers: PlayerEntry[] = Array.from({ length: 5 }).map((_, i) => ({
-                id: crypto.randomUUID(),
-                name: i === 0 ? userName : '',
-                deckId: null,
-                deckName: '',
-                vp: '',
-                seatPosition: i + 1,
-                isCurrentUser: i === 0,
-                userId: i === 0 ? user.id : null,
-            }));
+            // Check for saved form state (returning from CREATE DECK)
+            const savedState = restoreFormState();
+            if (savedState) {
+                // Restore saved form values
+                setPlayedAt(savedState.playedAt);
+                setDurationMinutes(savedState.durationMinutes);
+                setLocation(savedState.location);
+                setNotes(savedState.notes);
+                setGameType(savedState.gameType);
+                setTableSwept(savedState.tableSwept);
+                // Restore players, but update the current user's name
+                const restoredPlayers = savedState.players.map((p, i) => {
+                    if (i === 0) {
+                        return { ...p, name: userName, userId: user.id, isCurrentUser: true };
+                    }
+                    return p;
+                });
+                setPlayers(restoredPlayers);
+            } else {
+                // Initialize with 5 players (standard VTES table)
+                const initialPlayers: PlayerEntry[] = Array.from({ length: 5 }).map((_, i) => ({
+                    id: crypto.randomUUID(),
+                    name: i === 0 ? userName : '',
+                    deckId: null,
+                    deckName: '',
+                    vp: '',
+                    seatPosition: i + 1,
+                    isCurrentUser: i === 0,
+                    userId: i === 0 ? user.id : null,
+                }));
+                setPlayers(initialPlayers);
+            }
 
-            setPlayers(initialPlayers);
             setLoading(false);
         };
 
@@ -426,7 +485,15 @@ export default function NewVTESSessionPage() {
                                                         }}
                                                     >
                                                         <option value="__GUEST__">Guest (type name below)</option>
-                                                        {registeredUsers.map(u => (
+                                                        {registeredUsers
+                                                            .filter(u => {
+                                                                // Keep this user if they're the current player's selection
+                                                                if (u.id === player.userId) return true;
+                                                                // Filter out users already selected by other players
+                                                                const usedByOther = players.some(p => p.id !== player.id && p.userId === u.id);
+                                                                return !usedByOther;
+                                                            })
+                                                            .map(u => (
                                                             <option key={u.id} value={u.id}>{u.name}</option>
                                                         ))}
                                                     </select>
@@ -451,6 +518,7 @@ export default function NewVTESSessionPage() {
                                                     value={player.deckId || (player.deckName === 'Unknown' ? '__UNKNOWN__' : '')}
                                                     onChange={(e) => {
                                                         if (e.target.value === '__CREATE__') {
+                                                            saveFormState(); // Save current form state before navigating
                                                             router.push('/vtes-tracker/decks/import?returnTo=/vtes-tracker/sessions/new');
                                                             return;
                                                         }

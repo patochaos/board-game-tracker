@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input } from '@/components/ui';
-import { ArrowLeft, Swords, Trophy, Loader2, User, Save } from 'lucide-react';
+import { ArrowLeft, Swords, Trophy, Loader2, User, Save, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -19,6 +19,43 @@ interface PlayerEntry {
     seatPosition: number;
     isCurrentUser: boolean;
     userId: string | null;
+}
+
+interface DbSessionPlayer {
+    user_id: string;
+    score: number;
+    deck_id: string | null;
+    deck_name: string | null;
+    seat_position: number;
+    profile: { display_name: string | null; username: string } | null;
+}
+
+interface DbGuestPlayer {
+    name: string;
+    score: number;
+    deck_id: string | null;
+    deck_name: string | null;
+    seat_position: number;
+}
+
+interface SessionPlayerInsert {
+    session_id: string;
+    user_id: string;
+    score: number;
+    is_winner: boolean;
+    deck_id: string | null;
+    deck_name: string | null;
+    seat_position: number;
+}
+
+interface GuestPlayerInsert {
+    session_id: string;
+    name: string;
+    score: number;
+    is_winner: boolean;
+    deck_id: string | null;
+    deck_name: string | null;
+    seat_position: number;
 }
 
 type GameType = 'casual' | 'tournament_prelim' | 'tournament_final' | 'league';
@@ -39,7 +76,17 @@ export default function EditVTESSessionPage() {
     const [tableSwept, setTableSwept] = useState(false);
     const [players, setPlayers] = useState<PlayerEntry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [availableDecks, setAvailableDecks] = useState<{ id: string; name: string }[]>([]);
+    const [availableDecks, setAvailableDecks] = useState<{
+        id: string;
+        name: string;
+        is_public: boolean;
+        user_id: string;
+        owner_name: string;
+    }[]>([]);
+    const [registeredUsers, setRegisteredUsers] = useState<{
+        id: string;
+        name: string;
+    }[]>([]);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -55,14 +102,42 @@ export default function EditVTESSessionPage() {
             }
             setCurrentUserId(user.id);
 
-            // Fetch user's decks
+            // Fetch all decks with owner info
             const { data: decks } = await supabase
                 .from('decks')
-                .select('id, name')
-                .eq('user_id', user.id)
+                .select(`
+                    id, name, is_public, user_id,
+                    profile:profiles (display_name, username)
+                `)
                 .order('name');
 
-            if (decks) setAvailableDecks(decks);
+            if (decks) {
+                const formattedDecks = decks.map(d => {
+                    const profile = d.profile as unknown as { display_name: string | null; username: string } | null;
+                    return {
+                        id: d.id,
+                        name: d.name,
+                        is_public: d.is_public ?? true,
+                        user_id: d.user_id,
+                        owner_name: profile?.display_name || profile?.username || 'Unknown',
+                    };
+                });
+                setAvailableDecks(formattedDecks);
+            }
+
+            // Fetch registered users for player dropdown
+            const { data: users } = await supabase
+                .from('profiles')
+                .select('id, display_name, username')
+                .neq('id', user.id) // Exclude current user
+                .order('display_name');
+
+            if (users) {
+                setRegisteredUsers(users.map(u => ({
+                    id: u.id,
+                    name: u.display_name || u.username || 'Unknown',
+                })));
+            }
 
             // Fetch Session Data
             const { data: session, error: sessionError } = await supabase
@@ -101,7 +176,7 @@ export default function EditVTESSessionPage() {
             setTableSwept(session.table_swept || false);
 
             // Populate Players - Merge registered and guest
-            const registered: PlayerEntry[] = (session.session_players || []).map((p: any) => ({
+            const registered: PlayerEntry[] = ((session.session_players || []) as DbSessionPlayer[]).map((p) => ({
                 id: crypto.randomUUID(),
                 name: p.profile?.display_name || p.profile?.username || 'Unknown',
                 deckId: p.deck_id,
@@ -112,7 +187,7 @@ export default function EditVTESSessionPage() {
                 userId: p.user_id,
             }));
 
-            const guests: PlayerEntry[] = (session.guest_players || []).map((p: any) => ({
+            const guests: PlayerEntry[] = ((session.guest_players || []) as DbGuestPlayer[]).map((p) => ({
                 id: crypto.randomUUID(),
                 name: p.name,
                 deckId: p.deck_id,
@@ -162,15 +237,33 @@ export default function EditVTESSessionPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+
+        // Validation: ALL player seats must have a player assigned
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            if (!p.isCurrentUser && !p.userId && !p.name.trim()) {
+                setError(`Seat ${i + 1} needs a player. Select a registered player or enter a guest name.`);
+                return;
+            }
+        }
+
+        // Validate decks
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            if (!p.deckId && !p.deckName.trim()) {
+                const playerName = p.isCurrentUser ? 'You' : (p.name || `Seat ${i + 1}`);
+                setError(`${playerName} needs a deck selected. Choose a deck or select "Unknown".`);
+                return;
+            }
+        }
+
         setSaving(true);
 
         try {
-            const validPlayers = players.filter(p => p.name.trim() || p.isCurrentUser);
+            const validPlayers = players;
 
             // Calculate winner(s)
             const maxVP = Math.max(...validPlayers.map(p => parseFloat(p.vp || '0')));
-            const winners = validPlayers.filter(p => parseFloat(p.vp || '0') === maxVP && maxVP > 0);
-            const winnerIndices = new Set(winners.map(w => players.indexOf(w) + 1)); // Track by seat position logic derived from index
 
             // Update Session
             const { error: sessionError } = await supabase
@@ -202,15 +295,16 @@ export default function EditVTESSessionPage() {
             await supabase.from('guest_players').delete().eq('session_id', params.id);
 
             // Re-insert Players
-            const playersToInsert: any[] = [];
-            const guestPlayersToInsert: any[] = [];
+            const playersToInsert: SessionPlayerInsert[] = [];
+            const guestPlayersToInsert: GuestPlayerInsert[] = [];
 
+            const sessionId = params.id as string;
             validPlayers.forEach((p, index) => {
                 const isWinner = parseFloat(p.vp || '0') === maxVP && maxVP > 0;
 
                 if (p.userId) {
                     playersToInsert.push({
-                        session_id: params.id,
+                        session_id: sessionId,
                         user_id: p.userId,
                         score: parseFloat(p.vp || '0'),
                         is_winner: isWinner,
@@ -220,7 +314,7 @@ export default function EditVTESSessionPage() {
                     });
                 } else {
                     guestPlayersToInsert.push({
-                        session_id: params.id,
+                        session_id: sessionId,
                         name: p.name,
                         score: parseFloat(p.vp || '0'),
                         is_winner: isWinner,
@@ -238,7 +332,7 @@ export default function EditVTESSessionPage() {
                 await supabase.from('guest_players').insert(guestPlayersToInsert);
             }
 
-            router.push(`/vtes/sessions/${params.id}`);
+            router.push(`/vtes-tracker/sessions/${params.id}`);
         } catch (err) {
             console.error(err);
             setError(err instanceof Error ? err.message : 'Failed to update session');
@@ -260,7 +354,7 @@ export default function EditVTESSessionPage() {
             <AppLayout>
                 <div className="max-w-2xl mx-auto py-10 text-center">
                     <p className="text-red-400 mb-4">{error}</p>
-                    <Link href={`/vtes/sessions/${params.id}`}>
+                    <Link href={`/vtes-tracker/sessions/${params.id}`}>
                         <Button>Back to Session</Button>
                     </Link>
                 </div>
@@ -272,7 +366,7 @@ export default function EditVTESSessionPage() {
         <AppLayout>
             <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex items-center gap-4">
-                    <Link href={`/vtes/sessions/${params.id}`}>
+                    <Link href={`/vtes-tracker/sessions/${params.id}`}>
                         <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                             Cancel Edit
                         </Button>
@@ -363,59 +457,107 @@ export default function EditVTESSessionPage() {
                                                     {player.name} (You)
                                                 </div>
                                             ) : (
-                                                <input
-                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                    placeholder="Name"
-                                                    value={player.name}
-                                                    onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
-                                                />
-                                            )}
-                                        </div>
-
-                                        {/* Deck */}
-                                        <div className="md:col-span-4">
-                                            <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
-                                            {player.isCurrentUser && availableDecks.length > 0 ? (
                                                 <div className="space-y-2">
                                                     <select
                                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                        value={player.deckId || ''}
+                                                        value={player.userId || '__GUEST__'}
                                                         onChange={(e) => {
-                                                            const selectedDeck = availableDecks.find(d => d.id === e.target.value);
+                                                            const selectedUser = registeredUsers.find(u => u.id === e.target.value);
                                                             setPlayers(players.map(p => {
                                                                 if (p.id === player.id) {
+                                                                    if (e.target.value === '__GUEST__') {
+                                                                        return { ...p, userId: null, name: '' };
+                                                                    }
                                                                     return {
                                                                         ...p,
-                                                                        deckId: e.target.value || null,
-                                                                        deckName: selectedDeck?.name || p.deckName
+                                                                        userId: e.target.value,
+                                                                        name: selectedUser?.name || ''
                                                                     };
                                                                 }
                                                                 return p;
                                                             }));
                                                         }}
                                                     >
-                                                        <option value="">-- Select Deck --</option>
-                                                        {availableDecks.map(d => (
-                                                            <option key={d.id} value={d.id}>{d.name}</option>
+                                                        <option value="__GUEST__">Guest (type name below)</option>
+                                                        {registeredUsers
+                                                            .filter(u => {
+                                                                // Keep this user if they're the current player's selection
+                                                                if (u.id === player.userId) return true;
+                                                                // Filter out users already selected by other players
+                                                                const usedByOther = players.some(p => p.id !== player.id && p.userId === u.id);
+                                                                return !usedByOther;
+                                                            })
+                                                            .map(u => (
+                                                            <option key={u.id} value={u.id}>{u.name}</option>
                                                         ))}
                                                     </select>
-                                                    {!player.deckId && (
+                                                    {!player.userId && (
                                                         <input
                                                             className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                            placeholder="Or enter deck name"
-                                                            value={player.deckName}
-                                                            onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                            placeholder="Guest name"
+                                                            value={player.name}
+                                                            onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
                                                         />
                                                     )}
                                                 </div>
-                                            ) : (
-                                                <input
-                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
-                                                    placeholder="Deck Name"
-                                                    value={player.deckName}
-                                                    onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
-                                                />
                                             )}
+                                        </div>
+
+                                        {/* Deck */}
+                                        <div className="md:col-span-4">
+                                            <label className="text-xs text-slate-500 mb-1 block">Deck Played</label>
+                                            <div className="space-y-2">
+                                                <select
+                                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                    value={player.deckId || (player.deckName === 'Unknown' ? '__UNKNOWN__' : '')}
+                                                    onChange={(e) => {
+                                                        if (e.target.value === '__UNKNOWN__') {
+                                                            setPlayers(players.map(p => {
+                                                                if (p.id === player.id) {
+                                                                    return { ...p, deckId: null, deckName: 'Unknown' };
+                                                                }
+                                                                return p;
+                                                            }));
+                                                            return;
+                                                        }
+                                                        const selectedDeck = availableDecks.find(d => d.id === e.target.value);
+                                                        setPlayers(players.map(p => {
+                                                            if (p.id === player.id) {
+                                                                return {
+                                                                    ...p,
+                                                                    deckId: e.target.value || null,
+                                                                    deckName: selectedDeck?.name || ''
+                                                                };
+                                                            }
+                                                            return p;
+                                                        }));
+                                                    }}
+                                                >
+                                                    <option value="">-- Select Deck --</option>
+                                                    <option value="__UNKNOWN__">❓ Unknown deck</option>
+                                                    {availableDecks
+                                                        .filter(d => {
+                                                            // Keep this deck if it's the current player's selection
+                                                            if (d.id === player.deckId) return true;
+                                                            // Filter out decks already selected by other players
+                                                            const usedByOther = players.some(p => p.id !== player.id && p.deckId === d.id);
+                                                            return !usedByOther;
+                                                        })
+                                                        .map(d => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.is_public ? '' : '🔒 '}{d.name} ({d.owner_name})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {!player.deckId && player.deckName !== 'Unknown' && (
+                                                    <input
+                                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-red-500 outline-none"
+                                                        placeholder="Or enter deck name manually"
+                                                        value={player.deckName}
+                                                        onChange={(e) => updatePlayer(player.id, 'deckName', e.target.value)}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* VP */}
@@ -460,10 +602,17 @@ export default function EditVTESSessionPage() {
                         />
                     </Card>
 
-                    {error && <div className="text-red-400 text-center">{error}</div>}
+                    {error && (
+                        <div className="flex items-start gap-3 p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-200">
+                            <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium">{error}</p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                        <Link href={`/vtes/sessions/${params.id}`}>
+                        <Link href={`/vtes-tracker/sessions/${params.id}`}>
                             <Button variant="ghost" type="button">Cancel</Button>
                         </Link>
                         <Button type="submit" className="bg-red-600 hover:bg-red-700" disabled={saving} leftIcon={<Save className="h-4 w-4" />}>
