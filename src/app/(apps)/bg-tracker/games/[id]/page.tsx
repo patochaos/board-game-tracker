@@ -225,7 +225,7 @@ export default function GameDetailPage() {
       <AppLayout>
         <Card variant="glass" className="text-center py-12">
           <p className="text-slate-400">Game not found</p>
-          <Link href="/games" className="mt-4 inline-block">
+          <Link href="/bg-tracker/games" className="mt-4 inline-block">
             <Button variant="secondary">Back to Games</Button>
           </Link>
         </Card>
@@ -238,7 +238,7 @@ export default function GameDetailPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link href="/games">
+          <Link href="/bg-tracker/games">
             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
               Back
             </Button>

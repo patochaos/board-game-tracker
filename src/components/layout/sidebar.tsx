@@ -24,19 +24,19 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 const boardGameNavItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Games', href: '/games', icon: Dice5 },
-  { label: 'Sessions', href: '/sessions', icon: CalendarDays },
-  { label: 'Players', href: '/players', icon: Users },
-  { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+  { label: 'Dashboard', href: '/bg-tracker/dashboard', icon: LayoutDashboard },
+  { label: 'Games', href: '/bg-tracker/games', icon: Dice5 },
+  { label: 'Sessions', href: '/bg-tracker/sessions', icon: CalendarDays },
+  { label: 'Players', href: '/bg-tracker/players', icon: Users },
+  { label: 'Leaderboard', href: '/bg-tracker/leaderboard', icon: Trophy },
 ];
 
 const vtesNavItems = [
-  { label: 'Dashboard', href: '/vtes', icon: LayoutDashboard },
-  { label: 'Decks', href: '/vtes/decks', icon: Swords },
-  { label: 'Sessions', href: '/vtes/sessions', icon: FileText },
-  { label: 'Leaderboard', href: '/vtes/leaderboard', icon: Trophy },
-  { label: 'Search Cards', href: '/vtes/cards', icon: Search },
+  { label: 'Dashboard', href: '/vtes-tracker', icon: LayoutDashboard },
+  { label: 'Decks', href: '/vtes-tracker/decks', icon: Swords },
+  { label: 'Sessions', href: '/vtes-tracker/sessions', icon: FileText },
+  { label: 'Leaderboard', href: '/vtes-tracker/leaderboard', icon: Trophy },
+  { label: 'Search Cards', href: '/vtes-tracker/cards', icon: Search },
   { label: 'CRUSADE', href: '/vtes-guess', icon: HelpCircle },
 ];
 
@@ -56,7 +56,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const isVtes = pathname?.startsWith('/vtes');
+  const isVtes = pathname?.startsWith('/vtes-tracker') || pathname?.startsWith('/vtes-guess');
   const navItems = isVtes ? vtesNavItems : boardGameNavItems;
 
   // Theme configuration
@@ -86,7 +86,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
   };
 
   const NavLink = ({ item, mobile = false }: { item: typeof navItems[0], mobile?: boolean }) => {
-    const isActive = pathname === item.href || (item.href !== '/vtes' && pathname.startsWith(item.href + '/'));
+    const isActive = pathname === item.href || (item.href !== '/vtes-tracker' && pathname?.startsWith(item.href + '/'));
     const Icon = item.icon;
 
     return (
@@ -134,7 +134,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       >
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center justify-between mb-8">
-            <Link href={isVtes ? "/vtes" : "/dashboard"} className="flex items-center gap-3">
+            <Link href={isVtes ? "/vtes-tracker" : "/bg-tracker/dashboard"} className="flex items-center gap-3">
               <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
                 {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
               </div>
@@ -186,7 +186,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
             'flex items-center mb-8',
             isCollapsed ? 'justify-center' : 'gap-3'
           )}>
-            <Link href={isVtes ? "/vtes" : "/dashboard"} className="flex items-center gap-3">
+            <Link href={isVtes ? "/vtes-tracker" : "/bg-tracker/dashboard"} className="flex items-center gap-3">
               <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
                 {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
               </div>

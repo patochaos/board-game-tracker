@@ -449,11 +449,24 @@ export default function NewVTESSessionPage() {
                         <div className="space-y-4">
                             {players.map((player, index) => (
                                 <div key={player.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700 relative group">
+                                    {/* Seat number bubble - left */}
                                     <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-400">
                                         {index + 1}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 ml-2">
+                                    {/* Remove button bubble - right */}
+                                    {!player.isCurrentUser && players.length > 3 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removePlayer(player.id)}
+                                            className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-red-600 hover:border-red-500 hover:text-white transition-colors"
+                                            aria-label={`Remove ${player.name || 'player'}`}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 ml-2 mr-2">
                                         {/* Name */}
                                         <div className="md:col-span-4">
                                             <label className="text-xs text-slate-500 mb-1 block">Methuselah</label>
@@ -588,14 +601,6 @@ export default function NewVTESSessionPage() {
                                             </div>
                                         </div>
 
-                                        {/* Remove */}
-                                        <div className="md:col-span-1 flex items-end justify-center pb-2">
-                                            {!player.isCurrentUser && players.length > 3 && (
-                                                <button type="button" onClick={() => removePlayer(player.id)} className="text-slate-600 hover:text-red-400">
-                                                    &times;
-                                                </button>
-                                            )}
-                                        </div>
                                     </div>
                                 </div>
                             ))}

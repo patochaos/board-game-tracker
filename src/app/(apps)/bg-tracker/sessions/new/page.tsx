@@ -399,7 +399,7 @@ function NewSessionContent() {
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/sessions">
+          <Link href="/bg-tracker/sessions">
             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
               Back
             </Button>
@@ -417,7 +417,7 @@ function NewSessionContent() {
             {games.length === 0 ? (
               <div className="text-center py-6">
                 <p className="text-slate-400 mb-4">No games in your library yet</p>
-                <Link href="/games">
+                <Link href="/bg-tracker/games">
                   <Button variant="secondary" size="sm">Add Games First</Button>
                 </Link>
               </div>
@@ -600,21 +600,23 @@ function NewSessionContent() {
                   <button
                     type="button"
                     onClick={() => toggleWinner(player.id)}
-                    className={`p-2 rounded-lg transition-colors ${player.isWinner
+                    className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${player.isWinner
                       ? 'bg-yellow-500 text-slate-900'
                       : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
                       }`}
                     title={player.isWinner ? 'Winner!' : 'Mark as winner'}
+                    aria-label={player.isWinner ? 'Winner' : 'Mark as winner'}
                   >
-                    <Trophy className="h-4 w-4" />
+                    <Trophy className="h-5 w-5" />
                   </button>
                   {!player.isCurrentUser && (
                     <button
                       type="button"
                       onClick={() => removePlayer(player.id)}
-                      className="p-2 rounded-lg bg-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-slate-700 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      aria-label={`Remove ${player.name || 'player'}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   )}
                 </div>
@@ -674,7 +676,7 @@ function NewSessionContent() {
 
           {/* Submit */}
           <div className="flex gap-4">
-            <Link href="/sessions" className="flex-1">
+            <Link href="/bg-tracker/sessions" className="flex-1">
               <Button type="button" variant="secondary" className="w-full">
                 Cancel
               </Button>

@@ -11,7 +11,7 @@ export default function LandingPage() {
         {/* Gradient orbs */}
         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-red-900/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-emerald-900/20 rounded-full blur-[100px]" />
-        <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-purple-900/10 rounded-full blur-[80px]" />
+        <div className="absolute top-[40%] left--[30%] w-[300px] h-[300px] bg-purple-900/10 rounded-full blur-[80px]" />
 
         {/* Grid pattern */}
         <div
@@ -57,7 +57,7 @@ export default function LandingPage() {
           {/* Featured Card - CRUSADE (Spans 2 cols on lg) */}
           <Link
             href="/vtes-guess"
-            className="group relative md:col-span-2 lg:col-span-2 rounded-3xl overflow-hidden min-h-[320px] md:min-h-[380px]"
+            className="group relative md:col-span-2 lg:col-span-2 rounded-3xl overflow-hidden min-h-[320px] md:min-h-[380px] cursor-pointer"
           >
             {/* Background Image Effect */}
             <div
@@ -107,8 +107,8 @@ export default function LandingPage() {
 
           {/* Secondary Card A - Praxis Seizure */}
           <Link
-            href="/vtes"
-            className="group relative rounded-3xl overflow-hidden min-h-[280px]"
+            href="/vtes-tracker"
+            className="group relative rounded-3xl overflow-hidden min-h-[280px] cursor-pointer"
           >
             {/* Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 to-slate-900/80" />
@@ -140,8 +140,8 @@ export default function LandingPage() {
 
           {/* Secondary Card B - Board Game Tracker */}
           <Link
-            href="/dashboard"
-            className="group relative rounded-3xl overflow-hidden min-h-[280px] md:col-span-2 lg:col-span-1"
+            href="/bg-tracker/dashboard"
+            className="group relative rounded-3xl overflow-hidden min-h-[280px] md:col-span-2 lg:col-span-1 cursor-pointer"
           >
             {/* Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 to-slate-900/80" />
@@ -191,7 +191,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="mt-20 pt-8 border-t border-white/5">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+          <div className="flex flex-col sm-center justify-between gap-4 text-sm:flex-row items text-slate-500">
             <p>
               Built by <span className="text-slate-300">Patricio</span> • 2026
             </p>
@@ -200,7 +200,7 @@ export default function LandingPage() {
                 href="https://github.com/patochaos/board-game-tracker"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-slate-300 transition-colors"
+                className="flex items-center gap-2 hover:text-slate-300 transition-colors cursor-pointer"
               >
                 <Github className="w-4 h-4" />
                 GitHub

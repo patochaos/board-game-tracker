@@ -28,7 +28,7 @@ export default function Error({
           <Button variant="secondary" onClick={reset} leftIcon={<RefreshCw className="h-4 w-4" />}>
             Try Again
           </Button>
-          <Link href="/dashboard">
+          <Link href="/">
             <Button variant="ghost" leftIcon={<Home className="h-4 w-4" />}>
               Go Home
             </Button>

@@ -308,13 +308,13 @@ export default function SettingsPage() {
         <Card variant="glass">
           <h2 className="text-lg font-semibold text-slate-100 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link href="/games" className="block">
+            <Link href="/bg-tracker/games" className="block">
               <div className="p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors border border-slate-700 hover:border-emerald-500/50">
                 <h3 className="font-medium text-slate-200">Add Games</h3>
                 <p className="text-sm text-slate-400 mt-1">Search and add games from BGG</p>
               </div>
             </Link>
-            <Link href="/sessions/new" className="block">
+            <Link href="/bg-tracker/sessions/new" className="block">
               <div className="p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors border border-slate-700 hover:border-emerald-500/50">
                 <h3 className="font-medium text-slate-200">Log Session</h3>
                 <p className="text-sm text-slate-400 mt-1">Record a new game session</p>

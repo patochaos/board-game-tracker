@@ -124,7 +124,7 @@ function JoinPageContent() {
           <p className="mt-4 text-slate-400">
             You are already a member of a group. To join a different group, you would need to leave your current group first.
           </p>
-          <Link href="/dashboard">
+          <Link href="/bg-tracker/dashboard">
             <Button className="mt-6">
               Go to Dashboard
             </Button>

@@ -139,7 +139,7 @@ export default async function DashboardPage() {
               <Card variant="glass">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-slate-100">Recent Sessions</h2>
-                  <Link href="/sessions" className="text-sm text-emerald-400 hover:text-emerald-300">
+                  <Link href="/bg-tracker/sessions" className="text-sm text-emerald-400 hover:text-emerald-300">
                     View all
                   </Link>
                 </div>
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
               <Card variant="glass">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-slate-100">Most Played Games</h2>
-                  <Link href="/games" className="text-sm text-emerald-400 hover:text-emerald-300">
+                  <Link href="/bg-tracker/games" className="text-sm text-emerald-400 hover:text-emerald-300">
                     View all
                   </Link>
                 </div>

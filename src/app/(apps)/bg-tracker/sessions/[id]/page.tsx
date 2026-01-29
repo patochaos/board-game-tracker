@@ -336,7 +336,7 @@ export default function SessionDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/sessions">
+            <Link href="/bg-tracker/sessions">
               <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                 Back
               </Button>
