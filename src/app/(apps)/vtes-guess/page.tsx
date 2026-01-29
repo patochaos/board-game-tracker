@@ -1,9 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, Trophy } from 'lucide-react';
+import { Play, Trophy, Building, RefreshCw, Settings, Book, Flame, Droplets, Timer } from 'lucide-react';
+import { trackModeSelect } from '@/lib/analytics';
 
 export default function VtesGuessModeSelect() {
+  const handleModeSelect = (mode: 'normal' | 'ranked') => {
+    trackModeSelect({ mode, source: 'landing_page' });
+  };
+
   return (
     <div className="min-h-screen min-h-[100dvh] flex flex-col" style={{
       background: 'linear-gradient(to bottom, var(--vtes-bg-primary) 0%, var(--vtes-bg-secondary) 100%)',
@@ -17,7 +22,7 @@ export default function VtesGuessModeSelect() {
           <span style={{ color: 'var(--vtes-blood)' }}>C</span>RUSADE
         </h1>
         <p className="text-sm mt-2" style={{ color: 'var(--vtes-text-muted)' }}>
-          Choose your path
+          Test your mastery of Jyhad
         </p>
       </div>
 
@@ -26,7 +31,8 @@ export default function VtesGuessModeSelect() {
         {/* Practice Mode - Top Half */}
         <Link
           href="/vtes-guess/guess-card?mode=normal"
-          className="flex-1 relative group overflow-hidden"
+          onClick={() => handleModeSelect('normal')}
+          className="flex-1 relative group overflow-hidden cursor-pointer"
         >
           {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 to-slate-900/50 group-hover:from-emerald-900/40 transition-all duration-500" />
@@ -45,7 +51,8 @@ export default function VtesGuessModeSelect() {
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
             }}>
-              🏛️ Practice
+              <Building className="w-6 h-6 inline-block mr-2 text-emerald-400" />
+              Practice
             </h2>
             <p className="text-xs font-semibold tracking-wider text-emerald-400/80 mb-3">
               The Elysium
@@ -58,13 +65,16 @@ export default function VtesGuessModeSelect() {
             {/* Features */}
             <div className="flex flex-wrap justify-center gap-2 text-xs">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                ♾️ Infinite Retries
+                <RefreshCw className="w-3.5 h-3.5" />
+                No Pressure
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                🎚️ 5 Difficulties
+                <Settings className="w-3.5 h-3.5" />
+                5 Difficulty Tiers
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                📚 Library / Crypt
+                <Book className="w-3.5 h-3.5" />
+                5000+ Cards
               </span>
             </div>
 
@@ -81,7 +91,8 @@ export default function VtesGuessModeSelect() {
         {/* Ranked Mode - Bottom Half */}
         <Link
           href="/vtes-guess/guess-card?mode=ranked"
-          className="flex-1 relative group overflow-hidden"
+          onClick={() => handleModeSelect('ranked')}
+          className="flex-1 relative group overflow-hidden cursor-pointer"
         >
           {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-amber-900/30 to-slate-900/50 group-hover:from-amber-900/40 transition-all duration-500" />
@@ -100,7 +111,8 @@ export default function VtesGuessModeSelect() {
               fontFamily: 'var(--vtes-font-display)',
               color: 'var(--vtes-text-primary)',
             }}>
-              🔥 Ranked
+              <Flame className="w-6 h-6 inline-block mr-2 text-amber-400" />
+              Ranked
             </h2>
             <p className="text-xs font-semibold tracking-wider text-amber-400/80 mb-3">
               Gehenna
@@ -113,13 +125,16 @@ export default function VtesGuessModeSelect() {
             {/* Features */}
             <div className="flex flex-wrap justify-center gap-2 text-xs">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
-                🩸 Ramping Difficulty
+                <Droplets className="w-3.5 h-3.5" />
+                20 Cards
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
-                🏆 Leaderboard
+                <Trophy className="w-3.5 h-3.5" />
+                Global Rankings
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400">
-                ⏱️ Timed
+                <Timer className="w-3.5 h-3.5" />
+                10s Timer
               </span>
             </div>
 
@@ -135,14 +150,15 @@ export default function VtesGuessModeSelect() {
       <div className="text-center py-3 px-4 flex justify-center gap-6">
         <Link
           href="/vtes-guess/leaderboard/guess"
-          className="text-xs hover:underline"
+          className="flex items-center gap-1 text-xs hover:underline"
           style={{ color: 'var(--vtes-text-muted)' }}
         >
-          🏆 Leaderboard
+          <Trophy className="w-3 h-3" />
+          Leaderboard
         </Link>
         <Link
           href="/"
-          className="text-xs hover:underline"
+          className="flex items-center gap-1 text-xs hover:underline cursor-pointer"
           style={{ color: 'var(--vtes-text-dim)' }}
         >
           ← Back to Home

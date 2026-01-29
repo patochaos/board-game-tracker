@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaskedCard } from '@/components/vtes/MaskedCard';
 import CardAttributesStrip from './CardAttributesStrip';
@@ -9,14 +10,14 @@ interface CardStageProps {
   card: GameCardData;
   cardDetails: GameCardDetails | null;
   revealed: boolean;
-  feedback: 'correct' | 'incorrect' | null;
+  feedback: 'correct' | 'incorrect' | 'timeout' | 'skipped' | null;
   cardKey: number;
   getImageUrl: (card: GameCardData) => string;
 }
 
 // Note: `revealed` is already in props and used internally
 
-export default function CardStage({
+function CardStage({
   card,
   cardDetails,
   revealed,
@@ -68,19 +69,38 @@ export default function CardStage({
         >
           {/* Card Container */}
           <div
-            className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 ${
-              feedback === 'correct' ? 'ring-4 ring-green-500' :
-              feedback === 'incorrect' ? 'ring-4 ring-red-500' :
-              feedback === 'skipped' ? 'ring-4 ring-slate-500' :
-              ''
-            }`}
+            className="relative overflow-hidden rounded-xl shadow-2xl"
             style={{
               width: displayWidth,
               height: displayHeight,
               backgroundColor: 'var(--vtes-bg-primary)',
             }}
             onContextMenu={(e) => e.preventDefault()}
+            role="img"
+            aria-label={revealed ? `VTES card: ${card.name}` : 'Hidden VTES card'}
           >
+            {/* Animated feedback ring */}
+            <AnimatePresence>
+              {feedback && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="absolute inset-0 rounded-xl pointer-events-none z-20"
+                  style={{
+                    boxShadow: feedback === 'correct'
+                      ? '0 0 0 4px #22c55e, 0 0 20px rgba(34, 197, 94, 0.5)'
+                      : feedback === 'timeout'
+                      ? '0 0 0 4px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.5)'
+                      : feedback === 'skipped'
+                      ? '0 0 0 4px #64748b, 0 0 20px rgba(100, 116, 139, 0.3)'
+                      : '0 0 0 4px #ef4444, 0 0 20px rgba(239, 68, 68, 0.5)',
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+            </AnimatePresence>
             {isCrypt ? (
               <MaskedCard
                 imageUrl={imageUrl}
@@ -112,15 +132,21 @@ export default function CardStage({
 
             {/* Feedback flash overlay */}
             <AnimatePresence>
-              {feedback && (
+              {feedback && feedback !== 'skipped' && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className={`absolute inset-0 rounded-xl pointer-events-none ${
-                    feedback === 'correct' ? 'bg-green-500/20' : 'bg-red-500/20'
-                  }`}
+                  className="absolute inset-0 rounded-xl pointer-events-none"
+                  style={{
+                    backgroundColor: feedback === 'correct'
+                      ? 'rgba(34, 197, 94, 0.2)'
+                      : feedback === 'timeout'
+                      ? 'rgba(245, 158, 11, 0.2)'
+                      : 'rgba(239, 68, 68, 0.2)',
+                  }}
+                  aria-hidden="true"
                 />
               )}
             </AnimatePresence>
@@ -169,3 +195,5 @@ export default function CardStage({
     </div>
   );
 }
+
+export default memo(CardStage);

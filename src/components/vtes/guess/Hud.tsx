@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Flame, Target, Settings } from 'lucide-react';
 
@@ -15,7 +15,7 @@ interface HudProps {
   onSettingsClick: () => void;
 }
 
-export default function Hud({
+function Hud({
   score,
   streak,
   gameMode,
@@ -193,8 +193,10 @@ export default function Hud({
         style={{ color: 'var(--vtes-text-muted)' }}
         aria-label="Settings"
       >
-        <Settings className="w-5 h-5" />
+        <Settings className="w-5 h-5" aria-hidden="true" />
       </button>
     </div>
   );
 }
+
+export default memo(Hud);

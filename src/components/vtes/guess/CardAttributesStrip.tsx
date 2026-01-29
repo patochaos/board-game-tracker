@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Droplet } from 'lucide-react';
 import { VtesIcon } from '@/components/vtes/VtesIcon';
 import type { GameCardDetails } from '@/lib/vtes/guess-game';
@@ -10,7 +11,7 @@ interface CardAttributesStripProps {
   cardTypes: string[];
 }
 
-export default function CardAttributesStrip({ cardDetails, isCrypt, cardTypes }: CardAttributesStripProps) {
+function CardAttributesStrip({ cardDetails, isCrypt, cardTypes }: CardAttributesStripProps) {
   return (
     <div className="flex justify-center mt-1 flex-shrink-0">
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-sm" style={{
@@ -97,3 +98,5 @@ export default function CardAttributesStrip({ cardDetails, isCrypt, cardTypes }:
     </div>
   );
 }
+
+export default memo(CardAttributesStrip);

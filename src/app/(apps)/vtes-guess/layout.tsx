@@ -5,14 +5,14 @@ export const metadata: Metadata = {
     default: "CRUSADE",
     template: "%s | CRUSADE",
   },
-  description: "Test your Vampire: The Eternal Struggle card knowledge with CRUSADE. Featuring 5000+ cards, 5 difficulty levels, ranked mode, and global leaderboards.",
-  keywords: ["VTES", "Vampire: The Eternal Struggle", "card game", "guessing game", "trivia", "CRUSADE"],
+  description: "Master Jyhad with CRUSADE - the ultimate VTES card recognition game. 5000+ cards from Vampire: The Eternal Struggle, 5 difficulty tiers, ranked mode with global leaderboards.",
+  keywords: ["VTES", "Vampire: The Eternal Struggle", "card game", "guessing game", "trivia", "CRUSADE", "Jyhad", "CCG"],
   openGraph: {
     type: "website",
     locale: "en_US",
     siteName: "CRUSADE - VTES Card Game",
-    title: "CRUSADE - Test Your VTES Knowledge",
-    description: "How well do you know VTES cards? Play CRUSADE - the ultimate card guessing game for Vampire: The Eternal Struggle players.",
+    title: "CRUSADE - How Well Do You Know VTES?",
+    description: "Test your Vampire: The Eternal Struggle mastery. 5000+ cards, timed challenges, global rankings. Can you survive Gehenna?",
     images: [
       {
         url: "/og-crusade.png",
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CRUSADE - Test Your VTES Knowledge",
-    description: "How well do you know VTES cards? Play CRUSADE - the ultimate card guessing game.",
+    title: "CRUSADE - How Well Do You Know VTES?",
+    description: "Test your Vampire: The Eternal Struggle mastery. 5000+ cards, timed challenges, global rankings.",
     images: ["/twitter-crusade.png"],
   },
   alternates: {
@@ -50,7 +50,7 @@ export default function CrusadeLayout({
             applicationCategory: "Game",
             operatingSystem: "Web",
             url: "https://praxis-seizure.vercel.app/vtes-guess",
-            description: "Test your Vampire: The Eternal Struggle card knowledge. Featuring 5000+ cards, 5 difficulty levels, ranked mode, and global leaderboards.",
+            description: "Master Jyhad with CRUSADE - the ultimate VTES card recognition game. 5000+ cards, 5 difficulty tiers, timed ranked challenges, and global leaderboards.",
             browserRequirements: "Requires JavaScript. Requires modern web browser.",
             offers: {
               "@type": "Offer",

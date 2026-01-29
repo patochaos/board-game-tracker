@@ -253,7 +253,7 @@ function GuessCardContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Animation state
-  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
+  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | 'timeout' | 'skipped' | null>(null);
   const [cardKey, setCardKey] = useState(0); // For AnimatePresence transitions
   const [, setStreakMilestone] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -775,7 +775,7 @@ function GuessCardContent() {
         // Trigger timeout
         setChoiceMade(true);
         setResult('timeout');
-        setFeedback('incorrect');
+        setFeedback('timeout');
         setRevealed(true);
         setShowUnblurred(true);
         setRankedStats(prev => ({
@@ -1043,6 +1043,7 @@ function GuessCardContent() {
 
     setRevealed(true);
     setResult('skipped');
+    setFeedback('skipped');
     setShowUnblurred(true); // REVEAL card in full HD
     setStreak(0);
     setTotalPlayed(prev => prev + 1);
@@ -1052,6 +1053,7 @@ function GuessCardContent() {
 
     // Auto-advance after brief delay to show the skipped card
     setTimeout(() => {
+      setFeedback(null);
       nextCard();
     }, 800);
   };
