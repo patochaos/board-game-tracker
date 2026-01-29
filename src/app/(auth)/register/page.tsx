@@ -28,6 +28,8 @@ function RegisterForm() {
 
     // Check immediately in case user already verified
     const checkAuth = async () => {
+      // Refresh the session first to get updated user data from server
+      await supabase.auth.refreshSession();
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email_confirmed_at) {
         // Email verified - redirect to score
@@ -49,8 +51,9 @@ function RegisterForm() {
     }, 3000);
 
     // Listen for auth state changes (covers when user clicks verification link in same browser)
+    // USER_UPDATED fires when email is verified, SIGNED_IN fires on initial login
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user?.email_confirmed_at) {
         clearInterval(interval);
         router.push(nextUrl);
       }
