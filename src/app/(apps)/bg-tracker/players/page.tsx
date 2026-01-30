@@ -82,20 +82,25 @@ export default function PlayersPage() {
       if (groupData) {
         setGroup(groupData);
 
-        // Get group members
+        // Get group members (only boardgame app users)
         const { data: membersData } = await supabase
           .from('group_members')
           .select(`
             user_id,
             role,
             joined_at,
-            profile:profiles(username, display_name, avatar_url)
+            profile:profiles(username, display_name, avatar_url, app_type)
           `)
           .eq('group_id', groupId)
           .order('joined_at');
 
         if (membersData) {
-          setMembers(membersData as unknown as GroupMember[]);
+          // Filter to only show boardgame users
+          const filteredMembers = membersData.filter(m => {
+            const profile = m.profile as { app_type?: string } | null;
+            return !profile?.app_type || profile.app_type === 'boardgame';
+          });
+          setMembers(filteredMembers as unknown as GroupMember[]);
         }
 
         // Fetch guest players from group's sessions

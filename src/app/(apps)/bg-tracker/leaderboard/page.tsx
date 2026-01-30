@@ -65,7 +65,8 @@ export default function LeaderboardPage() {
                     ),
                     sessions:session_id (
                         played_at,
-                        group_id
+                        group_id,
+                        game:games (app_type)
                     )
                 `);
 
@@ -85,10 +86,14 @@ export default function LeaderboardPage() {
             (data as unknown as LeaderboardRow[]).forEach((row) => {
                 const userId = row.user_id;
                 const profile = row.profiles;
-                const session = row.sessions as { played_at: string; group_id: string } | undefined;
+                const session = row.sessions as { played_at: string; group_id: string; game?: { app_type?: string } } | undefined;
 
                 // Handle potential missing profile (e.g. deleted user)
                 if (!profile) return;
+
+                // Skip VTES sessions (only show boardgame sessions)
+                const gameAppType = session?.game?.app_type;
+                if (gameAppType && gameAppType !== 'boardgame') return;
 
                 // Skip if group filter applies
                 if (scopeFilter === 'myGroup' && userGroupId) {
