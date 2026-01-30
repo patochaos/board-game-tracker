@@ -19,11 +19,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const bggToken = process.env.BGG_API_TOKEN;
+  if (!bggToken) {
+    return NextResponse.json(
+      { error: 'BGG API token not configured' },
+      { status: 500 }
+    );
+  }
+
   const encodedQuery = encodeURIComponent(query);
   const url = `${BGG_API_BASE}/search?query=${encodedQuery}&type=boardgame`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${bggToken}`,
+      },
+    });
 
     if (!response.ok) {
       return NextResponse.json(
