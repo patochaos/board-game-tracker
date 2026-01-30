@@ -110,6 +110,23 @@ Ver `.env.local.example`:
  
 ## Changelog
 
+### 2026-01-30
+- **Stats in Sidebar:** Added Stats link back to sidebar navigation (was missing)
+- **Mobile Responsiveness Fixes:**
+  - Leaderboard table: Added `overflow-x-auto`, responsive padding (`px-3 md:px-6`)
+  - Stats table: Responsive headers, truncation on mobile, hide Players column on small screens
+  - Bottom nav: Increased touch target to 48px minimum height
+  - Sidebar menu button: Increased padding to 44px touch target
+  - Sessions form: Added `sm:` breakpoint for date/duration grid
+- **Data Separation (VTES vs Board Games):**
+  - Added `app_type` column to games table (migration 25)
+  - Filtered sessions, leaderboard, stats to only show boardgame data
+  - Filtered players list to exclude VTES-only users
+- **Reset Data Fix:** Changed to delete `user_games` ownership instead of games (RLS issue)
+- **Games Ownership:** Games only show if they have at least one owner in `user_games`
+- **BGG API:** Restored Bearer token authentication (was getting 401)
+- **Route Fixes:** All internal links now use `/bg-tracker/` prefix
+
 ### 2026-01-29
 - **Rebranding:** Renamed from "Board Game Tracker" to "Salty Meeples"
 - **VTES code removed:** VTES module moved to separate INCONNU repository
