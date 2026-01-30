@@ -394,7 +394,7 @@ export default function GamesPage() {
                     )}
 
                     {/* Thumbnail */}
-                    <Link href={`/games/${game.id}`} className="flex-shrink-0">
+                    <Link href={`/bg-tracker/games/${game.id}`} className="flex-shrink-0">
                       {game.thumbnail_url ? (
                         <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-slate-800">
                           <Image
@@ -413,7 +413,7 @@ export default function GamesPage() {
                     </Link>
 
                     {/* Game Info */}
-                    <Link href={`/games/${game.id}`} className="flex-1 min-w-0">
+                    <Link href={`/bg-tracker/games/${game.id}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium text-slate-100">{game.name}</h3>
                         {hasExpansions && (
@@ -450,7 +450,7 @@ export default function GamesPage() {
                       {game.expansions.map((expansion) => (
                         <Link
                           key={expansion.id}
-                          href={`/games/${expansion.id}`}
+                          href={`/bg-tracker/games/${expansion.id}`}
                           className="px-4 py-3 flex items-center gap-4 pl-16 border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/50 transition-colors"
                         >
                           {/* Expansion Thumbnail */}
