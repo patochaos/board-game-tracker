@@ -15,6 +15,7 @@ import {
   LogOut,
   ChevronLeft,
   Trophy,
+  BarChart2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Sessions', href: '/bg-tracker/sessions', icon: CalendarDays },
   { label: 'Players', href: '/bg-tracker/players', icon: Users },
   { label: 'Leaderboard', href: '/bg-tracker/leaderboard', icon: Trophy },
+  { label: 'Stats', href: '/bg-tracker/stats', icon: BarChart2 },
 ];
 
 const bottomItems = [
@@ -86,7 +88,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-slate-900 border border-slate-800 lg:hidden"
+        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-900 border border-slate-800 lg:hidden"
       >
         <Menu className="h-5 w-5 text-slate-300" />
       </button>

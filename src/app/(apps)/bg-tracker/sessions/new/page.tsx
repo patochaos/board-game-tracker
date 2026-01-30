@@ -697,7 +697,7 @@ function NewSessionContent() {
           {/* Date & Duration */}
           <Card variant="glass">
             <h2 className="text-lg font-semibold text-slate-100 mb-4">When</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Date"
                 type="date"

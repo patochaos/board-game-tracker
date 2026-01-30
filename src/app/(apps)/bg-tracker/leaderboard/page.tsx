@@ -274,65 +274,67 @@ export default function LeaderboardPage() {
 
                     {/* List View */}
                     <Card variant="glass" className="overflow-hidden p-0">
-                        <table className="w-full">
-                            <thead className="bg-slate-800/50 text-xs text-slate-400 uppercase tracking-wider">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">Rank</th>
-                                    <th className="px-6 py-4 text-left">Player</th>
-                                    <th className="px-6 py-4 text-center">Wins</th>
-                                    <th className="px-6 py-4 text-center">Plays</th>
-                                    <th className="px-6 py-4 text-right">Win Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {stats.map((stat, index) => (
-                                    <tr key={stat.userId} className="hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center w-8 h-8 rounded bg-slate-800/50">
-                                                {getRankIcon(index)}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {stat.avatarUrl ? (
-                                                    <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                                                        <Image src={stat.avatarUrl} alt={stat.name} fill className="object-cover" />
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400">
-                                                        {stat.name.substring(0, 1).toUpperCase()}
-                                                    </div>
-                                                )}
-                                                <span className="font-medium text-slate-200">{stat.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="font-bold text-emerald-400">{stat.wins}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center text-slate-400">
-                                            {stat.plays}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="text-sm text-slate-300">{stat.winRate.toFixed(1)}%</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {stats.length === 0 && !loading && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[400px]">
+                                <thead className="bg-slate-800/50 text-xs text-slate-400 uppercase tracking-wider">
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                                            No stats found. Log some games to see the leaderboard!
-                                        </td>
+                                        <th className="px-3 md:px-6 py-3 md:py-4 text-left">Rank</th>
+                                        <th className="px-3 md:px-6 py-3 md:py-4 text-left">Player</th>
+                                        <th className="px-3 md:px-6 py-3 md:py-4 text-center">Wins</th>
+                                        <th className="px-3 md:px-6 py-3 md:py-4 text-center">Plays</th>
+                                        <th className="px-3 md:px-6 py-3 md:py-4 text-right">Win %</th>
                                     </tr>
-                                )}
-                                {loading && (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 animate-pulse">
-                                            Loading stats...
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800">
+                                    {stats.map((stat, index) => (
+                                        <tr key={stat.userId} className="hover:bg-slate-800/30 transition-colors">
+                                            <td className="px-3 md:px-6 py-3 md:py-4">
+                                                <div className="flex items-center justify-center w-8 h-8 rounded bg-slate-800/50">
+                                                    {getRankIcon(index)}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 md:px-6 py-3 md:py-4">
+                                                <div className="flex items-center gap-2 md:gap-3">
+                                                    {stat.avatarUrl ? (
+                                                        <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                                                            <Image src={stat.avatarUrl} alt={stat.name} fill className="object-cover" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400 flex-shrink-0">
+                                                            {stat.name.substring(0, 1).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <span className="font-medium text-slate-200 truncate max-w-[100px] md:max-w-none">{stat.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 md:px-6 py-3 md:py-4 text-center">
+                                                <span className="font-bold text-emerald-400">{stat.wins}</span>
+                                            </td>
+                                            <td className="px-3 md:px-6 py-3 md:py-4 text-center text-slate-400">
+                                                {stat.plays}
+                                            </td>
+                                            <td className="px-3 md:px-6 py-3 md:py-4 text-right">
+                                                <span className="text-sm text-slate-300">{stat.winRate.toFixed(0)}%</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {stats.length === 0 && !loading && (
+                                        <tr>
+                                            <td colSpan={5} className="px-3 md:px-6 py-12 text-center text-slate-500">
+                                                No stats found. Log some games to see the leaderboard!
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {loading && (
+                                        <tr>
+                                            <td colSpan={5} className="px-3 md:px-6 py-12 text-center text-slate-500 animate-pulse">
+                                                Loading stats...
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </Card>
                 </div>
             </div>

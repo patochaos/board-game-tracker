@@ -669,32 +669,32 @@ export default function StatsPage() {
               Game Details
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[500px]">
                 <thead>
-                  <tr className="text-left text-sm text-slate-400 border-b border-slate-700">
-                    <th className="pb-3 font-medium">Game</th>
-                    <th className="pb-3 font-medium text-center">Plays</th>
-                    <th className="pb-3 font-medium text-center">Players</th>
-                    <th className="pb-3 font-medium text-center">Avg Score</th>
-                    <th className="pb-3 font-medium text-center">High Score</th>
-                    <th className="pb-3 font-medium text-center">Avg Time</th>
+                  <tr className="text-left text-xs md:text-sm text-slate-400 border-b border-slate-700">
+                    <th className="pb-3 pr-2 font-medium">Game</th>
+                    <th className="pb-3 px-2 font-medium text-center">Plays</th>
+                    <th className="pb-3 px-2 font-medium text-center hidden sm:table-cell">Players</th>
+                    <th className="pb-3 px-2 font-medium text-center">Avg</th>
+                    <th className="pb-3 px-2 font-medium text-center">High</th>
+                    <th className="pb-3 pl-2 font-medium text-center">Time</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {gameStats.map((game) => (
                     <tr key={game.game_id} className="border-b border-slate-800 last:border-0">
-                      <td className="py-3">
-                        <span className="text-slate-200">{game.name}</span>
+                      <td className="py-3 pr-2">
+                        <span className="text-slate-200 truncate block max-w-[120px] md:max-w-none">{game.name}</span>
                       </td>
-                      <td className="py-3 text-center text-slate-300">{game.total_plays}</td>
-                      <td className="py-3 text-center text-slate-300">{game.total_players}</td>
-                      <td className="py-3 text-center text-slate-300">
+                      <td className="py-3 px-2 text-center text-slate-300">{game.total_plays}</td>
+                      <td className="py-3 px-2 text-center text-slate-300 hidden sm:table-cell">{game.total_players}</td>
+                      <td className="py-3 px-2 text-center text-slate-300">
                         {game.avg_score ? Math.round(game.avg_score) : '-'}
                       </td>
-                      <td className="py-3 text-center text-emerald-400 font-medium">
+                      <td className="py-3 px-2 text-center text-emerald-400 font-medium">
                         {game.high_score || '-'}
                       </td>
-                      <td className="py-3 text-center text-slate-300">
+                      <td className="py-3 pl-2 text-center text-slate-300">
                         {game.avg_duration ? `${Math.round(game.avg_duration)}m` : '-'}
                       </td>
                     </tr>

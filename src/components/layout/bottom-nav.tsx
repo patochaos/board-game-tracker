@@ -47,12 +47,12 @@ export function BottomNav() {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                'flex flex-col items-center justify-center min-w-[64px] py-2 px-3 rounded-xl transition-all duration-200',
+                                'flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-2 px-2 rounded-xl transition-all duration-200',
                                 isActive ? cn(activeColor, activeBg) : inactiveColor,
                                 !isActive && 'hover:text-slate-300 active:scale-95'
                             )}
                         >
-                            <Icon className={cn('h-6 w-6 mb-1', isActive && activeColor)} />
+                            <Icon className={cn('h-6 w-6 mb-0.5', isActive && activeColor)} />
                             <span className={cn(
                                 'text-[10px] font-medium',
                                 isActive ? activeColor : 'text-slate-500'
