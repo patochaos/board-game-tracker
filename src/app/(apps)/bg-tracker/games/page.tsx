@@ -118,15 +118,16 @@ export default function GamesPage() {
       }
 
       // Separate base games and expansions and add ownership
+      // Only include games that have at least one owner
       const baseGames: GameWithOwnership[] = allGames
-        .filter((g: Game) => g.type !== 'expansion')
+        .filter((g: Game) => g.type !== 'expansion' && ownershipMap.has(g.id))
         .map((g: Game) => ({
           ...g,
           owners: ownershipMap.get(g.id) || []
         }));
 
       const expansions: GameWithOwnership[] = allGames
-        .filter((g: Game) => g.type === 'expansion')
+        .filter((g: Game) => g.type === 'expansion' && ownershipMap.has(g.id))
         .map((g: Game) => ({
           ...g,
           owners: ownershipMap.get(g.id) || []
