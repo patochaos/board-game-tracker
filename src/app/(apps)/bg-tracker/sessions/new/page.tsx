@@ -121,13 +121,11 @@ function NewSessionContent() {
         setGames(gamesData);
       }
 
-      // Fetch recent games from user's sessions (excluding VTES)
-      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      // Fetch recent games from user's sessions
       const { data: recentSessionsForGames } = await supabase
         .from('sessions')
         .select('game_id')
         .eq('created_by', user.id)
-        .neq('game_id', VTES_GAME_ID)
         .order('played_at', { ascending: false })
         .limit(20);
 

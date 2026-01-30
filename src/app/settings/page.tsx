@@ -75,8 +75,7 @@ export default function SettingsPage() {
     setIsExporting(true);
 
     try {
-      // Fetch all sessions with related data (excluding VTES sessions)
-      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      // Fetch all sessions with related data
       const { data: sessions } = await supabase
         .from('sessions')
         .select(`
@@ -91,7 +90,6 @@ export default function SettingsPage() {
             profile:profiles(display_name, username)
           )
         `)
-        .neq('game_id', VTES_GAME_ID)
         .order('played_at', { ascending: false });
 
       if (!sessions || sessions.length === 0) {

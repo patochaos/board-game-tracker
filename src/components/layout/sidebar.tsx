@@ -15,15 +15,11 @@ import {
   LogOut,
   ChevronLeft,
   Trophy,
-  Swords,
-  Search,
-  FileText,
-  HelpCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-const boardGameNavItems = [
+const navItems = [
   { label: 'Dashboard', href: '/bg-tracker/dashboard', icon: LayoutDashboard },
   { label: 'Games', href: '/bg-tracker/games', icon: Dice5 },
   { label: 'Sessions', href: '/bg-tracker/sessions', icon: CalendarDays },
@@ -31,17 +27,8 @@ const boardGameNavItems = [
   { label: 'Leaderboard', href: '/bg-tracker/leaderboard', icon: Trophy },
 ];
 
-const vtesNavItems = [
-  { label: 'Dashboard', href: '/vtes-tracker', icon: LayoutDashboard },
-  { label: 'Decks', href: '/vtes-tracker/decks', icon: Swords },
-  { label: 'Sessions', href: '/vtes-tracker/sessions', icon: FileText },
-  { label: 'Leaderboard', href: '/vtes-tracker/leaderboard', icon: Trophy },
-  { label: 'Search Cards', href: '/vtes-tracker/cards', icon: Search },
-  { label: 'CRUSADE', href: '/vtes-guess', icon: HelpCircle },
-];
-
 const bottomItems = [
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Settings', href: '/bg-tracker/settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -56,20 +43,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const isVtes = pathname?.startsWith('/vtes-tracker') || pathname?.startsWith('/vtes-guess');
-  const navItems = isVtes ? vtesNavItems : boardGameNavItems;
-
-  // Theme configuration
-  const theme = isVtes ? {
-    iconBg: 'bg-gradient-to-br from-red-600 to-rose-900',
-    iconColor: 'text-red-100',
-    activeBg: 'bg-red-900/20',
-    activeText: 'text-red-400',
-    activeShadow: 'shadow-red-500/10',
-    hoverBg: 'hover:bg-red-900/10',
-    hoverText: 'hover:text-red-200',
-    appName: 'Praxis Seizure'
-  } : {
+  const theme = {
     iconBg: 'bg-gradient-to-br from-wood-500 to-wood-600',
     iconColor: 'text-white',
     activeBg: 'bg-wood-500/20',
@@ -82,11 +56,11 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/bg-tracker/login');
   };
 
   const NavLink = ({ item, mobile = false }: { item: typeof navItems[0], mobile?: boolean }) => {
-    const isActive = pathname === item.href || (item.href !== '/vtes-tracker' && pathname?.startsWith(item.href + '/'));
+    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
     const Icon = item.icon;
 
     return (
@@ -134,9 +108,9 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       >
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center justify-between mb-8">
-            <Link href={isVtes ? "/vtes-tracker" : "/bg-tracker/dashboard"} className="flex items-center gap-3">
+            <Link href="/bg-tracker/dashboard" className="flex items-center gap-3">
               <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
-                {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
+                <Dice5 className={cn("h-6 w-6", theme.iconColor)} />
               </div>
               <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
             </Link>
@@ -152,13 +126,6 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
           </nav>
 
           <div className="pt-4 border-t border-slate-800 space-y-1">
-            <Link
-              href="/"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 w-full transition-all duration-200"
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Switch App</span>
-            </Link>
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} mobile />
             ))}
@@ -186,9 +153,9 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
             'flex items-center mb-8',
             isCollapsed ? 'justify-center' : 'gap-3'
           )}>
-            <Link href={isVtes ? "/vtes-tracker" : "/bg-tracker/dashboard"} className="flex items-center gap-3">
+            <Link href="/bg-tracker/dashboard" className="flex items-center gap-3">
               <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
-                {isVtes ? <Swords className={cn("h-6 w-6", theme.iconColor)} /> : <Dice5 className={cn("h-6 w-6", theme.iconColor)} />}
+                <Dice5 className={cn("h-6 w-6", theme.iconColor)} />
               </div>
               {!isCollapsed && (
                 <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
@@ -205,18 +172,6 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
 
           {/* Bottom Nav */}
           <div className="pt-4 border-t border-slate-800 space-y-1">
-            <Link
-              href="/"
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 w-full transition-all duration-200',
-                isCollapsed && 'justify-center px-2'
-              )}
-              title="Switch App"
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              {!isCollapsed && <span>Switch App</span>}
-            </Link>
-
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}

@@ -49,7 +49,7 @@ export default function BgTrackerLayout({
             name: "Board Game Tracker",
             applicationCategory: "Utility",
             operatingSystem: "Web",
-            url: "https://praxis-seizure.vercel.app/dashboard",
+            url: "https://board-game-tracker-78pn.vercel.app/dashboard",
             description: "Track your board game collection and gaming sessions. Log plays, track wins, and see who dominates game night.",
             browserRequirements: "Requires JavaScript. Requires modern web browser.",
             offers: {

@@ -123,7 +123,6 @@ function RegisterForm() {
   };
 
   if (success) {
-    const isFromGame = nextUrl.includes('/vtes-guess');
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center" variant="glass">
@@ -145,21 +144,14 @@ function RegisterForm() {
           )}
 
           <div className="mt-6 flex flex-col gap-3">
-            {isFromGame && (
-              <Link href={nextUrl} className="btn-primary btn-md inline-flex justify-center">
-                ← Back to Score
-              </Link>
-            )}
             <Link href="/login" className="btn-secondary btn-md inline-flex justify-center">
               Back to Login
             </Link>
           </div>
 
-          {isFromGame && (
-            <p className="mt-4 text-xs text-slate-500">
-              You&apos;ll be redirected automatically once verified
-            </p>
-          )}
+          <p className="mt-4 text-xs text-slate-500">
+            You&apos;ll be redirected automatically once verified
+          </p>
         </Card>
       </div>
     );

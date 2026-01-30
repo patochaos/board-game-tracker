@@ -160,8 +160,7 @@ export default function StatsPage() {
         setHIndex(h);
       }
 
-      // Fetch sessions for charts (excluding VTES sessions)
-      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      // Fetch sessions for charts
       const { data: sessions } = await supabase
         .from('sessions')
         .select(`
@@ -172,7 +171,6 @@ export default function StatsPage() {
           game:games!sessions_game_id_fkey(id, name),
           session_players(user_id, is_winner, profile:profiles(display_name, username))
         `)
-        .neq('game_id', VTES_GAME_ID)
         .order('played_at', { ascending: false });
 
       if (sessions) {

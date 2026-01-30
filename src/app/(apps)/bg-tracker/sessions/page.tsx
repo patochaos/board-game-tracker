@@ -84,8 +84,7 @@ export default function SessionsPage() {
         return;
       }
 
-      // Fetch sessions (excluding VTES sessions which have their own tracker)
-      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      // Fetch sessions
       const { data: sessionsData, error } = await supabase
         .from('sessions')
         .select(`
@@ -109,7 +108,6 @@ export default function SessionsPage() {
             is_winner
           )
         `)
-        .neq('game_id', VTES_GAME_ID)
         .order('played_at', { ascending: false });
 
       if (error) {

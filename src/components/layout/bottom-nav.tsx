@@ -4,48 +4,32 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-    Swords,
-    FileText,
+    LayoutDashboard,
+    Dice5,
     CalendarDays,
-    Search,
-    Gamepad2,
     Trophy,
-    Home,
 } from 'lucide-react';
 
-// Navigation items for Praxis Seizure (vtes-tracker)
-const praxisNavItems = [
-    { label: 'Domain', href: '/vtes-tracker', icon: Swords },
-    { label: 'Decks', href: '/vtes-tracker/decks', icon: FileText },
-    { label: 'Sessions', href: '/vtes-tracker/sessions', icon: CalendarDays },
-    { label: 'Cards', href: '/vtes-tracker/cards', icon: Search },
-];
-
-// Navigation items for Crusade (vtes-guess)
-const crusadeNavItems = [
-    { label: 'Home', href: '/vtes-guess', icon: Home },
-    { label: 'Play', href: '/vtes-guess/guess-card', icon: Gamepad2 },
-    { label: 'Ranks', href: '/vtes-guess/leaderboard', icon: Trophy },
+// Navigation items for Board Game Tracker
+const navItems = [
+    { label: 'Home', href: '/bg-tracker/dashboard', icon: LayoutDashboard },
+    { label: 'Games', href: '/bg-tracker/games', icon: Dice5 },
+    { label: 'Sessions', href: '/bg-tracker/sessions', icon: CalendarDays },
+    { label: 'Ranks', href: '/bg-tracker/leaderboard', icon: Trophy },
 ];
 
 export function BottomNav() {
     const pathname = usePathname();
 
-    // Determine which app we're in
-    const isPraxis = pathname?.startsWith('/vtes-tracker');
-    const isCrusade = pathname?.startsWith('/vtes-guess');
-
-    // Don't render on non-VTES pages
-    if (!isPraxis && !isCrusade) {
+    // Only render on BG Tracker pages
+    if (!pathname?.startsWith('/bg-tracker')) {
         return null;
     }
 
-    const navItems = isPraxis ? praxisNavItems : crusadeNavItems;
-
     // Theme colors
-    const activeColor = 'text-red-400';
+    const activeColor = 'text-wood-400';
     const inactiveColor = 'text-slate-500';
-    const activeBg = 'bg-red-500/10';
+    const activeBg = 'bg-wood-500/10';
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
@@ -55,8 +39,7 @@ export function BottomNav() {
             {/* Safe area padding for notched phones */}
             <div className="relative flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href ||
-                        (item.href !== '/vtes-tracker' && item.href !== '/vtes-guess' && pathname?.startsWith(item.href + '/'));
+                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                     const Icon = item.icon;
 
                     return (
@@ -78,7 +61,7 @@ export function BottomNav() {
                             </span>
                             {/* Active indicator dot */}
                             {isActive && (
-                                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-red-400" />
+                                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-wood-400" />
                             )}
                         </Link>
                     );

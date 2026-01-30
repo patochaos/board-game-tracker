@@ -244,13 +244,6 @@ function RegisterForm() {
             Log in
           </Link>
         </p>
-
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Looking for CRUSADE or Praxis?{' '}
-          <Link href="/register" className="text-slate-400 hover:text-slate-300">
-            Register here
-          </Link>
-        </p>
       </Card>
     </div>
   );

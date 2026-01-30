@@ -43,7 +43,7 @@ function LoginForm() {
 
         if (profile?.app_type !== 'boardgame') {
           await supabase.auth.signOut();
-          setError('This account is not registered for Board Game Tracker. Please register a new account or use the CRUSADE/Praxis login.');
+          setError('This account is not registered for Board Game Tracker. Please register a new account.');
           return;
         }
       }
@@ -177,13 +177,6 @@ function LoginForm() {
           Don&apos;t have an account?{' '}
           <Link href="/bg-tracker/register" className="text-wood-400 hover:text-wood-300 font-medium">
             Sign up
-          </Link>
-        </p>
-
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Looking for CRUSADE or Praxis?{' '}
-          <Link href="/login" className="text-slate-400 hover:text-slate-300">
-            Login here
           </Link>
         </p>
       </Card>
