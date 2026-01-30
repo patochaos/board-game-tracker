@@ -41,7 +41,12 @@
       "Bash(where:*)",
       "Bash(where py)",
       "Bash(node scripts/generate-icons.js:*)",
-      "Bash(node scripts/generate-og-images.js:*)"
+      "Bash(node scripts/generate-og-images.js:*)",
+      "Bash(git reset:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Patricio\\Downloads\\inconnu\\src\\app",
+      "c:\\Users\\Patricio\\Downloads\\inconnu"
     ]
   }
 }
