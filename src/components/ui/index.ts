@@ -19,6 +19,6 @@ export type { StatCardProps } from './stat-card';
 export { EmptyState } from './empty-state';
 export type { EmptyStateProps } from './empty-state';
 
-export { Skeleton, GameListSkeleton, SessionListSkeleton, StatCardsSkeleton, PlayerListSkeleton } from './skeleton';
+export { Skeleton, GameListSkeleton, SessionListSkeleton, StatCardsSkeleton, PlayerListSkeleton, SessionDetailSkeleton } from './skeleton';
 
 export { ToastProvider, useToast } from './toast';

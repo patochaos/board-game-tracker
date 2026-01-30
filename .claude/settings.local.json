@@ -32,7 +32,16 @@
       "WebFetch(domain:dribbble.com)",
       "WebFetch(domain:www.carbon-ui.com)",
       "Bash(powershell -Command:*)",
-      "Bash(cmd /c \"rmdir /s /q .next\")"
+      "Bash(cmd /c \"rmdir /s /q .next\")",
+      "Bash(cat:*)",
+      "Bash(git restore:*)",
+      "Bash(npx @next/bundle-analyzer:*)",
+      "Bash(npx depcheck:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(where:*)",
+      "Bash(where py)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(node scripts/generate-og-images.js:*)"
     ]
   }
 }

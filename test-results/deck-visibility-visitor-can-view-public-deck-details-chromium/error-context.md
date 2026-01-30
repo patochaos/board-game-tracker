@@ -1,0 +1,69 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Praxis Seizure" [ref=e6] [cursor=pointer]:
+        - /url: /vtes
+        - img [ref=e8]
+        - generic [ref=e17]: Praxis Seizure
+      - navigation [ref=e18]:
+        - link "Dashboard" [ref=e19] [cursor=pointer]:
+          - /url: /vtes
+          - img [ref=e20]
+          - generic [ref=e25]: Dashboard
+        - link "Decks" [ref=e26] [cursor=pointer]:
+          - /url: /vtes/decks
+          - img [ref=e27]
+          - generic [ref=e36]: Decks
+        - link "Sessions" [ref=e37] [cursor=pointer]:
+          - /url: /vtes/sessions
+          - img [ref=e38]
+          - generic [ref=e41]: Sessions
+        - link "Leaderboard" [ref=e42] [cursor=pointer]:
+          - /url: /vtes/leaderboard
+          - img [ref=e43]
+          - generic [ref=e49]: Leaderboard
+        - link "Search Cards" [ref=e50] [cursor=pointer]:
+          - /url: /vtes/cards
+          - img [ref=e51]
+          - generic [ref=e54]: Search Cards
+        - link "CRUSADE" [ref=e55] [cursor=pointer]:
+          - /url: /vtes/guess-card
+          - img [ref=e56]
+          - generic [ref=e59]: CRUSADE
+      - generic [ref=e60]:
+        - link "Switch App" [ref=e61] [cursor=pointer]:
+          - /url: /
+          - img [ref=e62]
+          - generic [ref=e67]: Switch App
+        - link "Settings" [ref=e68] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e69]
+          - generic [ref=e72]: Settings
+        - button "Logout" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e77]: Logout
+      - button [ref=e78] [cursor=pointer]:
+        - img [ref=e79]
+  - main [ref=e81]:
+    - generic [ref=e83]:
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - heading "Decks" [level=1] [ref=e86]
+          - paragraph [ref=e87]: Manage and browse library archives.
+        - link "Import Deck" [ref=e88] [cursor=pointer]:
+          - /url: /vtes/decks/import
+          - button "Import Deck" [ref=e89]:
+            - img [ref=e90]
+            - text: Import Deck
+      - generic [ref=e91]:
+        - generic [ref=e93]:
+          - img [ref=e94]
+          - textbox "Search decks..." [ref=e97]
+        - generic [ref=e99]:
+          - img [ref=e100]
+          - combobox [ref=e103] [cursor=pointer]:
+            - option "All Authors" [selected]
+```

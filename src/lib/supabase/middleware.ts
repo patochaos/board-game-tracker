@@ -35,37 +35,34 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes
-  const protectedRoutes = ['/dashboard', '/games', '/sessions', '/players', '/stats'];
-  const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
-  );
+  const pathname = request.nextUrl.pathname;
 
-  if (isProtectedRoute && !user) {
+  // Protected routes (require login)
+  const protectedRoutes = ['/bg-tracker/dashboard', '/bg-tracker/games', '/bg-tracker/sessions', '/bg-tracker/players', '/bg-tracker/stats', '/bg-tracker/settings'];
+  const isProtected = protectedRoutes.some(route => pathname.startsWith(route));
+
+  // Redirect to login if accessing protected route without auth
+  if (isProtected && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
+    url.pathname = '/bg-tracker/login';
+    url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged in users away from auth pages (but respect the 'next' parameter)
-  const authRoutes = ['/login', '/register'];
-  const isAuthRoute = authRoutes.some(route =>
-    request.nextUrl.pathname === route
-  );
+  // Auth routes
+  const authRoutes = ['/bg-tracker/login', '/bg-tracker/register'];
+  const isAuthRoute = authRoutes.some(route => pathname === route);
 
+  // Redirect logged in users away from auth pages
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone();
     const nextParam = request.nextUrl.searchParams.get('next');
     url.pathname = nextParam || '/bg-tracker/dashboard';
-    url.search = ''; // Clear search params after using 'next'
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

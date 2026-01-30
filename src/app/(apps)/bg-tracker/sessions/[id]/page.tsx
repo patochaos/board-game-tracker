@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
-import { Card, Button, useToast } from '@/components/ui';
+import { Card, Button, useToast, SessionDetailSkeleton } from '@/components/ui';
 import { ArrowLeft, Trash2, Trophy, Loader2, Dice5, Save, X, Pencil, Calendar, Clock, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -98,7 +98,7 @@ export default function SessionDetailPage() {
           notes,
           created_by,
           location,
-          game:games(id, name, thumbnail_url),
+          game:games!sessions_game_id_fkey(id, name, thumbnail_url),
           session_players(
             id,
             user_id,
@@ -228,7 +228,7 @@ export default function SessionDetailPage() {
           notes,
           created_by,
           location,
-          game:games(id, name, thumbnail_url),
+          game:games!sessions_game_id_fkey(id, name, thumbnail_url),
           session_players(
             id,
             user_id,
@@ -319,9 +319,7 @@ export default function SessionDetailPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-        </div>
+        <SessionDetailSkeleton />
       </AppLayout>
     );
   }

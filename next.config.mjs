@@ -9,6 +9,28 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    // Enable modern image formats for better compression
+    formats: ['image/avif', 'image/webp'],
+    // Device sizes for responsive images - optimized for common breakpoints
+    deviceSizes: [
+      640,  // mobile
+      750,  // mobile landscape
+      828,  // small tablet
+      1080, // tablet/large phone
+      1200, // small desktop
+      1920, // desktop HD
+      2048, // desktop 2K
+    ],
+    // Image sizes for srcset generation
+    imageSizes: [
+      16, 32, 48, 64, 96, 128, 256, 384
+    ],
+    // Cache optimization
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    // Allow cross-origin images for avatars and thumbnails
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: 'https',
@@ -18,6 +40,26 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'static.krcg.org',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'vdb-images.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'vbdb.org',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i1.sndcdn.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
         pathname: '/**',
       },
     ],

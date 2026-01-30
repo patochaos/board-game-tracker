@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { AppLayout } from '@/components/layout';
 import { Card, Button, Input, useToast } from '@/components/ui';
-import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trophy, Loader2, Dice5, Package, Check, Search, User } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -51,8 +51,14 @@ function NewSessionContent() {
   // Game search state
   const [gameSearch, setGameSearch] = useState('');
 
+  // Recent games for quick selection
+  const [recentGames, setRecentGames] = useState<Game[]>([]);
+
   // Recent players for quick-add
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
+
+  // Registered users for player dropdown
+  const [registeredUsers, setRegisteredUsers] = useState<{ id: string; name: string }[]>([]);
 
   // Expansion state
   const [availableExpansions, setAvailableExpansions] = useState<Game[]>([]);
@@ -113,6 +119,48 @@ function NewSessionContent() {
 
       if (gamesData) {
         setGames(gamesData);
+      }
+
+      // Fetch recent games from user's sessions (excluding VTES)
+      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      const { data: recentSessionsForGames } = await supabase
+        .from('sessions')
+        .select('game_id')
+        .eq('created_by', user.id)
+        .neq('game_id', VTES_GAME_ID)
+        .order('played_at', { ascending: false })
+        .limit(20);
+
+      if (recentSessionsForGames && gamesData) {
+        // Get unique game IDs preserving order (most recent first)
+        const seenIds = new Set<string>();
+        const uniqueGameIds: string[] = [];
+        for (const s of recentSessionsForGames) {
+          if (!seenIds.has(s.game_id)) {
+            seenIds.add(s.game_id);
+            uniqueGameIds.push(s.game_id);
+          }
+          if (uniqueGameIds.length >= 5) break;
+        }
+        // Map to game objects
+        const recent = uniqueGameIds
+          .map(id => gamesData.find(g => g.id === id))
+          .filter((g): g is Game => g !== undefined);
+        setRecentGames(recent);
+      }
+
+      // Fetch registered users for player dropdown
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, display_name, username')
+        .neq('id', user.id) // Exclude current user (they're always player 1)
+        .order('display_name');
+
+      if (users) {
+        setRegisteredUsers(users.map(u => ({
+          id: u.id,
+          name: u.display_name || u.username || 'Unknown',
+        })));
       }
 
       // Fetch recent players from past sessions (guest players)
@@ -317,7 +365,7 @@ function NewSessionContent() {
       return;
     }
 
-    const validPlayers = players.filter(p => p.name.trim() || p.isCurrentUser);
+    const validPlayers = players.filter(p => p.userId || p.name.trim());
     if (validPlayers.length === 0) {
       setError('Add at least one player');
       return;
@@ -351,29 +399,31 @@ function NewSessionContent() {
         throw new Error(sessionError?.message || 'Failed to create session');
       }
 
-      // Add session players
-      // For non-registered players (guests), we'll store them in notes for now
-      // Only the current user goes into session_players (proper tracking)
-      const currentUserPlayer = validPlayers.find(p => p.isCurrentUser);
-      if (currentUserPlayer) {
+      // Separate registered users and guests
+      const registeredPlayers = validPlayers.filter(p => p.userId);
+      const guestPlayersList = validPlayers.filter(p => !p.userId && p.name.trim());
+
+      // Insert registered users into session_players
+      if (registeredPlayers.length > 0) {
+        const playerInserts = registeredPlayers.map(p => ({
+          session_id: session.id,
+          user_id: p.userId,
+          score: p.score ? parseInt(p.score) : null,
+          is_winner: p.isWinner,
+        }));
+
         const { error: playerError } = await supabase
           .from('session_players')
-          .insert({
-            session_id: session.id,
-            user_id: currentUserId,
-            score: currentUserPlayer.score ? parseInt(currentUserPlayer.score) : null,
-            is_winner: currentUserPlayer.isWinner,
-          });
+          .insert(playerInserts);
 
         if (playerError) {
-          console.error('Error adding player:', playerError);
+          console.error('Error adding registered players:', playerError);
         }
       }
 
       // Insert guest players into the guest_players table
-      const guestPlayers = validPlayers.filter(p => !p.isCurrentUser && p.name.trim());
-      if (guestPlayers.length > 0) {
-        const guestInserts = guestPlayers.map(p => ({
+      if (guestPlayersList.length > 0) {
+        const guestInserts = guestPlayersList.map(p => ({
           session_id: session.id,
           name: p.name.trim(),
           score: p.score ? parseInt(p.score) : null,
@@ -482,33 +532,74 @@ function NewSessionContent() {
               </div>
             ) : (
               <>
-                {/* Game search - show when more than 6 games */}
-                {games.length > 6 && (
-                  <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search games..."
-                      value={gameSearch}
-                      onChange={(e) => setGameSearch(e.target.value)}
-                      className="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-200 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-                    />
+                {/* Recent Games - quick select */}
+                {recentGames.length > 0 && !gameSearch && (
+                  <div className="mb-4">
+                    <p className="text-xs text-slate-500 mb-2">Recent</p>
+                    <div className="flex flex-wrap gap-2">
+                      {recentGames.map((game) => (
+                        <button
+                          key={game.id}
+                          type="button"
+                          onClick={() => setSelectedGameId(game.id)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${selectedGameId === game.id
+                            ? 'border-emerald-500 bg-emerald-500/10'
+                            : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                            }`}
+                        >
+                          {game.thumbnail_url ? (
+                            <div className="relative w-8 h-8 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                              <Image
+                                src={game.thumbnail_url}
+                                alt={game.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+                              <Dice5 className="h-4 w-4 text-slate-500" />
+                            </div>
+                          )}
+                          <span className="text-sm text-slate-200">{game.name}</span>
+                          {selectedGameId === game.id && <Check className="h-4 w-4 text-emerald-400" />}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {games
-                    .filter(game => game.name.toLowerCase().includes(gameSearch.toLowerCase()))
-                    .map((game) => (
-                    <button
-                      key={game.id}
-                      type="button"
-                      onClick={() => setSelectedGameId(game.id)}
-                      className={`p-3 rounded-xl border transition-all text-left ${selectedGameId === game.id
-                        ? 'border-emerald-500 bg-emerald-500/10'
-                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
+
+                {/* Search field */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search all games..."
+                    value={gameSearch}
+                    onChange={(e) => setGameSearch(e.target.value)}
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-slate-200 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Search results - only show when searching */}
+                {gameSearch && (
+                  <div className="mt-3 max-h-64 overflow-y-auto space-y-1">
+                    {games
+                      .filter(game => game.name.toLowerCase().includes(gameSearch.toLowerCase()))
+                      .slice(0, 10)
+                      .map((game) => (
+                      <button
+                        key={game.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGameId(game.id);
+                          setGameSearch('');
+                        }}
+                        className={`w-full p-3 rounded-xl border transition-all text-left flex items-center gap-3 ${selectedGameId === game.id
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                          }`}
+                      >
                         {game.thumbnail_url ? (
                           <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
                             <Image
@@ -523,13 +614,36 @@ function NewSessionContent() {
                             <Dice5 className="h-5 w-5 text-slate-500" />
                           </div>
                         )}
-                        <span className="text-sm text-slate-200 line-clamp-2">{game.name}</span>
+                        <span className="text-sm text-slate-200 flex-1">{game.name}</span>
+                        {selectedGameId === game.id && <Check className="h-5 w-5 text-emerald-400" />}
+                      </button>
+                    ))}
+                    {games.filter(g => g.name.toLowerCase().includes(gameSearch.toLowerCase())).length === 0 && (
+                      <p className="text-center text-slate-500 py-4">No games match &quot;{gameSearch}&quot;</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Selected game display when not searching */}
+                {!gameSearch && selectedGameId && !recentGames.find(g => g.id === selectedGameId) && (
+                  <div className="mt-3 flex items-center gap-3 p-3 rounded-xl border border-emerald-500 bg-emerald-500/10">
+                    {games.find(g => g.id === selectedGameId)?.thumbnail_url ? (
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                        <Image
+                          src={games.find(g => g.id === selectedGameId)!.thumbnail_url!}
+                          alt={games.find(g => g.id === selectedGameId)!.name}
+                          fill
+                          className="object-cover"
+                        />
                       </div>
-                    </button>
-                  ))}
-                </div>
-                {games.length > 6 && gameSearch && games.filter(g => g.name.toLowerCase().includes(gameSearch.toLowerCase())).length === 0 && (
-                  <p className="text-center text-slate-500 py-4">No games match "{gameSearch}"</p>
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+                        <Dice5 className="h-5 w-5 text-slate-500" />
+                      </div>
+                    )}
+                    <span className="text-sm text-slate-200 flex-1">{games.find(g => g.id === selectedGameId)?.name}</span>
+                    <Check className="h-5 w-5 text-emerald-400" />
+                  </div>
                 )}
               </>
             )}
@@ -651,56 +765,110 @@ function NewSessionContent() {
               {players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border ${player.isWinner
+                  className={`p-4 rounded-xl border relative ${player.isWinner
                     ? 'border-yellow-500/50 bg-yellow-500/10'
                     : 'border-slate-700 bg-slate-800/30'
                     }`}
                 >
-                  <div className="flex-1">
-                    {player.isCurrentUser ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-200 font-medium">{player.name}</span>
-                        <span className="text-xs text-slate-500">(you)</span>
-                      </div>
-                    ) : (
-                      <input
-                        type="text"
-                        placeholder="Player name"
-                        value={player.name}
-                        onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
-                        className="w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none"
-                      />
-                    )}
+                  {/* Player number badge */}
+                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-400">
+                    {index + 1}
                   </div>
-                  <input
-                    type="number"
-                    placeholder="Score"
-                    value={player.score}
-                    onChange={(e) => updatePlayer(player.id, 'score', e.target.value)}
-                    className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-slate-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleWinner(player.id)}
-                    className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${player.isWinner
-                      ? 'bg-yellow-500 text-slate-900'
-                      : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
-                      }`}
-                    title={player.isWinner ? 'Winner!' : 'Mark as winner'}
-                    aria-label={player.isWinner ? 'Winner' : 'Mark as winner'}
-                  >
-                    <Trophy className="h-5 w-5" />
-                  </button>
-                  {!player.isCurrentUser && (
+
+                  {/* Remove button */}
+                  {!player.isCurrentUser && players.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removePlayer(player.id)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-slate-700 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="absolute -right-2 -top-2 w-6 h-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-slate-500 hover:bg-red-600 hover:border-red-500 hover:text-white transition-colors"
                       aria-label={`Remove ${player.name || 'player'}`}
                     >
-                      <Trash2 className="h-5 w-5" />
+                      ×
                     </button>
                   )}
+
+                  <div className="grid grid-cols-12 gap-3 ml-2">
+                    {/* Player Name/Dropdown */}
+                    <div className="col-span-6 md:col-span-7">
+                      <label className="text-xs text-slate-500 mb-1 block">Player</label>
+                      {player.isCurrentUser ? (
+                        <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-800 text-slate-300">
+                          <User className="h-4 w-4" />
+                          {player.name} (You)
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <select
+                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-emerald-500 outline-none"
+                            value={player.userId || '__GUEST__'}
+                            onChange={(e) => {
+                              const selectedUser = registeredUsers.find(u => u.id === e.target.value);
+                              setPlayers(players.map(p => {
+                                if (p.id === player.id) {
+                                  if (e.target.value === '__GUEST__') {
+                                    return { ...p, userId: null, name: '' };
+                                  }
+                                  return {
+                                    ...p,
+                                    userId: e.target.value,
+                                    name: selectedUser?.name || ''
+                                  };
+                                }
+                                return p;
+                              }));
+                            }}
+                          >
+                            <option value="__GUEST__">Guest (type name)</option>
+                            {registeredUsers
+                              .filter(u => {
+                                if (u.id === player.userId) return true;
+                                const usedByOther = players.some(p => p.id !== player.id && p.userId === u.id);
+                                return !usedByOther;
+                              })
+                              .map(u => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                          {!player.userId && (
+                            <input
+                              className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-emerald-500 outline-none"
+                              placeholder="Guest name"
+                              value={player.name}
+                              onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Score */}
+                    <div className="col-span-3 md:col-span-3">
+                      <label className="text-xs text-slate-500 mb-1 block">Score</label>
+                      <input
+                        type="number"
+                        placeholder="—"
+                        value={player.score}
+                        onChange={(e) => updatePlayer(player.id, 'score', e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    {/* Winner */}
+                    <div className="col-span-3 md:col-span-2">
+                      <label className="text-xs text-slate-500 mb-1 block">Winner</label>
+                      <button
+                        type="button"
+                        onClick={() => toggleWinner(player.id)}
+                        className={`w-full h-10 flex items-center justify-center rounded-lg transition-colors ${player.isWinner
+                          ? 'bg-yellow-500 text-slate-900'
+                          : 'bg-slate-700 text-slate-400 hover:text-yellow-500'
+                          }`}
+                        title={player.isWinner ? 'Winner!' : 'Mark as winner'}
+                      >
+                        <Trophy className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

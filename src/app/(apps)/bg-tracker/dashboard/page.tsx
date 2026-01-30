@@ -25,16 +25,18 @@ export default async function DashboardPage() {
     redirect('/onboard');
   }
 
-  // Fetch real data
+  // Fetch real data (excluding VTES sessions which have their own tracker)
+  const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
   const { data: sessions } = await supabase
     .from('sessions')
     .select(`
       id,
       played_at,
       duration_minutes,
-      game:games(name, thumbnail_url),
+      game:games!sessions_game_id_fkey(name, thumbnail_url),
       session_players(is_winner, user_id)
     `)
+    .neq('game_id', VTES_GAME_ID)
     .order('played_at', { ascending: false })
     .limit(5);
 

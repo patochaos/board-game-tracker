@@ -61,6 +61,8 @@ export function useSessions(): UseSessionsResult {
       setLoading(true);
       setError(null);
 
+      // Exclude VTES sessions (they have their own tracker)
+      const VTES_GAME_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(`
@@ -69,7 +71,7 @@ export function useSessions(): UseSessionsResult {
           duration_minutes,
           notes,
           created_at,
-          game:games(id, name, thumbnail_url),
+          game:games!sessions_game_id_fkey(id, name, thumbnail_url),
           session_players(
             id,
             score,
@@ -84,6 +86,7 @@ export function useSessions(): UseSessionsResult {
             is_winner
           )
         `)
+        .neq('game_id', VTES_GAME_ID)
         .order('played_at', { ascending: false });
 
       if (fetchError) {

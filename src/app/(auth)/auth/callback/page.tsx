@@ -23,12 +23,23 @@ function AuthCallbackContent() {
 
       try {
         const supabase = createClient();
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (exchangeError) {
           console.error('Auth callback error:', exchangeError);
           router.replace('/login?error=auth');
           return;
+        }
+
+        // Handle app_type for new OAuth users
+        const appType = searchParams.get('app_type') || sessionStorage.getItem('auth_app_type');
+        if (appType && sessionData?.user) {
+          // Update profile with app_type
+          await supabase
+            .from('profiles')
+            .update({ app_type: appType })
+            .eq('id', sessionData.user.id);
+          sessionStorage.removeItem('auth_app_type');
         }
 
         // Determine redirect destination
