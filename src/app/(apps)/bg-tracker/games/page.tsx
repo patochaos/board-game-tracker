@@ -333,7 +333,7 @@ export default function GamesPage() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Link href="/collection/import">
+            <Link href="/bg-tracker/collection/import">
               <Button variant="secondary" leftIcon={<Download className="h-4 w-4" />}>
                 Import Collection
               </Button>

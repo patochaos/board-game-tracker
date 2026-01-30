@@ -417,7 +417,7 @@ export default function StatsPage() {
         </div>
 
         {/* Head-to-Head Link */}
-        <Link href="/stats/head-to-head">
+        <Link href="/bg-tracker/stats/head-to-head">
           <Card variant="glass" className="hover:border-red-500/50 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">

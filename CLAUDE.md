@@ -1,7 +1,7 @@
-# Game Night Tracker - Contexto del Proyecto
+# Salty Meeples - Contexto del Proyecto
 
 ## Descripción
-App para loguear sesiones de juegos de mesa con amigos. Trackea partidas, estadísticas, y rankings del grupo.
+App para loguear sesiones de juegos de mesa con amigos. Trackea partidas, estadísticas, y rankings del grupo. Crown the saltiest meeple in your group!
 
 ## Stack
 - **Frontend:** Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
@@ -22,8 +22,7 @@ src/
 │   ├── sessions/             # Historial de sesiones
 │   ├── players/              # Gestión de grupo
 │   ├── stats/                # Estadísticas
-│   ├── settings/             # Config usuario + BGG username
-│   └── vtes/                 # VTES Module (Decks, Cards, Crypt)
+│   └── settings/             # Config usuario + BGG username
 ├── components/ui/            # Componentes reutilizables
 ├── hooks/                    # Custom React hooks
 │   ├── useCurrentUser.ts     # Auth user + profile
@@ -62,7 +61,6 @@ src/
   - Selector de expansiones en formulario de sesión
 - CRUD de sesiones de juego (List, Create, Edit, Delete)
 - Formulario para registrar partidas (con soporte de expansiones)
-- Módulo VTES (Vampire: The Eternal Struggle) - Basic Deck Management
 - Sistema de grupos e invitaciones
 - **Sistema de Estadísticas (completo):**
   - H-index calculation
@@ -112,18 +110,11 @@ Ver `.env.local.example`:
  
 ## Changelog
 
+### 2026-01-29
+- **Rebranding:** Renamed from "Board Game Tracker" to "Salty Meeples"
+- **VTES code removed:** VTES module moved to separate INCONNU repository
+
 ### 2026-01-28
-- **UX/UI Analysis & Improvement Plan:**
-  - Created comprehensive UX/UI improvement plan in `/plans/ux-ui-improvement-plan.md`
-  - Analyzed design system, components, and user experience across all pages
-  - Identified opportunities for visual consistency, microinteractions, and accessibility
-- **VTES Guess Card Game Improvements:**
-  - Added localStorage persistence for game stats (score, bestStreak, totalPlayed, totalCorrect)
-  - Stats persist across page refreshes using key `vtes-guess-stats`
-  - Added mobile touch support: tap to toggle large card preview on mobile devices
-  - Added image preloading for next card to eliminate loading delay between cards
-  - Fixed duplicate card image bug on incorrect/skipped results
-  - Changes deployed to Vercel
 - **Expansion Support:**
   - Modified `/api/bgg/game` to detect and return available expansions from BGG
   - Created `/api/bgg/expansions` endpoint to import expansions with `base_game_id`
@@ -164,17 +155,6 @@ Para que BGG funcione en producción, agregar en Vercel Dashboard → Settings �
 - **Custom Hooks:** Created 8 reusable hooks in `src/hooks/` for data fetching:
   - `useCurrentUser`, `useGames`, `useSessions`, `useSessionDetail`
   - `useLeaderboard`, `useGameDetail`, `useExpansions`, `useGroupData`
-
-### 2026-01-17 (Continuación)
-- 2026-01-17: Deck Visibility Fix, VTES Icons Improvement (TDD), UI Polish (Hover Jitter [Final Fix: Fixed Dimensions], Search Overlay, Sessions Nav [Final Fix: router.push])
-- **Deck Visibility Fix:**
-  - Solucionado problema donde visitantes (Guest/Anon) no podían ver mazos públicos por políticas RLS.
-  - Migración: `migrations/11_fix_public_decks_rls.sql`.
-  - Test corregido: `tests/deck-visibility.spec.ts` (ahora selecciona mazos correctamente).
-- **VTES Icons Improvement:**
-  - Standardized discipline icons to match VDB style (Alphabetical order).
-  - TDD Applied: Created `tests/unit/vtes-sorting.test.ts` to verify `sortDisciplines` utility.
-  - Component `VtesIcon` made robust with text fallback and better mapping.
 
 ### 2026-01-16
 - Initial git commit and push to GitHub (Deployment initialization)

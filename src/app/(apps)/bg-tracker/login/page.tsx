@@ -43,7 +43,7 @@ function LoginForm() {
 
         if (profile?.app_type !== 'boardgame') {
           await supabase.auth.signOut();
-          setError('This account is not registered for Board Game Tracker. Please register a new account.');
+          setError('This account is not registered for Salty Meeples. Please register a new account.');
           return;
         }
       }
@@ -86,7 +86,7 @@ function LoginForm() {
           <div className="p-3 rounded-2xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow mb-4">
             <Dice5 className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Board Game Tracker</h1>
+          <h1 className="text-2xl font-bold text-slate-100">Salty Meeples</h1>
           <p className="mt-2 text-slate-400">Log in to your account</p>
         </div>
 

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const viewport: Viewport = {
-  themeColor: "#8a0303",
+  themeColor: "#10b981",
 };
 
 export const metadata: Metadata = {
@@ -11,11 +11,11 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://board-game-tracker-78pn.vercel.app"
   ),
   title: {
-    default: "Game Night Tracker",
-    template: "%s | Game Night",
+    default: "Salty Meeples",
+    template: "%s | Salty Meeples",
   },
-  description: "Track your board game sessions with friends. Log plays, track stats, and see who dominates your gaming group.",
-  keywords: ["board games", "game night", "tracking", "sessions", "leaderboard", "BGG", "BoardGameGeek"],
+  description: "Track your board game sessions with friends. Log plays, compare stats, and crown the saltiest meeple in your group.",
+  keywords: ["board games", "game night", "tracking", "sessions", "leaderboard", "BGG", "BoardGameGeek", "meeples"],
   authors: [{ name: "Patricio" }],
   creator: "Patricio",
   publisher: "Patricio",
@@ -47,27 +47,27 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Game Night",
+    title: "Salty Meeples",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Game Night Tracker",
-    title: "Game Night Tracker",
-    description: "Track your board game sessions with friends. Log plays, track stats, and see who dominates your gaming group.",
+    siteName: "Salty Meeples",
+    title: "Salty Meeples",
+    description: "Track your board game sessions with friends. Log plays, compare stats, and crown the saltiest meeple in your group.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Game Night Tracker",
+        alt: "Salty Meeples",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Game Night Tracker",
-    description: "Track your board game sessions with friends. Log plays, track stats, and see who dominates your gaming group.",
+    title: "Salty Meeples",
+    description: "Track your board game sessions with friends. Log plays, compare stats, and crown the saltiest meeple in your group.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -89,9 +89,9 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "Game Night Tracker",
+              name: "Salty Meeples",
               url: "https://board-game-tracker-78pn.vercel.app",
-              description: "Track your board game sessions with friends. Log plays, track stats, and see who dominates your gaming group.",
+              description: "Track your board game sessions with friends. Log plays, compare stats, and crown the saltiest meeple in your group.",
               potentialAction: {
                 "@type": "SearchAction",
                 target: {

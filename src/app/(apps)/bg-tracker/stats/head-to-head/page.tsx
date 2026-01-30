@@ -226,7 +226,7 @@ export default function HeadToHeadPage() {
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/stats">
+          <Link href="/bg-tracker/stats">
             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
               Back
             </Button>

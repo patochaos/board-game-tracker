@@ -248,7 +248,7 @@ export default function SettingsPage() {
             <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
               <div className="flex gap-3">
                 {savedBggUsername && (
-                  <Link href="/collection/import">
+                  <Link href="/bg-tracker/collection/import">
                     <Button variant="secondary">
                       Import Collection
                     </Button>
