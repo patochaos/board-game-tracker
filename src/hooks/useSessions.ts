@@ -69,7 +69,7 @@ export function useSessions(): UseSessionsResult {
           duration_minutes,
           notes,
           created_at,
-          game:games!sessions_game_id_fkey(id, name, thumbnail_url),
+          game:games!sessions_game_id_fkey(id, name, thumbnail_url, app_type),
           session_players(
             id,
             score,
@@ -86,13 +86,19 @@ export function useSessions(): UseSessionsResult {
         `)
         .order('played_at', { ascending: false });
 
+      // Filter to only show boardgame sessions (exclude VTES)
+      const filteredData = data?.filter(session => {
+        const game = session.game as unknown as { app_type?: string };
+        return game?.app_type === 'boardgame' || !game?.app_type;
+      });
+
       if (fetchError) {
         throw fetchError;
       }
 
-      if (data) {
+      if (filteredData) {
         // Calculate "New to Group" status
-        const chronological = [...data].sort((a, b) =>
+        const chronological = [...filteredData].sort((a, b) =>
           new Date(a.played_at).getTime() - new Date(b.played_at).getTime()
         );
 

@@ -25,18 +25,24 @@ export default async function DashboardPage() {
     redirect('/onboard');
   }
 
-  // Fetch recent sessions
-  const { data: sessions } = await supabase
+  // Fetch recent sessions (only boardgame sessions, not VTES)
+  const { data: allSessions } = await supabase
     .from('sessions')
     .select(`
       id,
       played_at,
       duration_minutes,
-      game:games!sessions_game_id_fkey(name, thumbnail_url),
+      game:games!sessions_game_id_fkey(name, thumbnail_url, app_type),
       session_players(is_winner, user_id)
     `)
     .order('played_at', { ascending: false })
-    .limit(5);
+    .limit(20);
+
+  // Filter to only boardgame sessions
+  const sessions = allSessions?.filter(s => {
+    const game = s.game as { app_type?: string } | null;
+    return !game?.app_type || game.app_type === 'boardgame';
+  }).slice(0, 5);
 
   const { data: playerStats } = await supabase
     .from('player_stats')

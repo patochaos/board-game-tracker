@@ -161,17 +161,23 @@ export default function StatsPage() {
       }
 
       // Fetch sessions for charts
-      const { data: sessions } = await supabase
+      const { data: allSessions } = await supabase
         .from('sessions')
         .select(`
           id,
           played_at,
           duration_minutes,
           game_id,
-          game:games!sessions_game_id_fkey(id, name),
+          game:games!sessions_game_id_fkey(id, name, app_type),
           session_players(user_id, is_winner, profile:profiles(display_name, username))
         `)
         .order('played_at', { ascending: false });
+
+      // Filter to only boardgame sessions (exclude VTES)
+      const sessions = allSessions?.filter(s => {
+        const game = s.game as { app_type?: string } | null;
+        return !game?.app_type || game.app_type === 'boardgame';
+      });
 
       if (sessions) {
         const totalPlayTime = sessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);

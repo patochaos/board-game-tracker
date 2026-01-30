@@ -76,14 +76,14 @@ export default function SettingsPage() {
 
     try {
       // Fetch all sessions with related data
-      const { data: sessions } = await supabase
+      const { data: allSessions } = await supabase
         .from('sessions')
         .select(`
           id,
           played_at,
           duration_minutes,
           notes,
-          game:games!sessions_game_id_fkey(name),
+          game:games!sessions_game_id_fkey(name, app_type),
           session_players(
             score,
             is_winner,
@@ -91,6 +91,12 @@ export default function SettingsPage() {
           )
         `)
         .order('played_at', { ascending: false });
+
+      // Filter to only boardgame sessions (exclude VTES)
+      const sessions = allSessions?.filter(s => {
+        const game = s.game as { app_type?: string } | null;
+        return !game?.app_type || game.app_type === 'boardgame';
+      });
 
       if (!sessions || sessions.length === 0) {
         setSaveMessage('No sessions to export');

@@ -109,20 +109,26 @@ export default function HeadToHeadPage() {
     setStats(null);
 
     // Fetch all sessions where both players participated
-    const { data: sessions } = await supabase
+    const { data: allSessions } = await supabase
       .from('sessions')
       .select(`
         id,
         played_at,
-        game:games (id, name, thumbnail_url),
+        game:games (id, name, thumbnail_url, app_type),
         session_players (user_id, is_winner)
       `)
       .order('played_at', { ascending: false });
 
-    if (!sessions) {
+    if (!allSessions) {
       setCalculating(false);
       return;
     }
+
+    // Filter to only boardgame sessions (exclude VTES)
+    const sessions = allSessions.filter(s => {
+      const game = s.game as { app_type?: string } | null;
+      return !game?.app_type || game.app_type === 'boardgame';
+    });
 
     // Filter sessions where both players participated
     const sharedSessions = sessions.filter(session => {
