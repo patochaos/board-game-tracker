@@ -190,14 +190,14 @@ export default function SettingsPage() {
 
       if (sessionsError) throw sessionsError;
 
-      // Delete all games (they're global but we want a clean slate)
-      const { error: gamesError } = await supabase
-        .from('games')
+      // Remove user's game ownership (removes games from "My Library")
+      const { error: ownershipError } = await supabase
+        .from('user_games')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all (dummy condition)
+        .eq('user_id', user.id);
 
-      if (gamesError) {
-        console.warn('Could not delete games (may need admin):', gamesError);
+      if (ownershipError) {
+        console.warn('Could not delete game ownership:', ownershipError);
       }
 
       setSaveMessage('All data has been reset successfully!');
