@@ -210,32 +210,38 @@ export default function LeaderboardPage() {
                 </div>
 
                 <div className="grid gap-4">
-                    {/* Top 3 Cards for Mobile/Highlight */}
+                    {/* Top 3 Podium with staggered heights */}
                     {stats.length >= 3 && (
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                            {/* 2nd Place */}
-                            <Card variant="glass" className="flex flex-col items-center justify-end pb-4 pt-8 transform translate-y-4 border-gray-500/30">
-                                <div className="relative w-16 h-16 rounded-full overflow-hidden mb-3 border-4 border-gray-400">
+                        <div className="grid grid-cols-3 gap-3 md:gap-6 mb-6 items-end">
+                            {/* 2nd Place - Silver */}
+                            <Card variant="glass" className="flex flex-col items-center justify-end pb-4 pt-6 h-[200px] md:h-[240px] border-slate-400/30 hover:border-slate-400/50 transition-all duration-300">
+                                <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden mb-3 border-4 border-slate-400 shadow-lg">
                                     {stats[1].avatarUrl ? (
                                         <Image src={stats[1].avatarUrl} alt={stats[1].name} fill className="object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-400">
+                                        <div className="w-full h-full bg-slate-700 flex items-center justify-center text-lg md:text-xl font-bold text-slate-400">
                                             {stats[1].name.substring(0, 2).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="font-bold text-slate-100 text-sm md:text-base">{stats[1].name}</h3>
-                                    <p className="text-gray-400 font-bold">{stats[1].wins} Wins</p>
+                                    <span className="text-2xl mb-1 block">🥈</span>
+                                    <h3 className="font-bold text-slate-100 text-sm md:text-base truncate max-w-[90px] md:max-w-[120px]">{stats[1].name}</h3>
+                                    <p className="text-slate-300 font-bold text-lg">{stats[1].wins} Wins</p>
                                     <p className="text-xs text-slate-500">{stats[1].winRate.toFixed(1)}%</p>
                                 </div>
                             </Card>
 
-                            {/* 1st Place */}
-                            <Card variant="glass" className="flex flex-col items-center justify-end pb-4 pt-8 border-yellow-500/50 bg-yellow-500/5">
-                                <div className="relative -mt-12 mb-3">
-                                    <Trophy className="absolute -top-8 left-1/2 -translate-x-1/2 h-8 w-8 text-yellow-500 animate-bounce" />
-                                    <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-500 relative">
+                            {/* 1st Place - Gold Champion */}
+                            <Card
+                                variant="glass"
+                                className="flex flex-col items-center justify-end pb-4 pt-6 h-[240px] md:h-[280px] border-wood-500/50 animate-winner relative overflow-hidden"
+                                style={{ background: 'linear-gradient(180deg, rgba(217, 139, 43, 0.1) 0%, rgba(15, 23, 42, 0.9) 50%)' }}
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-t from-wood-500/10 to-transparent pointer-events-none" />
+                                <div className="relative mb-3">
+                                    <Trophy className="absolute -top-10 left-1/2 -translate-x-1/2 h-8 w-8 text-yellow-500 animate-glow-pulse" />
+                                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-4 border-yellow-500 relative shadow-[0_0_20px_rgba(234,179,8,0.4)]">
                                         {stats[0].avatarUrl ? (
                                             <Image src={stats[0].avatarUrl} alt={stats[0].name} fill className="object-cover" />
                                         ) : (
@@ -245,27 +251,29 @@ export default function LeaderboardPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="text-center">
+                                <div className="text-center relative z-10">
+                                    <span className="text-3xl mb-1 block animate-float">👑</span>
                                     <h3 className="font-bold text-yellow-500 text-base md:text-lg">{stats[0].name}</h3>
-                                    <p className="text-white font-bold text-xl">{stats[0].wins} Wins</p>
+                                    <p className="text-white font-bold text-2xl">{stats[0].wins} Wins</p>
                                     <p className="text-sm text-yellow-500/70">{stats[0].winRate.toFixed(1)}% Win Rate</p>
                                 </div>
                             </Card>
 
-                            {/* 3rd Place */}
-                            <Card variant="glass" className="flex flex-col items-center justify-end pb-4 pt-8 transform translate-y-8 border-amber-700/30">
-                                <div className="relative w-16 h-16 rounded-full overflow-hidden mb-3 border-4 border-amber-700">
+                            {/* 3rd Place - Bronze */}
+                            <Card variant="glass" className="flex flex-col items-center justify-end pb-4 pt-6 h-[180px] md:h-[210px] border-amber-700/30 hover:border-amber-700/50 transition-all duration-300">
+                                <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden mb-3 border-4 border-amber-700 shadow-lg">
                                     {stats[2].avatarUrl ? (
                                         <Image src={stats[2].avatarUrl} alt={stats[2].name} fill className="object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-400">
+                                        <div className="w-full h-full bg-slate-700 flex items-center justify-center text-lg font-bold text-slate-400">
                                             {stats[2].name.substring(0, 2).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="font-bold text-slate-100 text-sm md:text-base">{stats[2].name}</h3>
-                                    <p className="text-amber-700 font-bold">{stats[2].wins} Wins</p>
+                                    <span className="text-2xl mb-1 block">🥉</span>
+                                    <h3 className="font-bold text-slate-100 text-sm md:text-base truncate max-w-[90px] md:max-w-[120px]">{stats[2].name}</h3>
+                                    <p className="text-amber-600 font-bold text-lg">{stats[2].wins} Wins</p>
                                     <p className="text-xs text-slate-500">{stats[2].winRate.toFixed(1)}%</p>
                                 </div>
                             </Card>

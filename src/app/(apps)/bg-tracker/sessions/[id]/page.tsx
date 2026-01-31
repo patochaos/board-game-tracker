@@ -530,13 +530,13 @@ export default function SessionDetailPage() {
               return (
                 <div
                   key={sp.id}
-                  className={`flex items-center justify-between p-3 rounded-xl ${isWinner
-                    ? 'bg-yellow-500/10 border border-yellow-500/30'
-                    : 'bg-slate-800/50'
+                  className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${isWinner
+                    ? 'bg-yellow-500/10 border border-yellow-500/30 animate-winner'
+                    : 'bg-slate-800/50 hover:bg-slate-800/70'
                     }`}
                 >
                   <div className="flex items-center gap-3">
-                    {isWinner && <Trophy className="h-5 w-5 text-yellow-400" />}
+                    {isWinner && <Trophy className="h-5 w-5 text-yellow-400 animate-glow-pulse" />}
                     <span className="font-medium text-slate-200">
                       {sp.profile?.display_name || sp.profile?.username}
                     </span>
@@ -583,13 +583,13 @@ export default function SessionDetailPage() {
               return (
                 <div
                   key={gp.id}
-                  className={`flex items-center justify-between p-3 rounded-xl ${isWinner
-                    ? 'bg-yellow-500/10 border border-yellow-500/30'
-                    : 'bg-slate-800/50'
+                  className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${isWinner
+                    ? 'bg-yellow-500/10 border border-yellow-500/30 animate-winner'
+                    : 'bg-slate-800/50 hover:bg-slate-800/70'
                     }`}
                 >
                   <div className="flex items-center gap-3">
-                    {isWinner && <Trophy className="h-5 w-5 text-yellow-400" />}
+                    {isWinner && <Trophy className="h-5 w-5 text-yellow-400 animate-glow-pulse" />}
                     <span className="font-medium text-slate-200">{gp.name}</span>
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400 border border-slate-600">
                       GUEST

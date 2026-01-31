@@ -42,7 +42,7 @@ const config: Config = {
         }
       },
       fontFamily: {
-        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
         body: ['var(--font-body)', 'system-ui', 'sans-serif'],
         vtes: ['var(--font-vtes)', 'serif'],
       },
@@ -57,6 +57,9 @@ const config: Config = {
         'scale-in': 'scaleIn 0.2s ease-out',
         'dice-roll': 'diceRoll 0.6s ease-out',
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+        'float': 'float 3s ease-in-out infinite',
+        'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'winner-pulse': 'winnerPulse 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -85,6 +88,18 @@ const config: Config = {
         pulseGlow: {
           '0%, 100%': { boxShadow: '0 0 20px rgba(217, 139, 43, 0.3)' },
           '50%': { boxShadow: '0 0 40px rgba(217, 139, 43, 0.6)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
+        glowPulse: {
+          '0%, 100%': { filter: 'drop-shadow(0 0 6px rgba(217, 139, 43, 0.4))' },
+          '50%': { filter: 'drop-shadow(0 0 16px rgba(217, 139, 43, 0.7))' },
+        },
+        winnerPulse: {
+          '0%, 100%': { boxShadow: '0 0 20px rgba(217, 139, 43, 0.3)' },
+          '50%': { boxShadow: '0 0 35px rgba(217, 139, 43, 0.5)' },
         },
       },
       boxShadow: {

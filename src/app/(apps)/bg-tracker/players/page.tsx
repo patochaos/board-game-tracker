@@ -471,7 +471,7 @@ export default function PlayersPage() {
         ) : (
           <Card variant="glass">
             <EmptyState
-              icon={<Users className="h-20 w-20" />}
+              icon={<Users className="h-20 w-20 animate-float" />}
               title="No group yet"
               description="Create a new group or join an existing one with an invite code to start tracking games together!"
               action={

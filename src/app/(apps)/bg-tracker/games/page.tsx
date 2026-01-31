@@ -353,7 +353,7 @@ export default function GamesPage() {
         ) : gamesWithExpansions.length === 0 ? (
           <Card variant="glass">
             <EmptyState
-              icon={<Dice5 className="h-20 w-20" />}
+              icon={<Dice5 className="h-20 w-20 animate-float" />}
               title="No games yet"
               description="Search BoardGameGeek to add games to your library."
               action={

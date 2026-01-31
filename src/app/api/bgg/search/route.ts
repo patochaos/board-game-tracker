@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { XMLParser } from 'fast-xml-parser';
+import { checkRateLimit, getClientIP, createRateLimitHeaders } from '@/lib/rate-limit';
 
 const BGG_API_BASE = 'https://boardgamegeek.com/xmlapi2';
+
+// Rate limit: 30 requests per minute for search
+const RATE_LIMIT_CONFIG = { limit: 30, windowMs: 60000 };
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -9,6 +13,20 @@ const parser = new XMLParser({
 });
 
 export async function GET(request: NextRequest) {
+  // Rate limiting
+  const clientIP = getClientIP(request);
+  const rateLimitResult = checkRateLimit(`bgg-search:${clientIP}`, RATE_LIMIT_CONFIG);
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      {
+        status: 429,
+        headers: createRateLimitHeaders(rateLimitResult),
+      }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('q');
 

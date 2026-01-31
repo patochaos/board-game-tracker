@@ -91,7 +91,7 @@ export default async function DashboardPage() {
           /* Empty State for new users */
           <Card variant="glass" className="py-16">
             <EmptyState
-              icon={<Dice5 className="h-20 w-20" />}
+              icon={<Dice5 className="h-20 w-20 animate-float" />}
               title="No sessions yet"
               description="Log your first board game session to start tracking stats and competing with friends!"
               action={

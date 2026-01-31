@@ -280,7 +280,7 @@ export default function SessionsPage() {
         ) : sessions.length === 0 ? (
           <Card variant="glass">
             <EmptyState
-              icon={<CalendarDays className="h-20 w-20" />}
+              icon={<CalendarDays className="h-20 w-20 animate-float" />}
               title={hasActiveFilters ? "No matching sessions" : "No sessions logged"}
               description={hasActiveFilters
                 ? "Try adjusting your filters to find sessions."
