@@ -352,10 +352,10 @@ export default function StatsPage() {
   };
 
   const getRankIcon = (position: number) => {
-    if (position === 0) return <Trophy className="h-5 w-5 text-yellow-400" />;
-    if (position === 1) return <Medal className="h-5 w-5 text-slate-300" />;
-    if (position === 2) return <Medal className="h-5 w-5 text-amber-600" />;
-    return <span className="w-5 text-center text-slate-500">{position + 1}</span>;
+    if (position === 0) return <Trophy className="h-5 w-5 text-wood-400" />;
+    if (position === 1) return <Medal className="h-5 w-5 text-ink-muted" />;
+    if (position === 2) return <Medal className="h-5 w-5 text-wood-600" />;
+    return <span className="w-5 text-center text-ink-faint">{position + 1}</span>;
   };
 
   const maxWeeklySessions = Math.max(...weeklyActivity.map(w => w.sessions), 1);
@@ -365,8 +365,8 @@ export default function StatsPage() {
       <AppLayout>
         <div className="space-y-8">
           <div>
-            <div className="h-9 w-48 bg-slate-800/60 rounded animate-pulse" />
-            <div className="h-5 w-64 bg-slate-800/60 rounded animate-pulse mt-2" />
+            <div className="h-9 w-48 bg-surface-elevated rounded animate-pulse" />
+            <div className="h-5 w-64 bg-surface-elevated rounded animate-pulse mt-2" />
           </div>
           <StatCardsSkeleton />
         </div>
@@ -380,14 +380,14 @@ export default function StatsPage() {
     <AppLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">Statistics</h1>
-          <p className="mt-1 text-slate-400">
+          <h1 className="text-3xl font-bold text-ink-rich">Statistics</h1>
+          <p className="mt-1 text-ink-muted">
             Your gaming performance at a glance
           </p>
         </div>
 
         {/* Overview Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             label="H-Index"
             value={hIndex}
@@ -417,25 +417,25 @@ export default function StatsPage() {
               label="Your Nemesis"
               value={nemesis.name}
               subValue={`Defeated you ${nemesis.winsAgainstUser} times`}
-              icon={<Swords className="h-8 w-8 text-red-500" />}
+              icon={<Swords className="h-8 w-8 text-meeple-red" />}
             />
           )}
         </div>
 
         {/* Head-to-Head Link */}
-        <Link href="/bg-tracker/stats/head-to-head">
-          <Card variant="glass" className="hover:border-red-500/50 transition-colors cursor-pointer">
+        <Link href="/bg-tracker/stats/head-to-head" className="block mt-2">
+          <Card variant="glass" className="hover:border-meeple-red/50 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-red-500/20">
-                  <Swords className="h-6 w-6 text-red-500" />
+                <div className="p-3 rounded-xl bg-meeple-red/20">
+                  <Swords className="h-6 w-6 text-meeple-red" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-100">Head-to-Head Comparison</h3>
-                  <p className="text-sm text-slate-400">Compare stats between any two players</p>
+                  <h3 className="font-semibold text-ink-rich">Head-to-Head Comparison</h3>
+                  <p className="text-sm text-ink-muted">Compare stats between any two players</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-slate-500" />
+              <ArrowRight className="h-5 w-5 text-ink-faint" />
             </div>
           </Card>
         </Link>
@@ -445,54 +445,56 @@ export default function StatsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Activity Chart */}
             <Card variant="glass">
-              <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-500" />
+              <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-meeple-blue" />
                 Weekly Activity
               </h2>
-              <div className="flex items-end justify-between gap-2 h-32">
-                {weeklyActivity.map((week, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full flex flex-col items-center justify-end h-24">
-                      <div
-                        className="w-full max-w-[40px] bg-emerald-500/80 rounded-t transition-all"
-                        style={{
-                          height: `${(week.sessions / maxWeeklySessions) * 100}%`,
-                          minHeight: week.sessions > 0 ? '8px' : '0',
-                        }}
-                      />
+              <div className="overflow-x-auto">
+                <div className="flex items-end justify-between gap-2 h-32 min-w-[280px]">
+                  {weeklyActivity.map((week, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                      <div className="w-full flex flex-col items-center justify-end h-24">
+                        <div
+                          className="w-full max-w-[40px] bg-felt-400 rounded-t transition-all"
+                          style={{
+                            height: `${(week.sessions / maxWeeklySessions) * 100}%`,
+                            minHeight: week.sessions > 0 ? '8px' : '0',
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-ink-faint truncate w-full text-center">
+                        {week.week}
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-500 truncate w-full text-center">
-                      {week.week}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-              <p className="text-center text-sm text-slate-500 mt-4">
+              <p className="text-center text-sm text-ink-faint mt-4">
                 {overview.totalSessions} sessions in the last 8 weeks
               </p>
             </Card>
 
             {/* Win Rate by Game */}
             <Card variant="glass">
-              <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+              <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-felt-400" />
                 Your Win Rate by Game
               </h2>
               {gameWinRates.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">Play some games to see your win rates</p>
+                <p className="text-ink-faint text-center py-8">Play some games to see your win rates</p>
               ) : (
                 <div className="space-y-3">
                   {gameWinRates.map((game) => (
                     <div key={game.gameId} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-300 truncate pr-2">{game.name}</span>
-                        <span className="text-slate-400 flex-shrink-0">
+                        <span className="text-ink-rich truncate pr-2">{game.name}</span>
+                        <span className="text-ink-muted flex-shrink-0">
                           {game.winRate}% ({game.wins}/{game.plays})
                         </span>
                       </div>
-                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${game.winRate >= 50 ? 'bg-emerald-500' : 'bg-amber-500'
+                          className={`h-full rounded-full transition-all ${game.winRate >= 50 ? 'bg-felt-400' : 'bg-wood-400'
                             }`}
                           style={{ width: `${game.winRate}%` }}
                         />
@@ -508,10 +510,10 @@ export default function StatsPage() {
         {/* Achievements */}
         {achievements.length > 0 && (
           <Card variant="glass">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-              <Award className="h-5 w-5 text-purple-500" />
+            <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+              <Award className="h-5 w-5 text-meeple-purple" />
               Achievements
-              <span className="text-sm font-normal text-slate-500">
+              <span className="text-sm font-normal text-ink-faint">
                 ({achievements.filter(a => a.unlocked).length}/{achievements.length})
               </span>
             </h2>
@@ -520,34 +522,34 @@ export default function StatsPage() {
                 <div
                   key={achievement.id}
                   className={`p-3 rounded-xl border transition-all ${achievement.unlocked
-                      ? 'bg-purple-500/10 border-purple-500/30'
-                      : 'bg-slate-800/30 border-slate-700/50 opacity-60'
+                      ? 'bg-meeple-purple/10 border-meeple-purple/30'
+                      : 'bg-surface-muted border-wood-900/30 opacity-60'
                     }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={achievement.unlocked ? 'text-purple-400' : 'text-slate-500'}>
+                    <div className={achievement.unlocked ? 'text-meeple-purple' : 'text-ink-faint'}>
                       {achievement.icon}
                     </div>
-                    <span className={`font-medium text-sm ${achievement.unlocked ? 'text-slate-200' : 'text-slate-400'}`}>
+                    <span className={`font-medium text-sm ${achievement.unlocked ? 'text-ink-rich' : 'text-ink-muted'}`}>
                       {achievement.name}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-2">{achievement.description}</p>
+                  <p className="text-xs text-ink-faint mb-2">{achievement.description}</p>
                   {!achievement.unlocked && achievement.progress && (
                     <div className="space-y-1">
-                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-purple-500/50 rounded-full transition-all"
+                          className="h-full bg-meeple-purple/50 rounded-full transition-all"
                           style={{ width: `${Math.min((achievement.progress.current / achievement.progress.target) * 100, 100)}%` }}
                         />
                       </div>
-                      <p className="text-xs text-slate-600">
+                      <p className="text-xs text-ink-faint">
                         {achievement.progress.current}/{achievement.progress.target}
                       </p>
                     </div>
                   )}
                   {achievement.unlocked && (
-                    <span className="text-xs text-purple-400 font-medium">Unlocked!</span>
+                    <span className="text-xs text-meeple-purple font-medium">Unlocked!</span>
                   )}
                 </div>
               ))}
@@ -558,8 +560,8 @@ export default function StatsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Leaderboard */}
           <Card variant="glass">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+            <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-wood-400" />
               Leaderboard
             </h2>
             {leaderboard.length === 0 ? (
@@ -574,24 +576,24 @@ export default function StatsPage() {
                   <div
                     key={player.user_id}
                     className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${index === 0
-                        ? 'bg-yellow-500/10 border border-yellow-500/30'
-                        : 'bg-slate-800/50 hover:bg-slate-800'
+                        ? 'bg-wood-500/10 border border-wood-500/30'
+                        : 'bg-surface-elevated hover:bg-surface-elevated/80'
                       }`}
                   >
                     <div className="flex items-center justify-center w-8">
                       {getRankIcon(index)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-200 truncate">
+                      <p className="font-medium text-ink-rich truncate">
                         {player.display_name || player.username}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-faint">
                         {player.total_plays} plays · {player.games_played} games
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-emerald-400">{player.total_wins} wins</p>
-                      <p className="text-xs text-slate-500">{player.win_rate || 0}% rate</p>
+                      <p className="font-bold text-felt-400">{player.total_wins} wins</p>
+                      <p className="text-xs text-ink-faint">{player.win_rate || 0}% rate</p>
                     </div>
                   </div>
                 ))}
@@ -601,8 +603,8 @@ export default function StatsPage() {
 
           {/* Most Played Games */}
           <Card variant="glass">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-              <Dice5 className="h-5 w-5 text-emerald-500" />
+            <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+              <Dice5 className="h-5 w-5 text-felt-400" />
               Most Played Games
             </h2>
             {gameStats.length === 0 ? (
@@ -616,13 +618,13 @@ export default function StatsPage() {
                 {gameStats.map((game, index) => (
                   <div
                     key={game.game_id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-surface-elevated hover:bg-surface-elevated/80 transition-colors"
                   >
-                    <div className="flex items-center justify-center w-6 text-slate-500 font-medium">
+                    <div className="flex items-center justify-center w-6 text-ink-faint font-medium">
                       {index + 1}
                     </div>
                     {game.thumbnail_url ? (
-                      <div className="relative w-10 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-surface-muted flex-shrink-0">
                         <Image
                           src={game.thumbnail_url}
                           alt={game.name}
@@ -631,13 +633,13 @@ export default function StatsPage() {
                         />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
-                        <Dice5 className="h-5 w-5 text-slate-500" />
+                      <div className="w-10 h-10 rounded bg-surface-muted flex items-center justify-center flex-shrink-0">
+                        <Dice5 className="h-5 w-5 text-ink-faint" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-200 truncate">{game.name}</p>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <p className="font-medium text-ink-rich truncate">{game.name}</p>
+                      <div className="flex items-center gap-2 text-xs text-ink-faint">
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           {game.total_players}
@@ -651,8 +653,8 @@ export default function StatsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-slate-200">{game.total_plays}</p>
-                      <p className="text-xs text-slate-500">plays</p>
+                      <p className="font-bold text-ink-rich">{game.total_plays}</p>
+                      <p className="text-xs text-ink-faint">plays</p>
                     </div>
                   </div>
                 ))}
@@ -664,14 +666,14 @@ export default function StatsPage() {
         {/* Game Stats Details */}
         {gameStats.length > 0 && (
           <Card variant="glass">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-semibold text-ink-rich mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-meeple-blue" />
               Game Details
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead>
-                  <tr className="text-left text-xs md:text-sm text-slate-400 border-b border-slate-700">
+                  <tr className="text-left text-xs md:text-sm text-ink-muted border-b border-wood-900/30">
                     <th className="pb-3 pr-2 font-medium">Game</th>
                     <th className="pb-3 px-2 font-medium text-center">Plays</th>
                     <th className="pb-3 px-2 font-medium text-center hidden sm:table-cell">Players</th>
@@ -682,19 +684,19 @@ export default function StatsPage() {
                 </thead>
                 <tbody className="text-sm">
                   {gameStats.map((game) => (
-                    <tr key={game.game_id} className="border-b border-slate-800 last:border-0">
+                    <tr key={game.game_id} className="border-b border-wood-900/20 last:border-0">
                       <td className="py-3 pr-2">
-                        <span className="text-slate-200 truncate block max-w-[120px] md:max-w-none">{game.name}</span>
+                        <span className="text-ink-rich truncate block max-w-[120px] md:max-w-none">{game.name}</span>
                       </td>
-                      <td className="py-3 px-2 text-center text-slate-300">{game.total_plays}</td>
-                      <td className="py-3 px-2 text-center text-slate-300 hidden sm:table-cell">{game.total_players}</td>
-                      <td className="py-3 px-2 text-center text-slate-300">
+                      <td className="py-3 px-2 text-center text-ink-muted">{game.total_plays}</td>
+                      <td className="py-3 px-2 text-center text-ink-muted hidden sm:table-cell">{game.total_players}</td>
+                      <td className="py-3 px-2 text-center text-ink-muted">
                         {game.avg_score ? Math.round(game.avg_score) : '-'}
                       </td>
-                      <td className="py-3 px-2 text-center text-emerald-400 font-medium">
+                      <td className="py-3 px-2 text-center text-felt-400 font-medium">
                         {game.high_score || '-'}
                       </td>
-                      <td className="py-3 pl-2 text-center text-slate-300">
+                      <td className="py-3 pl-2 text-center text-ink-muted">
                         {game.avg_duration ? `${Math.round(game.avg_duration)}m` : '-'}
                       </td>
                     </tr>

@@ -4,17 +4,22 @@ import { forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'gold' | 'green' | 'slate' | 'outline';
+  variant?: 'default' | 'winner' | 'success' | 'info' | 'muted' | 'new' | 'gold' | 'green' | 'outline';
 }
 
 const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
   ({ className, variant = 'default', ...props }, ref) => {
     const variants = {
-      default: 'badge bg-slate-700/50 text-slate-300',
-      gold: 'badge-gold',
-      green: 'badge-green',
-      slate: 'badge-slate',
-      outline: 'badge border border-slate-600 text-slate-400',
+      default: 'badge-muted',
+      winner: 'badge-winner',
+      success: 'badge-success',
+      info: 'badge-info',
+      muted: 'badge-muted',
+      new: 'badge-new',
+      // Legacy variants (map to new ones)
+      gold: 'badge-winner',
+      green: 'badge-success',
+      outline: 'badge border border-wood-300 text-ink-muted',
     };
 
     return (

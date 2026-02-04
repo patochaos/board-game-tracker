@@ -73,10 +73,10 @@ export default async function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-100">
+            <h1 className="text-3xl font-bold text-ink-rich">
               Welcome back!
             </h1>
-            <p className="mt-1 text-slate-400">
+            <p className="mt-1 text-ink-muted">
               Ready for another game night?
             </p>
           </div>
@@ -144,8 +144,8 @@ export default async function DashboardPage() {
               {/* Recent Sessions */}
               <Card variant="glass">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-slate-100">Recent Sessions</h2>
-                  <Link href="/bg-tracker/sessions" className="text-sm text-emerald-400 hover:text-emerald-300">
+                  <h2 className="text-lg font-semibold text-ink-rich">Recent Sessions</h2>
+                  <Link href="/bg-tracker/sessions" className="text-sm text-wood-400 hover:text-wood-300">
                     View all
                   </Link>
                 </div>
@@ -157,16 +157,16 @@ export default async function DashboardPage() {
                     return (
                       <div
                         key={session.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50"
+                        className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated"
                       >
                         <div>
-                          <p className="font-medium text-slate-200">
+                          <p className="font-medium text-ink-rich">
                             {(session.game as unknown as { name: string })?.name || 'Unknown Game'}
                           </p>
-                          <p className="text-sm text-slate-500">{session.played_at}</p>
+                          <p className="text-sm text-ink-faint">{session.played_at}</p>
                         </div>
                         {userWon && (
-                          <Trophy className="h-5 w-5 text-yellow-400" />
+                          <Trophy className="h-5 w-5 text-wood-400" />
                         )}
                       </div>
                     );
@@ -177,8 +177,8 @@ export default async function DashboardPage() {
               {/* Top Games */}
               <Card variant="glass">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-slate-100">Most Played Games</h2>
-                  <Link href="/bg-tracker/games" className="text-sm text-emerald-400 hover:text-emerald-300">
+                  <h2 className="text-lg font-semibold text-ink-rich">Most Played Games</h2>
+                  <Link href="/bg-tracker/games" className="text-sm text-wood-400 hover:text-wood-300">
                     View all
                   </Link>
                 </div>
@@ -187,13 +187,13 @@ export default async function DashboardPage() {
                     {gameStats.map((game, index) => (
                       <div
                         key={game.game_id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50"
+                        className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-slate-500 font-medium">{index + 1}</span>
-                          <span className="font-medium text-slate-200">{game.name}</span>
+                          <span className="text-ink-faint font-medium">{index + 1}</span>
+                          <span className="font-medium text-ink-rich">{game.name}</span>
                         </div>
-                        <span className="text-sm text-slate-400">{game.total_plays} plays</span>
+                        <span className="text-sm text-ink-muted">{game.total_plays} plays</span>
                       </div>
                     ))}
                   </div>
@@ -210,8 +210,8 @@ export default async function DashboardPage() {
 
         {/* Quick Start Guide for new users */}
         {!hasData && (
-          <Card variant="glass" className="bg-gradient-to-br from-emerald-500/5 to-transparent">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">Quick Start</h2>
+          <Card variant="glass" className="bg-gradient-to-br from-felt-400/5 to-transparent">
+            <h2 className="text-lg font-semibold text-ink-rich mb-4">Quick Start</h2>
             <div className="grid sm:grid-cols-3 gap-4">
               {[
                 {
@@ -234,12 +234,12 @@ export default async function DashboardPage() {
                 },
               ].map((item) => (
                 <Link key={item.step} href={item.href}>
-                  <div className="p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors group cursor-pointer">
+                  <div className="p-4 rounded-xl bg-surface-elevated hover:bg-surface-elevated/80 transition-colors group cursor-pointer">
                     <Badge variant="green" className="mb-3">Step {item.step}</Badge>
-                    <h3 className="font-medium text-slate-100 group-hover:text-emerald-400 transition-colors">
+                    <h3 className="font-medium text-ink-rich group-hover:text-wood-400 transition-colors">
                       {item.title}
                     </h3>
-                    <p className="mt-1 text-sm text-slate-400">{item.description}</p>
+                    <p className="mt-1 text-sm text-ink-muted">{item.description}</p>
                   </div>
                 </Link>
               ))}

@@ -23,7 +23,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">
               {leftIcon}
             </div>
           )}
@@ -34,19 +34,19 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               'input',
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
-              error && 'border-red-500 focus:ring-red-500/50 focus:border-red-500',
+              error && 'border-red-400 focus:ring-red-400/50 focus:border-red-400',
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint">
               {rightIcon}
             </div>
           )}
         </div>
         {error && (
-          <p className="mt-1.5 text-sm text-red-400">{error}</p>
+          <p className="mt-1.5 text-sm text-red-500">{error}</p>
         )}
       </div>
     );

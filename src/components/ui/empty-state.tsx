@@ -22,12 +22,12 @@ const EmptyState = forwardRef<HTMLDivElement, EmptyStateProps>(
         )}
         {...props}
       >
-        <div className="mb-4 text-slate-600">
+        <div className="mb-4 text-wood-300">
           {icon || <Dice5 className="h-16 w-16" />}
         </div>
-        <h3 className="text-lg font-semibold text-slate-300">{title}</h3>
+        <h3 className="text-lg font-semibold text-ink-rich">{title}</h3>
         {description && (
-          <p className="mt-2 text-sm text-slate-500 max-w-sm">{description}</p>
+          <p className="mt-2 text-sm text-ink-muted max-w-sm">{description}</p>
         )}
         {action && <div className="mt-6">{action}</div>}
       </div>

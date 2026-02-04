@@ -9,19 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Board Game Night palette
+        // Warm Table palette - like sitting at a game night
         wood: {
-          50: '#fdf8f3',
-          100: '#f9edd8',
-          200: '#f3d9af',
-          300: '#ebc07d',
-          400: '#e2a249',
-          500: '#d98b2b',
-          600: '#c67020',
-          700: '#a4551d',
-          800: '#85451f',
-          900: '#6d3a1c',
-          950: '#3b1c0c',
+          50: '#fdf8f3',   // Cream canvas
+          100: '#f9edd8',  // Parchment
+          200: '#f3d9af',  // Light wood
+          300: '#ebc07d',  // Honey
+          400: '#e2a249',  // Amber
+          500: '#d98b2b',  // Gold
+          600: '#c67020',  // Deep amber
+          700: '#a4551d',  // Warm brown
+          800: '#85451f',  // Dark wood
+          900: '#6d3a1c',  // Deep brown
+          950: '#3b1c0c',  // Espresso
         },
         felt: {
           50: '#f0fdf1',
@@ -30,11 +30,31 @@ const config: Config = {
           300: '#86ef96',
           400: '#4ade61',
           500: '#22c53d',
-          600: '#16a32d',
+          600: '#16a32d',  // Classic green meeple
           700: '#158027',
           800: '#166524',
           900: '#14532d',
           950: '#052e14',
+        },
+        // Meeple accent colors
+        meeple: {
+          red: '#ef4444',     // Winner red (brighter for dark)
+          blue: '#60a5fa',    // Player blue
+          yellow: '#fbbf24',  // Highlight yellow
+          purple: '#a78bfa',  // Achievement purple
+        },
+        // Warm dark surface colors
+        surface: {
+          canvas: '#1a1412',     // Warm black (dark espresso)
+          card: '#251e1a',       // Card backgrounds (dark walnut)
+          elevated: '#302723',   // Elevated elements (lighter walnut)
+          muted: '#1f1916',      // Muted sections
+        },
+        // Light text for dark backgrounds
+        ink: {
+          rich: '#faf5f0',       // Primary text (warm white)
+          muted: '#c4b5a8',      // Secondary text (warm gray)
+          faint: '#8c7b6d',      // Tertiary text (muted brown)
         },
         slate: {
           850: '#172033',
@@ -103,10 +123,16 @@ const config: Config = {
         },
       },
       boxShadow: {
-        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2)',
-        'card-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+        // Dark mode shadows (deeper blacks)
+        'card': '0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2)',
+        'card-hover': '0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3)',
+        'card-active': '0 1px 2px rgba(0, 0, 0, 0.3)',
+        // Elevated elements (modals, dropdowns)
+        'elevated': '0 12px 40px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)',
+        // Winner glow (warm gold - more vibrant on dark)
         'glow': '0 0 20px rgba(217, 139, 43, 0.4)',
-        'glow-lg': '0 0 40px rgba(217, 139, 43, 0.6)',
+        'glow-lg': '0 0 40px rgba(217, 139, 43, 0.5)',
+        'winner': '0 0 0 3px rgba(217, 139, 43, 0.3), 0 4px 16px rgba(217, 139, 43, 0.2)',
       },
     },
   },

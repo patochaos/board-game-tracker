@@ -18,6 +18,7 @@ interface Game {
   thumbnail_url: string | null;
   min_players: number | null;
   max_players: number | null;
+  playing_time: number | null;
 }
 
 interface PlayerEntry {
@@ -110,10 +111,10 @@ function NewSessionContent() {
         userId: user.id,
       }]);
 
-      // Fetch games
+      // Fetch games (including playing_time for auto-fill)
       const { data: gamesData } = await supabase
         .from('games')
-        .select('id, name, thumbnail_url, min_players, max_players')
+        .select('id, name, thumbnail_url, min_players, max_players, playing_time')
         .neq('type', 'expansion')
         .order('name');
 
@@ -201,6 +202,11 @@ function NewSessionContent() {
       const selectedGame = games.find(g => g.id === selectedGameId);
       if (!selectedGame) return;
 
+      // Auto-fill duration from BGG playing_time (only if empty)
+      if (!durationMinutes && selectedGame.playing_time) {
+        setDurationMinutes(selectedGame.playing_time.toString());
+      }
+
       // 1. Find expansions by base_game_id first (more accurate)
       let { data: expansions } = await supabase
         .from('games')
@@ -263,6 +269,19 @@ function NewSessionContent() {
     );
   };
 
+  // Select a game and auto-fill duration from BGG playing_time
+  const selectGame = (gameId: string) => {
+    setSelectedGameId(gameId);
+
+    // Auto-fill duration if not already set
+    if (!durationMinutes) {
+      const game = games.find(g => g.id === gameId);
+      if (game?.playing_time) {
+        setDurationMinutes(game.playing_time.toString());
+      }
+    }
+  };
+
   const addPlayer = () => {
     setPlayers([...players, {
       id: crypto.randomUUID(),
@@ -278,20 +297,47 @@ function NewSessionContent() {
     setPlayers(players.filter(p => p.id !== id));
   };
 
+  // Auto-select winner(s) based on highest score
+  const updateWinnersFromScores = (updatedPlayers: PlayerEntry[]) => {
+    const playersWithScores = updatedPlayers.filter(p => p.score && p.score.trim() !== '');
+
+    if (playersWithScores.length === 0) {
+      // No scores entered, don't auto-select winner
+      return updatedPlayers;
+    }
+
+    // Find the highest score
+    const highestScore = Math.max(...playersWithScores.map(p => parseFloat(p.score) || 0));
+
+    // Mark player(s) with highest score as winner(s)
+    return updatedPlayers.map(p => {
+      const playerScore = parseFloat(p.score) || 0;
+      const hasScore = Boolean(p.score && p.score.trim() !== '');
+      return {
+        ...p,
+        isWinner: hasScore && playerScore === highestScore
+      };
+    });
+  };
+
   const updatePlayer = (id: string, field: keyof PlayerEntry, value: string | boolean) => {
-    setPlayers(players.map(p => {
+    let updatedPlayers: PlayerEntry[] = players.map(p => {
       if (p.id === id) {
-        return { ...p, [field]: value };
-      }
-      // If setting a winner, unset others (single winner mode)
-      if (field === 'isWinner' && value === true) {
-        return { ...p, isWinner: p.id === id };
+        return { ...p, [field]: value } as PlayerEntry;
       }
       return p;
-    }));
+    });
+
+    // Auto-update winners when score changes
+    if (field === 'score') {
+      updatedPlayers = updateWinnersFromScores(updatedPlayers);
+    }
+
+    setPlayers(updatedPlayers);
   };
 
   const toggleWinner = (id: string) => {
+    // Manual toggle overrides auto-selection
     setPlayers(players.map(p => ({
       ...p,
       isWinner: p.id === id ? !p.isWinner : p.isWinner
@@ -539,7 +585,7 @@ function NewSessionContent() {
                         <button
                           key={game.id}
                           type="button"
-                          onClick={() => setSelectedGameId(game.id)}
+                          onClick={() => selectGame(game.id)}
                           className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${selectedGameId === game.id
                             ? 'border-emerald-500 bg-emerald-500/10'
                             : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
@@ -590,7 +636,7 @@ function NewSessionContent() {
                         key={game.id}
                         type="button"
                         onClick={() => {
-                          setSelectedGameId(game.id);
+                          selectGame(game.id);
                           setGameSearch('');
                         }}
                         className={`w-full p-3 rounded-xl border transition-all text-left flex items-center gap-3 ${selectedGameId === game.id

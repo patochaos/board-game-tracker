@@ -45,17 +45,6 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const theme = {
-    iconBg: 'bg-gradient-to-br from-wood-500 to-wood-600',
-    iconColor: 'text-white',
-    activeBg: 'bg-wood-500/20',
-    activeText: 'text-wood-400',
-    activeShadow: 'shadow-wood-500/10',
-    hoverBg: 'hover:bg-slate-800/50',
-    hoverText: 'hover:text-slate-100',
-    appName: 'Game Night'
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/bg-tracker/login');
@@ -72,12 +61,12 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200',
           isActive
-            ? cn(theme.activeBg, theme.activeText, 'shadow-lg', theme.activeShadow)
-            : cn('text-slate-400', theme.hoverText, theme.hoverBg),
+            ? 'bg-gradient-to-r from-wood-500 to-wood-600 text-white shadow-glow'
+            : 'text-ink-muted hover:text-ink-rich hover:bg-surface-elevated',
           isCollapsed && !mobile && 'justify-center px-2'
         )}
       >
-        <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && theme.activeText)} />
+        <Icon className="h-5 w-5 flex-shrink-0" />
         {(!isCollapsed || mobile) && <span>{item.label}</span>}
       </Link>
     );
@@ -88,9 +77,9 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-900 border border-slate-800 lg:hidden"
+        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-surface-card border border-wood-900/30 shadow-card lg:hidden"
       >
-        <Menu className="h-5 w-5 text-slate-300" />
+        <Menu className="h-5 w-5 text-ink-muted" />
       </button>
 
       {/* Mobile Overlay */}
@@ -104,20 +93,20 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       {/* Mobile Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-72 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 transform transition-transform duration-300 lg:hidden',
+          'fixed inset-y-0 left-0 z-50 w-72 bg-surface-card border-r border-wood-900/30 shadow-elevated transform transition-transform duration-300 lg:hidden',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center justify-between mb-8">
             <Link href="/bg-tracker/dashboard" className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
-                <Dice5 className={cn("h-6 w-6", theme.iconColor)} />
+              <div className="p-2 rounded-xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow">
+                <Dice5 className="h-6 w-6 text-white" />
               </div>
-              <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
+              <span className="text-lg font-bold text-ink-rich">Salty Meeples</span>
             </Link>
-            <button onClick={() => setIsMobileOpen(false)}>
-              <X className="h-5 w-5 text-slate-400" />
+            <button onClick={() => setIsMobileOpen(false)} className="p-2 rounded-lg hover:bg-surface-elevated">
+              <X className="h-5 w-5 text-ink-muted" />
             </button>
           </div>
 
@@ -127,13 +116,13 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
             ))}
           </nav>
 
-          <div className="pt-4 border-t border-slate-800 space-y-1">
+          <div className="pt-4 border-t border-wood-900/30 space-y-1">
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} mobile />
             ))}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 w-full transition-all duration-200"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-ink-muted hover:text-red-400 hover:bg-red-500/10 w-full transition-all duration-200"
             >
               <LogOut className="h-5 w-5" />
               <span>Logout</span>
@@ -145,7 +134,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex fixed inset-y-0 left-0 z-30 flex-col bg-slate-900/80 backdrop-blur-xl border-r border-slate-800 transition-all duration-300',
+          'hidden lg:flex fixed inset-y-0 left-0 z-30 flex-col bg-surface-card border-r border-wood-900/30 shadow-card transition-all duration-300',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
@@ -156,11 +145,11 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
             isCollapsed ? 'justify-center' : 'gap-3'
           )}>
             <Link href="/bg-tracker/dashboard" className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-xl shadow-glow", theme.iconBg)}>
-                <Dice5 className={cn("h-6 w-6", theme.iconColor)} />
+              <div className="p-2 rounded-xl bg-gradient-to-br from-wood-500 to-wood-600 shadow-glow">
+                <Dice5 className="h-6 w-6 text-white" />
               </div>
               {!isCollapsed && (
-                <span className="text-lg font-bold text-slate-100">{theme.appName}</span>
+                <span className="text-lg font-bold text-ink-rich">Salty Meeples</span>
               )}
             </Link>
           </div>
@@ -173,14 +162,14 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
           </nav>
 
           {/* Bottom Nav */}
-          <div className="pt-4 border-t border-slate-800 space-y-1">
+          <div className="pt-4 border-t border-wood-900/30 space-y-1">
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
             <button
               onClick={handleLogout}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 w-full transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-ink-muted hover:text-red-400 hover:bg-red-500/10 w-full transition-all duration-200',
                 isCollapsed && 'justify-center px-2'
               )}
             >
@@ -192,7 +181,7 @@ export function Sidebar({ userName = 'Player', userAvatar }: SidebarProps) {
           {/* Collapse Button */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="mt-4 p-2 rounded-xl text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-all duration-200 self-end"
+            className="mt-4 p-2 rounded-xl text-ink-faint hover:text-ink-muted hover:bg-surface-elevated transition-all duration-200 self-end"
           >
             <ChevronLeft className={cn(
               'h-5 w-5 transition-transform duration-300',
